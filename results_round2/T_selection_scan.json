@@ -1,0 +1,126 @@
+{
+ "horizon": 160,
+ "rows": [
+  {
+   "seed": 42,
+   "focal_died": null,
+   "first_known_death": 82,
+   "first_any_death": 81,
+   "first_near_death": 82,
+   "n_known": 65
+  },
+  {
+   "seed": 101,
+   "focal_died": null,
+   "first_known_death": 82,
+   "first_any_death": 82,
+   "first_near_death": 82,
+   "n_known": 73
+  },
+  {
+   "seed": 202,
+   "focal_died": null,
+   "first_known_death": 81,
+   "first_any_death": 81,
+   "first_near_death": 83,
+   "n_known": 93
+  },
+  {
+   "seed": 303,
+   "focal_died": null,
+   "first_known_death": 92,
+   "first_any_death": 81,
+   "first_near_death": 92,
+   "n_known": 6
+  },
+  {
+   "seed": 404,
+   "focal_died": null,
+   "first_known_death": 84,
+   "first_any_death": 81,
+   "first_near_death": 89,
+   "n_known": 13
+  },
+  {
+   "seed": 1010,
+   "focal_died": null,
+   "first_known_death": 83,
+   "first_any_death": 81,
+   "first_near_death": 84,
+   "n_known": 85
+  },
+  {
+   "seed": 606,
+   "focal_died": null,
+   "first_known_death": 81,
+   "first_any_death": 81,
+   "first_near_death": 82,
+   "n_known": 24
+  },
+  {
+   "seed": 707,
+   "focal_died": null,
+   "first_known_death": 81,
+   "first_any_death": 81,
+   "first_near_death": 81,
+   "n_known": 76
+  },
+  {
+   "seed": 808,
+   "focal_died": null,
+   "first_known_death": 82,
+   "first_any_death": 81,
+   "first_near_death": 82,
+   "n_known": 76
+  },
+  {
+   "seed": 909,
+   "focal_died": null,
+   "first_known_death": 81,
+   "first_any_death": 81,
+   "first_near_death": 81,
+   "n_known": 85
+  },
+  {
+   "seed": 1111,
+   "focal_died": null,
+   "first_known_death": 81,
+   "first_any_death": 81,
+   "first_near_death": 87,
+   "n_known": 99
+  },
+  {
+   "seed": 1212,
+   "focal_died": null,
+   "first_known_death": 81,
+   "first_any_death": 81,
+   "first_near_death": 82,
+   "n_known": 16
+  },
+  {
+   "seed": 1313,
+   "focal_died": null,
+   "first_known_death": 82,
+   "first_any_death": 81,
+   "first_near_death": 84,
+   "n_known": 91
+  },
+  {
+   "seed": 1414,
+   "focal_died": null,
+   "first_known_death": 96,
+   "first_any_death": 81,
+   "first_near_death": 100,
+   "n_known": 18
+  },
+  {
+   "seed": 1515,
+   "focal_died": null,
+   "first_known_death": 82,
+   "first_any_death": 81,
+   "first_near_death": 82,
+   "n_known": 33
+  }
+ ],
+ "seconds": 47.4
+}
