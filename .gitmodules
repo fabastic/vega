@@ -1,0 +1,3 @@
+[submodule "civsys"]
+	path = civsys
+	url = https://github.com/ashvyagni/CivSYS.git
