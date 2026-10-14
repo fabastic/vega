@@ -1,0 +1,279 @@
+{
+ "affect": {
+  "gain": {
+   "anger": [
+    "disagreeableness",
+    0.4
+   ],
+   "boredom": [
+    "openness",
+    0.5
+   ],
+   "curiosity": [
+    "openness",
+    0.5
+   ],
+   "fear": [
+    "neuroticism",
+    0.5
+   ],
+   "loneliness": [
+    "extraversion",
+    0.5
+   ],
+   "pride": [
+    "conscientiousness",
+    0.3
+   ],
+   "shame": [
+    "neuroticism",
+    0.3
+   ]
+  },
+  "half_life": {
+   "anger": 8,
+   "anticipation": 6,
+   "attachment": 500,
+   "awe": 3,
+   "boredom": 12,
+   "curiosity": 6,
+   "disgust": 4,
+   "fear": 6,
+   "grief": 240,
+   "joy": 3,
+   "loneliness": 48,
+   "pride": 12,
+   "sadness": 24,
+   "shame": 24,
+   "surprise": 1,
+   "trust": 200
+  },
+  "mood_tau_days": 2.0
+ },
+ "battery": {
+  "checkpoints": "tau = 0, K/4, K/2, 3K/4, K",
+  "heldout": "focal life ticks 600-647 + heldout_agent_0001..0003",
+  "synthetic_digest": "44ed9cdb2608e5f48ab996a347a8e8b4535667acbcec3c6ec83c57ee1df85047",
+  "weights": {
+   "F1": 0.25,
+   "F2": 0.2,
+   "F3": 0.2,
+   "F4": 0.2,
+   "F5": 0.15
+  }
+ },
+ "growth": {
+  "backlog_abandoned": 3,
+  "backlog_run": 24,
+  "cooldown_global": 24,
+  "cooldown_kind": 48,
+  "flop_multiple_cap": 4.5,
+  "global_cap": 12,
+  "param_cap": 1500000,
+  "preservation_tolerance": {
+   "exact": 1e-06,
+   "with_noise": 0.001
+  },
+  "symmetry_noise": 0.0001,
+  "triggers": {
+   "boredom": 0.5,
+   "novelty": 0.2,
+   "v1_pe": 0.4,
+   "v2_nll_ratio": 1.25
+  },
+  "v1_rules": {
+   "expectation_dims": {
+    "cap": 9,
+    "families": [
+     "PREDICTION_ERROR"
+    ],
+    "max_grants": 4,
+    "step": 1
+   },
+   "memory_slots": {
+    "cap": 687,
+    "families": [
+     "PREDICTION_ERROR"
+    ],
+    "max_grants": 4,
+    "step": 64
+   },
+   "reflection_working_set": {
+    "cap": 6,
+    "families": [
+     "REFLECTIVE_BACKLOG"
+    ],
+    "max_grants": 4,
+    "step": 1
+   },
+   "self_model_nodes": {
+    "cap": 24,
+    "families": [
+     "BOREDOM",
+     "REFLECTIVE_BACKLOG"
+    ],
+    "max_grants": 4,
+    "step": 4
+   }
+  },
+  "v2_rules": {
+   "add_expert": {
+    "cap": 6,
+    "families": [
+     "BOREDOM"
+    ],
+    "max_grants": 4,
+    "step": 1
+   },
+   "deepen": {
+    "cap": 4,
+    "families": [
+     "BOREDOM"
+    ],
+    "max_grants": 2,
+    "step": 1
+   },
+   "enlarge_latent": {
+    "cap": 48,
+    "families": [
+     "PREDICTION_ERROR"
+    ],
+    "max_grants": 4,
+    "step": 8
+   },
+   "reflection_working_set": {
+    "cap": 6,
+    "families": [
+     "REFLECTIVE_BACKLOG"
+    ],
+    "max_grants": 4,
+    "step": 1
+   },
+   "widen_hidden": {
+    "cap": 256,
+    "families": [
+     "PREDICTION_ERROR"
+    ],
+    "max_grants": 4,
+    "step": 32
+   }
+  },
+  "window": 24
+ },
+ "life": {
+  "T": 720,
+  "focal_policy": "mind(v1)",
+  "population": 150,
+  "world": 128
+ },
+ "primary_contrasts": [
+  "each deprivation arm vs furnished_room at fixed mind/growth/reflection/learning",
+  "growth on vs off within full_deprivation"
+ ],
+ "primary_outcomes": [
+  "phantom_percept_rate",
+  "abs_time_error",
+  "capability_score change T->end",
+  "self_discovery_composite change T->end"
+ ],
+ "reflection": {
+  "efference_tests": 5,
+  "epistemic_phantoms": 3,
+  "existential_ratio": 0.2,
+  "existential_run": 12,
+  "meaning_boredom": 0.5,
+  "recur_refractory_S": 24.0,
+  "self_mismatch": 0.5,
+  "temporal_discrepancy": 0.25,
+  "temporal_uninformative_run": 24,
+  "utility": {
+   "epistemic": {
+    "move": 0.4,
+    "ruminate": 0.2
+   },
+   "existential": {
+    "explore": 0.4
+   },
+   "meaning": {
+    "explore": 0.2,
+    "ruminate": 0.4
+   },
+   "self_identity": {
+    "move": 0.3,
+    "turn": 0.3
+   },
+   "temporal": {
+    "rest": 0.2,
+    "ruminate": 0.3
+   }
+  }
+ },
+ "room": {
+  "fade_ticks": 72,
+  "floor": 0.6,
+  "metabolic_support": "floor",
+  "size": 12,
+  "vision": "8 rays / 360 deg"
+ },
+ "room_length_rule": "see DECISIONS_OVERNIGHT.md (pilot rule fixed before the pilot)",
+ "seeds": [
+  42,
+  101,
+  202,
+  303,
+  404,
+  1010,
+  606,
+  707,
+  808,
+  909
+ ],
+ "spec": "SPEC.md v3 (b35ebc75), approved; overnight defaults in DECISIONS_OVERNIGHT.md",
+ "v1": {
+  "expectation_alpha": 0.2,
+  "memory_slots_base": 431,
+  "softmax_T": 0.5
+ },
+ "v2": {
+  "ACT": 12,
+  "AC_UPDATES_PER_TICK": 1,
+  "BASE_DEC_DEPTH": 2,
+  "BASE_E": 2,
+  "BASE_H": 128,
+  "BASE_Z": 16,
+  "BATCH": 16,
+  "BETAS": [
+   0.9,
+   0.999
+  ],
+  "BUFFER_CAPACITY": 1440,
+  "EMB": 128,
+  "ENTROPY": 0.001,
+  "EPS": 1e-08,
+  "FEAT": 58,
+  "FREE_NATS": 1.0,
+  "GAMMA": 0.97,
+  "GRAD_CLIP": 100.0,
+  "HELDOUT_LIFE_TICKS": [
+   600,
+   647
+  ],
+  "IMAG_HORIZON": 15,
+  "KL_WEIGHT": 1.0,
+  "LAMBDA": 0.95,
+  "LP_WEIGHT": 0.1,
+  "LR_AC": 0.0001,
+  "LR_WM": 0.0003,
+  "MIN_STD": 0.1,
+  "MLPH": 128,
+  "NLL_BASELINE_TICKS": 48,
+  "POLICY_TEMPERATURE": 1.0,
+  "PRETRAIN_BC": 1000,
+  "PRETRAIN_WM": 3000,
+  "REFL": 10,
+  "REFLECTION_LOGIT_BETA": 1.0,
+  "SELF_WEIGHT": 0.5,
+  "SEQ": 32,
+  "WM_UPDATES_PER_TICK": 4
+ }
+}

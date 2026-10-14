@@ -1,0 +1,134 @@
+{
+ "K": 168,
+ "T": 80,
+ "T_evidence": "results_round2/T_selection_scan.json (first death of any agent at tick 81-82 in 15 seeds)",
+ "civ_control_rule": "stop at the last tick before any agent the focal agent ever perceived dies",
+ "death_isolation": true,
+ "everything_else": "as prereg/params_v3.json",
+ "growth": {
+  "round1_values": {
+   "v1": {
+    "boredom": 0.5,
+    "novelty": 0.2,
+    "pe": 0.4
+   },
+   "v2": {
+    "baseline": "in-sample last 48 life ticks",
+    "pe": 1.25
+   }
+  },
+  "v1_calibration": {
+   "data": "furnished_room, v1, growth off, reflection on/off, 10 seeds",
+   "furnished_mean_grants": 1.05,
+   "q": 0.97,
+   "target": 1.0
+  },
+  "v1_thresholds": {
+   "boredom": 0.1835458529293611,
+   "novelty": 0.00021358378204376928,
+   "pe": 0.2357622054484
+  },
+  "v2_nll_baseline_by_seed": {
+   "101": 0.11787045051061051,
+   "1010": 0.08104693681132569,
+   "202": 0.09685222026356594,
+   "303": 0.08147124137356337,
+   "404": 0.13153347259368708,
+   "42": 0.05126636987088473,
+   "606": 0.07300752957203623,
+   "707": 0.12049319643867366,
+   "808": 0.08243071327839054,
+   "909": 0.00997923221813666
+  },
+  "v2_pe_heldout_95th": 2.8721130942892796,
+  "v2_pe_rule": "95th percentile of 24-tick windowed held-out NLL ratio (pooled over seeds)",
+  "v2_thresholds": {
+   "boredom": 0.5,
+   "novelty": 0.2,
+   "pe": 2.8721130942892796
+  }
+ },
+ "round": 2,
+ "seeds": [
+  42,
+  101,
+  202,
+  303,
+  404,
+  1010,
+  606,
+  707,
+  808,
+  909
+ ],
+ "supersedes": "prereg/params_v3.json for round 2 only (round 1 unchanged, tag round1-final)",
+ "v1": {
+  "memory_slots_base": 62
+ },
+ "v2": {
+  "gate": {
+   "101": {
+    "beats_persistence": true,
+    "model_mse": 0.11787045051061051,
+    "persistence_mse": 0.12394114583730698,
+    "ratio_model_to_persistence": 0.9510195320070283
+   },
+   "1010": {
+    "beats_persistence": true,
+    "model_mse": 0.08104693681132569,
+    "persistence_mse": 0.09422715753316879,
+    "ratio_model_to_persistence": 0.8601229086507937
+   },
+   "202": {
+    "beats_persistence": true,
+    "model_mse": 0.09685222026356594,
+    "persistence_mse": 0.09736129641532898,
+    "ratio_model_to_persistence": 0.9947712677367051
+   },
+   "303": {
+    "beats_persistence": true,
+    "model_mse": 0.08147124137356337,
+    "persistence_mse": 0.08242723345756531,
+    "ratio_model_to_persistence": 0.9884019874997492
+   },
+   "404": {
+    "beats_persistence": true,
+    "model_mse": 0.13153347259368708,
+    "persistence_mse": 0.143171027302742,
+    "ratio_model_to_persistence": 0.9187157141476204
+   },
+   "42": {
+    "beats_persistence": true,
+    "model_mse": 0.05126636987088473,
+    "persistence_mse": 0.05289258062839508,
+    "ratio_model_to_persistence": 0.9692544637037935
+   },
+   "606": {
+    "beats_persistence": true,
+    "model_mse": 0.07300752957203623,
+    "persistence_mse": 0.0797528475522995,
+    "ratio_model_to_persistence": 0.9154222302114053
+   },
+   "707": {
+    "beats_persistence": true,
+    "model_mse": 0.12049319643867366,
+    "persistence_mse": 0.13121743500232697,
+    "ratio_model_to_persistence": 0.9182712376334508
+   },
+   "808": {
+    "beats_persistence": true,
+    "model_mse": 0.08243071327839054,
+    "persistence_mse": 0.09479881823062897,
+    "ratio_model_to_persistence": 0.8695331314980215
+   },
+   "909": {
+    "beats_persistence": true,
+    "model_mse": 0.00997923221813666,
+    "persistence_mse": 0.01101481169462204,
+    "ratio_model_to_persistence": 0.9059830067734159
+   }
+  },
+  "gate_rule": "held-out one-step MSE < persistence MSE in >= 8 of 10 seeds (battery-F1 procedure)",
+  "pretrain_attempt": 3
+ }
+}
