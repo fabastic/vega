@@ -1,0 +1,16 @@
+NOTICE
+
+vega uses CivSYS (https://github.com/ashvyagni/CivSYS), a project by its owner
+ashvyagni, as a dependency. CivSYS is included only as a git submodule
+(civsys/) that points at upstream commit
+70420010a01407b7f7bf400cc426f0597f6ad291
+("Add complete project files and assets"). No CivSYS source is copied
+into this repository, and CivSYS is not modified. vega's author is a
+contributor to CivSYS.
+
+The CivSYS repository has no LICENSE file, so default copyright applies to
+CivSYS code. Cloning the submodule fetches it from the upstream repository.
+
+Everything outside civsys/ is vega's own code: civsys_focal/, mind/, growth/,
+battery/, whiteroom/, experiments/, scripts/, prereg/, tests/, and the
+documents and results. It is experimental research code.
