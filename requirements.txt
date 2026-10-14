@@ -1,0 +1,9 @@
+# CivSYS's own requirements (from the civsys/ submodule)
+-r civsys/backend/requirements.txt
+
+# vega additions
+httpx2          # Starlette TestClient for CivSYS's upstream API test
+matplotlib      # figures in results/
+safetensors     # learned-mind snapshots (no pickle on any mind load path)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch           # learned mind v2 (CPU)

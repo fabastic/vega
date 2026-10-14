@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.venv-exp/
+venv/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Experiment outputs (large, regenerable; summaries are committed in results/ and results_round2/)
+runs/
+runs_round2/
+*.log
+
+# sqlite fallback created when importing CivSYS's app.main
+civsys.db
