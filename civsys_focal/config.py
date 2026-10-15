@@ -2,6 +2,8 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from civsys_focal.viability import ViabilityConfig
+
 
 class FocalConfig(BaseModel):
     enabled: bool = False
@@ -16,3 +18,5 @@ class FocalConfig(BaseModel):
     # round 2 (both default off, so round-1 behaviour is unchanged)
     death_isolation: bool = False      # the focal mind can never learn that other agents died
     export_all_agents: bool = False    # export every non-held-out agent's egocentric stream (v2 training data)
+    # round 3 (default off)
+    viability: ViabilityConfig = Field(default_factory=ViabilityConfig)   # population survives a long life phase
