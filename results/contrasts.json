@@ -7811,132 +7811,132 @@
   "nan_runs": [],
   "deaths": [],
   "missing_battery": [
-   "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_606\\civ_control__v2__g-random_growth__r-0__replay_only",
-   "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_606\\civ_control__v2__g-random_growth__r-0__replay_plus_imagination",
-   "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_606\\civ_control__v2__g-random_growth__r-1__replay_only",
-   "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_606\\civ_control__v2__g-random_growth__r-1__replay_plus_imagination",
-   "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_606\\civ_control__v2__g-schedule_matched__r-0__replay_only",
-   "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_606\\civ_control__v2__g-schedule_matched__r-0__replay_plus_imagination",
-   "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_606\\furnished_room__v2__g-random_growth__r-1__replay_only",
-   "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_606\\furnished_room__v2__g-schedule_matched__r-1__replay_only",
-   "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_606\\furnished_room__v2__g-schedule_matched__r-1__replay_plus_imagination"
+   "runs/full/K168/seed_606/civ_control__v2__g-random_growth__r-0__replay_only",
+   "runs/full/K168/seed_606/civ_control__v2__g-random_growth__r-0__replay_plus_imagination",
+   "runs/full/K168/seed_606/civ_control__v2__g-random_growth__r-1__replay_only",
+   "runs/full/K168/seed_606/civ_control__v2__g-random_growth__r-1__replay_plus_imagination",
+   "runs/full/K168/seed_606/civ_control__v2__g-schedule_matched__r-0__replay_only",
+   "runs/full/K168/seed_606/civ_control__v2__g-schedule_matched__r-0__replay_plus_imagination",
+   "runs/full/K168/seed_606/furnished_room__v2__g-random_growth__r-1__replay_only",
+   "runs/full/K168/seed_606/furnished_room__v2__g-schedule_matched__r-1__replay_only",
+   "runs/full/K168/seed_606/furnished_room__v2__g-schedule_matched__r-1__replay_plus_imagination"
   ],
   "identical_across_seeds": [],
   "v2_collapse_flags": [],
   "v2_runs": 779,
   "implausibly_large_changes": [
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_101\\fade_out__v2__g-random_growth__r-0__replay_plus_imagination",
+    "runs/full/K168/seed_101/fade_out__v2__g-random_growth__r-0__replay_plus_imagination",
     "sd_change",
     -0.6261931741205172
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_101\\fade_out__v2__g-random_growth__r-1__replay_only",
+    "runs/full/K168/seed_101/fade_out__v2__g-random_growth__r-1__replay_only",
     "sd_change",
     -0.6599398525685405
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_101\\fade_out__v2__g-random_growth__r-1__replay_plus_imagination",
+    "runs/full/K168/seed_101/fade_out__v2__g-random_growth__r-1__replay_plus_imagination",
     "sd_change",
     -0.6562243322648378
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_1010\\fade_out__v2__g-random_growth__r-0__replay_plus_imagination",
+    "runs/full/K168/seed_1010/fade_out__v2__g-random_growth__r-0__replay_plus_imagination",
     "sd_change",
     -0.5488426646615623
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_1010\\fade_out__v2__g-random_growth__r-1__replay_plus_imagination",
+    "runs/full/K168/seed_1010/fade_out__v2__g-random_growth__r-1__replay_plus_imagination",
     "sd_change",
     -0.544930587880626
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_1010\\fade_out__v2__g-schedule_matched__r-0__replay_only",
+    "runs/full/K168/seed_1010/fade_out__v2__g-schedule_matched__r-0__replay_only",
     "sd_change",
     -0.5747023366553944
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_202\\fade_out__v2__g-off__r-1__replay_only",
+    "runs/full/K168/seed_202/fade_out__v2__g-off__r-1__replay_only",
     "sd_change",
     -0.5571441930410475
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_202\\fade_out__v2__g-on__r-1__replay_only",
+    "runs/full/K168/seed_202/fade_out__v2__g-on__r-1__replay_only",
     "sd_change",
     -0.507014603348727
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_202\\fade_out__v2__g-random_growth__r-0__replay_only",
+    "runs/full/K168/seed_202/fade_out__v2__g-random_growth__r-0__replay_only",
     "sd_change",
     -0.6640963250916492
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_202\\fade_out__v2__g-schedule_matched__r-1__replay_plus_imagination",
+    "runs/full/K168/seed_202/fade_out__v2__g-schedule_matched__r-1__replay_plus_imagination",
     "sd_change",
     -0.5752946323959548
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_303\\fade_out__v2__g-on__r-0__replay_only",
+    "runs/full/K168/seed_303/fade_out__v2__g-on__r-0__replay_only",
     "sd_change",
     -0.5443203693762928
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_303\\fade_out__v2__g-random_growth__r-0__replay_plus_imagination",
+    "runs/full/K168/seed_303/fade_out__v2__g-random_growth__r-0__replay_plus_imagination",
     "sd_change",
     -0.623421486809991
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_404\\fade_out__v1__g-off__r-0",
+    "runs/full/K168/seed_404/fade_out__v1__g-off__r-0",
     "sd_change",
     -0.559630654953388
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_404\\fade_out__v1__g-on__r-0",
+    "runs/full/K168/seed_404/fade_out__v1__g-on__r-0",
     "sd_change",
     -0.5563590962164132
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_404\\fade_out__v1__g-schedule_matched__r-0",
+    "runs/full/K168/seed_404/fade_out__v1__g-schedule_matched__r-0",
     "sd_change",
     -0.5589874710007255
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_404\\full_deprivation__v1__g-off__r-1",
+    "runs/full/K168/seed_404/full_deprivation__v1__g-off__r-1",
     "sd_change",
     0.6057348332539736
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_404\\full_deprivation__v1__g-on__r-1",
+    "runs/full/K168/seed_404/full_deprivation__v1__g-on__r-1",
     "sd_change",
     0.6057348332539736
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_404\\full_deprivation__v1__g-schedule_matched__r-1",
+    "runs/full/K168/seed_404/full_deprivation__v1__g-schedule_matched__r-1",
     "sd_change",
     0.6057348332539736
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_42\\fade_out__v2__g-random_growth__r-0__replay_only",
+    "runs/full/K168/seed_42/fade_out__v2__g-random_growth__r-0__replay_only",
     "sd_change",
     -0.5271192432542628
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_42\\fade_out__v2__g-random_growth__r-1__replay_plus_imagination",
+    "runs/full/K168/seed_42/fade_out__v2__g-random_growth__r-1__replay_plus_imagination",
     "sd_change",
     -0.5699986993277432
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_707\\fade_out__v2__g-off__r-0__replay_plus_imagination",
+    "runs/full/K168/seed_707/fade_out__v2__g-off__r-0__replay_plus_imagination",
     "sd_change",
     -0.5980067421553236
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_707\\fade_out__v2__g-on__r-0__replay_plus_imagination",
+    "runs/full/K168/seed_707/fade_out__v2__g-on__r-0__replay_plus_imagination",
     "sd_change",
     -0.5519954115082687
    ],
    [
-    "C:\\Users\\Vairaj Malhotra\\Projects\\Vega\\civsys\\runs\\full\\K168\\seed_808\\fade_out__v2__g-on__r-0__replay_plus_imagination",
+    "runs/full/K168/seed_808/fade_out__v2__g-on__r-0__replay_plus_imagination",
     "sd_change",
     -0.5692289004053448
    ]
