@@ -42,7 +42,9 @@ Growth is bounded and decided by the harness. The mind can only *request* capaci
 | `tests/` | vega's tests; `tests/civsys/` holds the golden backcompat and focal tests against CivSYS |
 | `SPEC.md`, `docs/` | design (v3) and the CivSYS code map |
 | `RESULTS.md`, `MORNING_REPORT.md`, `results/` | round 1 (partial run: 1,085/1,320) |
-| `MORNING_REPORT_ROUND2.md`, `DECISIONS_ROUND2.md`, `STATUS.md`, `results_round2/` | round 2 (in progress: 688/1,320) |
+| `RESULTS_ROUND2.md`, `MORNING_REPORT_ROUND2.md`, `DECISIONS_ROUND2.md`, `results_round2/` | round 2 (provisional: 1,054/1,320) |
+| `DECISIONS_ROUND3.md`, `results_round3/`, `civsys_focal/viability.py` | round 3 (in preparation): viable life, T = 720, non-saturating phantom metric, common self-model reference |
+| `STATUS.md` | where things stand |
 
 The design documents were written before this repository existed, when the add-on lived inside a CivSYS
 checkout. Their old paths map as follows:
@@ -94,6 +96,12 @@ The life phase for two seeds:
 
 ```bash
 .venv-exp/Scripts/python scripts/run_life.py --seeds 42 101 --out runs/life
+```
+
+Round 3 settings use `CIVSYS_ROUND=3` (outputs in `runs_round3/`). Survival check for the viable life phase:
+
+```bash
+.venv-exp/Scripts/python -m experiments.viability_scan --seeds 42 101 --horizon 1000
 ```
 
 The round-2 full run is resumable; completed runs are skipped:
