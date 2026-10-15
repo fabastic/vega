@@ -1,9 +1,9 @@
-"""Round 2, Change 5: recalibrate v1 growth thresholds on furnished-room runs only.
+"""Round 2, Change 5 (also used in round 3): recalibrate v1 growth thresholds on furnished-room runs only.
 
 Replays logged furnished-room telemetry (growth off) through the real GrowthHarness under candidate
 thresholds, with requests generated exactly as the v1 mind's scripted rule would, and picks the single
 quantile q whose mean grants per run is closest to the pre-declared target (DECISIONS_ROUND2.md).
-    python -m experiments.calibrate_v1
+    CIVSYS_ROUND=3 python -m experiments.calibrate_v1      (runs from experiments.calib_runs)
 """
 import csv
 import json
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from experiments.common import ROOT
+from experiments.common import RESULTS, RUN_ROOT, memory_base
 from growth import ops_v1
 from growth.harness import GrowthHarness, TriggerConfig, v1_rules
 from mind.channel import CapacityChannel
@@ -93,24 +93,27 @@ def simulate(run, pe_t, bo_t, nv_t, mem_base=62):
 
 
 def main():
-    runs = load_runs(ROOT / "runs_round2" / "calib_v1")
+    runs = load_runs(RUN_ROOT / "calib_v1")
+    mem = memory_base()
     pe_w, bo_w, nv_w = windowed(runs, "pe"), windowed(runs, "boredom"), windowed(runs, "novelty")
     grid = []
     for q in [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.925, 0.95, 0.97, 0.98, 0.99, 0.995, 0.999]:
         pe_t, bo_t, nv_t = float(np.quantile(pe_w, q)), float(np.quantile(bo_w, q)), float(np.quantile(nv_w, 1 - q))
-        g = [simulate(r, pe_t, bo_t, nv_t) for r in runs]
+        g = [simulate(r, pe_t, bo_t, nv_t, mem) for r in runs]
         grid.append({"q": q, "pe": pe_t, "boredom": bo_t, "novelty": nv_t, "mean_grants": float(np.mean(g)),
                      "per_run": g})
     best = min(grid, key=lambda x: (abs(x["mean_grants"] - TARGET), -x["q"]))
     old = {"pe": 0.4, "boredom": 0.5, "novelty": 0.2}
-    old_grants = float(np.mean([simulate(r, **{"pe_t": 0.4, "bo_t": 0.5, "nv_t": 0.2}) for r in runs]))
+    old_grants = float(np.mean([simulate(r, 0.4, 0.5, 0.2, mem) for r in runs]))
     out = {"target": TARGET, "band": BAND, "n_runs": len(runs), "grid": grid, "chosen": best,
            "in_band": BAND[0] <= best["mean_grants"] <= BAND[1], "round1_thresholds": old,
            "round1_mean_grants_on_same_runs": old_grants,
            "windowed_stats": {"pe": [float(pe_w.min()), float(np.median(pe_w)), float(pe_w.max())],
                               "boredom": [float(bo_w.min()), float(np.median(bo_w)), float(bo_w.max())],
                               "novelty": [float(nv_w.min()), float(np.median(nv_w)), float(nv_w.max())]}}
-    (ROOT / "results_round2" / "v1_threshold_calibration.json").write_text(json.dumps(out, indent=1))
+    out["memory_base"] = mem
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    (RESULTS / "v1_threshold_calibration.json").write_text(json.dumps(out, indent=1))
     return out
 
 
