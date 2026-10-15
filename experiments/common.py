@@ -15,7 +15,12 @@ import os
 SEEDS = [42, 101, 202, 303, 404, 1010, 606, 707, 808, 909]
 PILOT_SEEDS = [42, 101, 202, 303]
 ROUND = int(os.environ.get("CIVSYS_ROUND", "1"))
-if ROUND == 2:
+if ROUND == 3:
+    # Round 3 (DECISIONS_ROUND3.md): viable life (FocalConfig.viability), so nobody dies and the life phase can be long
+    LIFE_DIR = ROOT / "runs_round3" / "life"
+    T_LIFE = 720
+    RUN_ROOT = ROOT / "runs_round3"
+elif ROUND == 2:
     # Round 2 (DECISIONS_ROUND2.md): life ends at T = 80, before any death the focal agent could perceive
     LIFE_DIR = ROOT / "runs_round2" / "life"
     T_LIFE = 80
@@ -24,6 +29,7 @@ else:
     LIFE_DIR = ROOT / "runs" / "life"
     T_LIFE = 720
     RUN_ROOT = ROOT / "runs"
+RESULTS = ROOT / {1: "results", 2: "results_round2", 3: "results_round3"}[ROUND]
 
 
 def life_dir(seed: int) -> pathlib.Path:
@@ -33,8 +39,9 @@ def life_dir(seed: int) -> pathlib.Path:
 def ensure_lives(seeds=SEEDS) -> list:
     sys.path.insert(0, str(ROOT / "scripts"))
     from run_life import run_life  # noqa: E402
-    r2 = ROUND == 2
-    return [run_life(s, LIFE_DIR, T=T_LIFE, death_isolation=r2, export_all_agents=r2) for s in seeds]
+    r2 = ROUND >= 2
+    return [run_life(s, LIFE_DIR, T=T_LIFE, death_isolation=r2, export_all_agents=r2, viability=ROUND >= 3)
+            for s in seeds]
 
 
 def memory_base(seeds=SEEDS) -> int:
@@ -50,10 +57,10 @@ def memory_base(seeds=SEEDS) -> int:
 
 
 def thresholds_for_seed(seed: int):
-    """Round 2: growth thresholds frozen in prereg/params_round2.json. Round 1: code defaults (None)."""
-    if ROUND != 2:
+    """Rounds 2+: growth thresholds frozen in prereg/params_round<N>.json. Round 1: code defaults (None)."""
+    if ROUND < 2:
         return None
-    data = json.loads((ROOT / "prereg" / "params_round2.json").read_text(encoding="utf-8"))
+    data = json.loads((ROOT / "prereg" / f"params_round{ROUND}.json").read_text(encoding="utf-8"))
     g = data["growth"]
     v2 = dict(g["v2_thresholds"])
     base = g["v2_nll_baseline_by_seed"].get(str(seed))
@@ -68,7 +75,7 @@ def run_cell(seed: int, cell, out_dir, mem_base: int, yoke=None, snapshot_hook=N
     if cell.arm == "civ_control":
         from experiments.civ_control import run_civ_cell
         return run_civ_cell(life_dir(seed), cell, out_dir, mem_base, yoke=yoke, snapshot_hook=snapshot_hook,
-                            stop_before_perceivable_death=(ROUND == 2), thresholds=th)
+                            stop_before_perceivable_death=(ROUND >= 2), thresholds=th)
     from whiteroom.runner import run_room_cell
     return run_room_cell(life_dir(seed), cell, out_dir, room_cfg or RoomConfig(), mem_base, yoke=yoke,
                          snapshot_hook=snapshot_hook, thresholds=th)
