@@ -15,7 +15,7 @@ import sys
 import time
 from pathlib import Path
 
-from experiments.common import ROOT, RUN_ROOT, SEEDS, life_dir, memory_base, run_cell
+from experiments.common import ROOT, ROUND, RUN_ROOT, SEEDS, life_dir, memory_base, run_cell
 
 ARMS = ("civ_control", "furnished_room", "exteroception_removed", "full_deprivation", "fade_out", "noise_only")
 OUT = RUN_ROOT / "full"
@@ -84,7 +84,8 @@ def run_one(args):
         h_S_T = summary.get("S_T")
         (d / "probe_context.json").write_text(json.dumps({
             "life_dir": str(life_dir(seed)), "mind": cell.mind, "S_T": h_S_T, "checkpoints": checkpoints,
-            "synthetic_digest": synthetic.digest(synthetic.generate())}))
+            "synthetic_digest": synthetic.digest(synthetic.generate()),
+            "sd_reference": "life" if ROUND >= 3 else "arm"}))
     t_run = time.time() - t0
     pr = subprocess.run([sys.executable, "-m", "battery.probe", str(d)], cwd=str(ROOT), capture_output=True,
                         text=True, timeout=1800, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
