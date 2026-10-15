@@ -161,10 +161,18 @@ def interpret(sd_ci, fam_cis, on_vs_sched, on_vs_rand):
     return label
 
 
+def _rel(p):
+    """Run directories relative to the repo root, so results files carry no machine-specific paths."""
+    try:
+        return Path(p).resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return Path(p).as_posix()
+
+
 def artifacts(rows, K):
-    out = {"nan_runs": [r["dir"] for r in rows if r.get("nan_values")],
+    out = {"nan_runs": [_rel(r["dir"]) for r in rows if r.get("nan_values")],
            "deaths": [(r["seed"], r["arm"], r["mind"], r["growth"], r["death_tau"]) for r in rows if r.get("death_tau")],
-           "missing_battery": [r["dir"] for r in rows if r.get("capability_T") is None]}
+           "missing_battery": [_rel(r["dir"]) for r in rows if r.get("capability_T") is None]}
     groups = defaultdict(list)
     for r in rows:
         groups[key(r)].append(json.dumps(r["action_counts"], sort_keys=True))
@@ -183,7 +191,7 @@ def artifacts(rows, K):
             run = run + 1 if v < 0.01 else 0
             low_kl_run = max(low_kl_run, run)
         if low_kl_run >= 24 or (er and min(er) < 2.0):
-            collapse.append({"dir": r["dir"], "max_low_kl_run": low_kl_run, "min_eff_rank": min(er) if er else None})
+            collapse.append({"dir": _rel(r["dir"]), "max_low_kl_run": low_kl_run, "min_eff_rank": min(er) if er else None})
     out["v2_collapse_flags"] = collapse
     out["v2_runs"] = sum(1 for r in rows if r["mind"] == "v2")
     big = []
@@ -191,7 +199,7 @@ def artifacts(rows, K):
         for m in ("capability_change", "sd_change"):
             v = r.get(m)
             if v is not None and abs(v) > 0.5:
-                big.append((r["dir"], m, v))
+                big.append((_rel(r["dir"]), m, v))
     out["implausibly_large_changes"] = big
     return out
 
