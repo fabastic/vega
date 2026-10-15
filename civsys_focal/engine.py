@@ -10,6 +10,9 @@ from civsys_focal.adapter import BodyFrame
 from civsys_focal.config import FocalConfig
 from civsys_focal.physiology import PHYSIOLOGY
 from civsys_focal.systems import FocalDecisionSystem, FocalExportSystem
+from civsys_focal.viability import ViableEconomySystem, ViableLifecycleSystem
+from app.simulation.civilization.lifecycle import LifecycleSystem
+from app.simulation.economy.markets import EconomySystem
 from app.simulation.humans.decisions import DecisionSystem
 from app.simulation.snapshot import SnapshotSystem
 
@@ -37,9 +40,14 @@ class FocalSimulationEngine(SimulationEngine):
             "mind": mind, "frame": BodyFrame(agent.current_location), "rows": [], "history": [],
             "heldout_rows": {}, "heldout_frames": {}, "train_rows": {}, "train_frames": {}, "last": None,
         }
+        via = self.focal.viability
         for i, s in enumerate(self.systems):
             if type(s) is DecisionSystem:
                 self.systems[i] = FocalDecisionSystem(self.focal)
+            elif via.enabled and type(s) is EconomySystem:
+                self.systems[i] = ViableEconomySystem(via)
+            elif via.enabled and type(s) is LifecycleSystem:
+                self.systems[i] = ViableLifecycleSystem(via)
         snap = next(i for i, s in enumerate(self.systems) if isinstance(s, SnapshotSystem))
         self.systems.insert(snap, FocalExportSystem(self.focal))
 
