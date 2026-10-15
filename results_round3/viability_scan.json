@@ -1,0 +1,794 @@
+{
+ "rows": [
+  {
+   "seed": 42,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 67,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.102,
+     "thirst": 0.308,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.121,
+     "thirst": 0.487,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.108,
+     "thirst": 0.449,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.103,
+     "thirst": 0.445,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.086,
+     "thirst": 0.404,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.126,
+     "thirst": 0.469,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.11,
+     "thirst": 0.434,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.103,
+     "thirst": 0.42,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.1,
+     "thirst": 0.398,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.119,
+     "thirst": 0.42,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 93.7
+  },
+  {
+   "seed": 101,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 67,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.09,
+     "thirst": 0.293,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.133,
+     "thirst": 0.522,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.123,
+     "thirst": 0.489,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.08,
+     "thirst": 0.415,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.066,
+     "thirst": 0.374,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.132,
+     "thirst": 0.482,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.121,
+     "thirst": 0.462,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.097,
+     "thirst": 0.411,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.07,
+     "thirst": 0.357,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.122,
+     "thirst": 0.435,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 106.4
+  },
+  {
+   "seed": 202,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 51,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.09,
+     "thirst": 0.284,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.126,
+     "thirst": 0.507,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.118,
+     "thirst": 0.476,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.102,
+     "thirst": 0.435,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.073,
+     "thirst": 0.376,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.122,
+     "thirst": 0.462,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.129,
+     "thirst": 0.46,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.104,
+     "thirst": 0.426,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.075,
+     "thirst": 0.359,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.122,
+     "thirst": 0.442,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 130.5
+  },
+  {
+   "seed": 303,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 74,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.104,
+     "thirst": 0.309,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.13,
+     "thirst": 0.501,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.114,
+     "thirst": 0.459,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.087,
+     "thirst": 0.405,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.077,
+     "thirst": 0.376,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.129,
+     "thirst": 0.451,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.111,
+     "thirst": 0.421,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.089,
+     "thirst": 0.373,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.081,
+     "thirst": 0.353,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.12,
+     "thirst": 0.419,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 118.3
+  },
+  {
+   "seed": 404,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 75,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.1,
+     "thirst": 0.304,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.117,
+     "thirst": 0.487,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.109,
+     "thirst": 0.458,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.095,
+     "thirst": 0.416,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.073,
+     "thirst": 0.373,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.117,
+     "thirst": 0.438,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.123,
+     "thirst": 0.448,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.1,
+     "thirst": 0.409,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.081,
+     "thirst": 0.347,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.108,
+     "thirst": 0.403,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 121.3
+  },
+  {
+   "seed": 1010,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 63,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.105,
+     "thirst": 0.306,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.127,
+     "thirst": 0.502,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.115,
+     "thirst": 0.464,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.098,
+     "thirst": 0.424,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.067,
+     "thirst": 0.363,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.122,
+     "thirst": 0.451,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.114,
+     "thirst": 0.448,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.094,
+     "thirst": 0.408,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.08,
+     "thirst": 0.359,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.122,
+     "thirst": 0.442,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 127.7
+  },
+  {
+   "seed": 606,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 85,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.089,
+     "thirst": 0.291,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.124,
+     "thirst": 0.505,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.119,
+     "thirst": 0.481,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.094,
+     "thirst": 0.421,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.07,
+     "thirst": 0.389,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.126,
+     "thirst": 0.47,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.106,
+     "thirst": 0.417,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.094,
+     "thirst": 0.405,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.064,
+     "thirst": 0.336,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.126,
+     "thirst": 0.46,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 111.5
+  },
+  {
+   "seed": 707,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 56,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.103,
+     "thirst": 0.313,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.13,
+     "thirst": 0.495,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.105,
+     "thirst": 0.442,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.094,
+     "thirst": 0.421,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.08,
+     "thirst": 0.381,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.131,
+     "thirst": 0.442,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.116,
+     "thirst": 0.417,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.091,
+     "thirst": 0.382,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.077,
+     "thirst": 0.347,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.132,
+     "thirst": 0.449,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 139.7
+  },
+  {
+   "seed": 808,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 76,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.087,
+     "thirst": 0.292,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.124,
+     "thirst": 0.499,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.108,
+     "thirst": 0.455,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.092,
+     "thirst": 0.427,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.081,
+     "thirst": 0.392,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.128,
+     "thirst": 0.472,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.116,
+     "thirst": 0.441,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.107,
+     "thirst": 0.417,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.085,
+     "thirst": 0.374,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.121,
+     "thirst": 0.431,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 123.4
+  },
+  {
+   "seed": 909,
+   "viability": true,
+   "horizon": 1000,
+   "start_pop": 150,
+   "alive_end": 150,
+   "n_agents_end": 150,
+   "first_any_death": null,
+   "first_known_death": null,
+   "focal_died": null,
+   "n_known": 60,
+   "causes": {},
+   "alive_by_tick": {
+    "100": 150,
+    "200": 150,
+    "300": 150,
+    "400": 150,
+    "500": 150,
+    "600": 150,
+    "700": 150,
+    "800": 150,
+    "900": 150,
+    "1000": 150
+   },
+   "needs_by_tick": {
+    "100": {
+     "hunger": 0.106,
+     "thirst": 0.297,
+     "health": 1.0
+    },
+    "200": {
+     "hunger": 0.125,
+     "thirst": 0.488,
+     "health": 1.0
+    },
+    "300": {
+     "hunger": 0.12,
+     "thirst": 0.454,
+     "health": 1.0
+    },
+    "400": {
+     "hunger": 0.099,
+     "thirst": 0.42,
+     "health": 1.0
+    },
+    "500": {
+     "hunger": 0.081,
+     "thirst": 0.376,
+     "health": 1.0
+    },
+    "600": {
+     "hunger": 0.107,
+     "thirst": 0.429,
+     "health": 1.0
+    },
+    "700": {
+     "hunger": 0.11,
+     "thirst": 0.428,
+     "health": 1.0
+    },
+    "800": {
+     "hunger": 0.1,
+     "thirst": 0.388,
+     "health": 1.0
+    },
+    "900": {
+     "hunger": 0.093,
+     "thirst": 0.37,
+     "health": 1.0
+    },
+    "1000": {
+     "hunger": 0.113,
+     "thirst": 0.408,
+     "health": 1.0
+    }
+   },
+   "food_price_end": 1.0,
+   "seconds": 118.7
+  }
+ ]
+}
