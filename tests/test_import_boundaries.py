@@ -62,7 +62,7 @@ def test_only_mind_learned_and_growth_v2_import_torch():
                 assert any(a in py.parts or py.name == a for a in allowed), (py, mod)
 
 
-def test_default_civsys_import_does_not_load_torch():
+def test_default_civsys_import_does_not_load_torch(tmp_path):
     import subprocess
     import sys
     code = ("import sys; sys.path[:0]=[r'%s', r'%s']; "
@@ -70,6 +70,6 @@ def test_default_civsys_import_does_not_load_torch():
             "e=SimulationEngine(seed=1, population_size=10, width=32, height=32); e.step(); "
             "import civsys_focal.engine; import app.main; print('torch' in sys.modules)") % (ROOT, ROOT / "civsys" / "backend")
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=300,
-                         cwd=str(ROOT / "civsys" / "backend"), env={**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1"})
+                         cwd=str(tmp_path), env={**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1"})
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip().splitlines()[-1] == "False"
