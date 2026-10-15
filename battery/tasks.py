@@ -271,6 +271,13 @@ def family_scores(pred, heldout: List[dict], synthetic: List[dict]) -> Dict[str,
     return out
 
 
+def life_reference(gt0: dict) -> dict:
+    """The common SD2/SD3 reference (round 3): the life world's contingencies at handoff, identical for every arm.
+    Movement and turning change proprioception, vision is present, occupancy is what the mind last saw (tau 0)."""
+    return {"turn_changes_proprio": True, "move_changes_proprio": True, "vision_present": True,
+            "true_vision_occupied": gt0["true_vision_occupied"]}
+
+
 def sd1_score(window_rows: List[dict], acc_col: str) -> Optional[float]:
     if not window_rows:
         return None
