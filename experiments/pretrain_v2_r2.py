@@ -43,7 +43,12 @@ def _arrays(rows):
 
 
 def load_streams(d: Path):
-    focal = _arrays(sorted(_rows(d / "life.csv"), key=lambda r: int(r["tick"])))
+    """Focal life rows inside P.HELDOUT_LIFE_TICKS (the battery's held-out window) are dropped; once T > 600 they
+    would otherwise be in training. Training on the focal life uses the rows before and after that window."""
+    lo, hi = P.HELDOUT_LIFE_TICKS
+    kept = [r for r in sorted(_rows(d / "life.csv"), key=lambda r: int(r["tick"])) if not lo <= int(r["tick"]) <= hi]
+    # segment ids keep replay sequences from bridging the gap: 0 before the window, -1 after it
+    focal = _arrays(kept) + (np.array([0 if int(r["tick"]) < lo else -1 for r in kept], dtype=np.int64),)
     by_agent = defaultdict(list)
     for r in _rows(d / "train_agents.csv"):
         by_agent[r["agent"]].append(r)
@@ -77,16 +82,16 @@ def pretrain_seed(seed: int, attempt: int, wm_updates: int, bc_updates: int = P.
     d = life_dir(seed)
     h = load(d)
     t0 = time.time()
-    (fX, fA), train, held = load_streams(d)
+    (fX, fA, fSeg), train, held = load_streams(d)
     pre = ReplayBuffer(capacity=10 ** 7)
-    for f, a in zip(fX, fA):
-        pre.add(f, a, "life_focal", 0)
+    for f, a, g in zip(fX, fA, fSeg):
+        pre.add(f, a, "life_focal", int(g))
     for i, (X, A) in enumerate(train, start=1):
         for f, a in zip(X, A):
             pre.add(f, a, "life_other", i)
     focal_buf = ReplayBuffer(capacity=10 ** 6)
-    for f, a in zip(fX, fA):
-        focal_buf.add(f, a, "life_focal", 0)
+    for f, a, g in zip(fX, fA, fSeg):
+        focal_buf.add(f, a, "life_focal", int(g))
     base = RuleBasedMind.from_state(json.loads(json.dumps(h.minds["v1"])))
     m = LearnedMind.__new__(LearnedMind)
     m.__dict__.update(base.__dict__)
@@ -145,8 +150,8 @@ def pretrain_seed(seed: int, attempt: int, wm_updates: int, bc_updates: int = P.
     m.nll_baseline = baseline
     m.prev_wm_loss = None
     room = ReplayBuffer(P.BUFFER_CAPACITY)
-    for f, a in zip(fX, fA):
-        room.add(f, a, "life", 0)
+    for f, a, g in zip(fX, fA, fSeg):
+        room.add(f, a, "life", int(g))
     for i, (X, A) in enumerate(train, start=1):
         if len(room) + len(X) > P.BUFFER_CAPACITY:
             break
