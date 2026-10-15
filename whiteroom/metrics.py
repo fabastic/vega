@@ -118,6 +118,11 @@ def summarize(rows: List[dict], K: int, S_T: Optional[float] = None) -> dict:
         "action_counts": dict(Counter(acts)),
         "replay_rate": float(np.mean([r["replay"] for r in rows])),
         "phantom_rate": len(ph) / len(targeted) if targeted else 0.0,
+        # round 3: phantom_rate is 1.0 whenever nothing is perceivable (every targeted act misses), so arms with no
+        # exteroception all sit at the ceiling. Phantoms per tick keep varying with how often the mind acts on absent
+        # entities, and are the round-3 primary phantom metric.
+        "phantom_per_tick": len(ph) / n,
+        "phantom_pre_per_tick": sum(1 for r in ph if r["phantom_origin"] == "pre") / n,
         "phantom_count": len(ph),
         "phantom_pre": sum(1 for r in ph if r["phantom_origin"] == "pre"),
         "phantom_room": sum(1 for r in ph if r["phantom_origin"] == "room"),
