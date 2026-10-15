@@ -17,13 +17,14 @@ from pathlib import Path
 
 import numpy as np
 
-from experiments.common import ROOT, ROUND, RUN_ROOT, SEEDS
+from experiments.common import RESULTS, ROOT, ROUND, RUN_ROOT, SEEDS
 
-RES = ROOT / ("results_round2" if ROUND == 2 else "results")
+RES = RESULTS
 FIG = RES / "figures"
 DEPRIVATION = ("exteroception_removed", "full_deprivation", "fade_out", "noise_only")
 ARMS = ("civ_control", "furnished_room") + DEPRIVATION
-PRIMARY = ("phantom_rate", "abs_time_error_mean", "capability_change", "sd_change")
+# round 3: phantom_rate saturates at 1.0 without exteroception, so phantoms per tick replace it (DECISIONS_ROUND3.md)
+PRIMARY = ("phantom_per_tick" if ROUND >= 3 else "phantom_rate", "abs_time_error_mean", "capability_change", "sd_change")
 SECONDARY = ("queries_created", "action_entropy_mean", "replay_rate", "grants", "stereotypy_mean")
 
 
@@ -40,6 +41,7 @@ def load(K: int):
             r = {"seed": seed, "arm": c["arm"], "mind": c["mind"], "growth": c["growth"], "reflection": c["reflection"],
                  "learning": c.get("learning") or "", "dir": str(cd)}
             for k in ("abs_time_error_mean", "time_error_final", "phantom_rate", "phantom_pre", "phantom_room",
+                      "phantom_per_tick", "phantom_pre_per_tick",
                       "queries_created", "action_entropy_mean", "stereotypy_mean", "replay_rate", "grants",
                       "death_tau", "nan_values", "internal_goals_created", "temporal_tracks_time_discrepancy",
                       "sequence_repeat_rate", "ruminate_rate", "query_depth_max", "queries_resolved", "queries_abandoned",
