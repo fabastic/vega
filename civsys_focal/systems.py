@@ -6,7 +6,7 @@ from app.simulation.base import BaseSimulationSystem
 from app.simulation.context import SimulationContext
 from civsys_focal.adapter import (BodyFrame, apply_action, build_interoception, build_observation,
                                           civ_action_kind, update_frame)
-from app.simulation.humans.decisions import DecisionSystem
+from civsys_focal.viability import ViableDecisionSystem
 from mind.features import features
 
 LOG_FIELDS = ("action", "target", "phantom", "pe", "novelty", "control", "info", "valence", "arousal",
@@ -22,7 +22,7 @@ def _vision_counts(obs):
     return c
 
 
-class FocalDecisionSystem(DecisionSystem):
+class FocalDecisionSystem(ViableDecisionSystem):
     """DecisionSystem for everyone, plus the focal agent's mind.
 
     With focal_policy == "mind", the focal agent is skipped by the original loop
@@ -31,7 +31,7 @@ class FocalDecisionSystem(DecisionSystem):
     """
 
     def __init__(self, cfg):
-        super().__init__()
+        super().__init__(getattr(cfg, "viability", None))
         self.cfg = cfg
 
     def execute(self, context: SimulationContext) -> None:
@@ -41,7 +41,11 @@ class FocalDecisionSystem(DecisionSystem):
             super().execute(context)
             return
         traveling = agent.movement_state == "traveling"
-        if self.cfg.focal_policy == "mind":
+        viable = getattr(getattr(self, "viability", None), "enabled", False)
+        if self.cfg.focal_policy == "mind" and viable:
+            self.skip_ids = {agent.id}
+            super().execute(context)
+        elif self.cfg.focal_policy == "mind":
             saved = agent.movement_state
             agent.movement_state = "traveling"
             try:
