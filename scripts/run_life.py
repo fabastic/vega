@@ -18,13 +18,14 @@ for i, p in enumerate((ROOT, ROOT / "civsys" / "backend")):   # CivSYS is the gi
 from civsys_focal.config import FocalConfig  # noqa: E402
 from civsys_focal.engine import FocalSimulationEngine  # noqa: E402
 from civsys_focal.handoff_writer import write_life_outputs  # noqa: E402
+from civsys_focal.viability import ViabilityConfig  # noqa: E402
 
 HELDOUT = ["agent_0001", "agent_0002", "agent_0003"]
 
 
 def run_life(seed: int, out_root: pathlib.Path, T: int = 720, pop: int = 150, size: int = 128,
              reflection: bool = True, force: bool = False, death_isolation: bool = False,
-             export_all_agents: bool = False) -> dict:
+             export_all_agents: bool = False, viability: bool = False) -> dict:
     out = out_root / f"seed_{seed}"
     if (out / "handoff.json").exists() and not force:
         return {"seed": seed, "skipped": True}
@@ -32,7 +33,7 @@ def run_life(seed: int, out_root: pathlib.Path, T: int = 720, pop: int = 150, si
     cfg = FocalConfig(enabled=True, affect_enabled=True, focal_policy="mind", export_enabled=True,
                       reflection_enabled=reflection, heldout_agent_ids=HELDOUT, snapshot_tick=T,
                       death_isolation=death_isolation, export_all_agents=export_all_agents,
-                      history_ticks=min(168, T))
+                      history_ticks=min(168, T), viability=ViabilityConfig(enabled=viability))
     eng = FocalSimulationEngine(seed=seed, population_size=pop, width=size, height=size, focal=cfg)
     focal = eng.state.agents[cfg.focal_agent_id]
     while eng.state.tick < T:
