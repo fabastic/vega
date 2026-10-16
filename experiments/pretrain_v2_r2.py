@@ -82,7 +82,7 @@ GUARD_EVERY, GUARD_MAX_LOSS = 250, 100.0
 
 
 def pretrain_seed(seed: int, attempt: int, wm_updates: int, bc_updates: int = P.PRETRAIN_BC, seq: int = P.SEQ,
-                  residual: bool = False, guard: bool = False) -> dict:
+                  residual: bool = False, guard: bool = False, bounded: bool = False) -> dict:
     """guard (round 3, attempt 2): snapshot the world model and optimiser every GUARD_EVERY updates; if a batch loss
     is non-finite or above GUARD_MAX_LOSS, roll back to the last snapshot and continue (round-3 attempt 1 diverged
     in 2 of 5 seeds: latent means ran away and the KL reached ~3e24). Rollbacks are counted and logged."""
@@ -103,7 +103,7 @@ def pretrain_seed(seed: int, attempt: int, wm_updates: int, bc_updates: int = P.
     m = LearnedMind.__new__(LearnedMind)
     m.__dict__.update(base.__dict__)
     torch.manual_seed(seed)
-    m.init_learned(WorldModel(residual=residual), pre, seed, "replay_plus_imagination", 1.0)
+    m.init_learned(WorldModel(residual=residual, bounded=bounded), pre, seed, "replay_plus_imagination", 1.0)
     log, rollbacks, good = [], [], None
     for i in range(wm_updates):
         fn, an, _ = pre.sample(m.replay_rng, P.BATCH, seq)
@@ -182,14 +182,14 @@ def pretrain_seed(seed: int, attempt: int, wm_updates: int, bc_updates: int = P.
     add_sidecar(h, d, "v2_state_json", "v2_state.json")
     h.minds["v2"] = {"version": "learned/1", "tensors": "v2_state_tensors", "json": "v2_state_json",
                      "params": m.model.param_count(), "nll_baseline_heldout": baseline, "gate": gate,
-                     "attempt": attempt, "wm_updates": wm_updates, "pretrain_seq": seq, "residual": residual, "guard": guard, "rollbacks": len(rollbacks), "bc_accuracy": float(np.mean(bc_acc)),
+                     "attempt": attempt, "wm_updates": wm_updates, "pretrain_seq": seq, "residual": residual, "bounded": bounded, "guard": guard, "rollbacks": len(rollbacks), "bc_accuracy": float(np.mean(bc_acc)),
                      "pretrain_log": log, "train_transitions": len(pre)}
     h.meta["mind_versions"]["v2"] = "learned/1"
     dump(h, d)
     info = {"seed": seed, "attempt": attempt, "wm_updates": wm_updates, "pretrain_seq": seq, "seconds": round(time.time() - t0, 1),
             "train_transitions": len(pre), "heldout_sequences": len(held), "gate": gate,
             "bc_accuracy": float(np.mean(bc_acc)), "final_wm_loss": log[-1]["wm_loss"], "heldout_window_ratios": ratios,
-            "guard": guard, "rollbacks": rollbacks}
+            "guard": guard, "bounded": bounded, "rollbacks": rollbacks}
     (d / f"pretrain_r2_attempt{attempt}.json").write_text(json.dumps(info, indent=1))
     return info
 
@@ -202,9 +202,10 @@ if __name__ == "__main__":
     ap.add_argument("--seq", type=int, default=P.SEQ)
     ap.add_argument("--residual", action="store_true")
     ap.add_argument("--guard", action="store_true")
+    ap.add_argument("--bounded", action="store_true")
     a = ap.parse_args()
     for s in a.seeds:
-        r = pretrain_seed(s, a.attempt, a.wm, seq=a.seq, residual=a.residual, guard=a.guard)
+        r = pretrain_seed(s, a.attempt, a.wm, seq=a.seq, residual=a.residual, guard=a.guard, bounded=a.bounded)
         r.pop("heldout_window_ratios")
         r.pop("rollbacks")
         print(json.dumps(r), flush=True)
