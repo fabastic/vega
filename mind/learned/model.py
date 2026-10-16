@@ -24,9 +24,12 @@ def _mlp(i, o, depth, h=P.MLPH):
 
 class WorldModel(nn.Module):
     def __init__(self, H=P.BASE_H, Z=P.BASE_Z, E=P.BASE_E, dec_depth=P.BASE_DEC_DEPTH, expert_hidden=None,
-                 residual=False):
+                 residual=False, bounded=False):
         super().__init__()
         self.residual = bool(residual)   # round 2: the decoder predicts the change from the last observation
+        # round 3: h = tanh(gru + experts). The experts add an unbounded ReLU term on every step, so over long
+        # rollouts (720-tick life, 168-tick room) h could drift and explode; 80-tick training sequences never showed it
+        self.bounded = bool(bounded)
         self.H, self.Z, self.E, self.dec_depth = H, Z, E, dec_depth
         self.expert_hidden = expert_hidden or H   # fixed at base width; widening H does not change it
         self.enc = _mlp(P.FEAT, P.EMB, 1)
@@ -56,7 +59,7 @@ class WorldModel(nn.Module):
         h = self.gru(torch.cat([z, a], -1), h)
         g = torch.softmax(self.gate(h), -1)
         d = sum(g[..., k:k + 1] * e(h) for k, e in enumerate(self.experts))
-        return h + d
+        return torch.tanh(h + d) if self.bounded else h + d
 
     @staticmethod
     def _std(s):
@@ -93,7 +96,7 @@ class WorldModel(nn.Module):
 
     def arch(self) -> dict:
         return {"H": self.H, "Z": self.Z, "E": self.E, "dec_depth": self.dec_depth, "expert_hidden": self.expert_hidden,
-                "residual": self.residual}
+                "residual": self.residual, "bounded": self.bounded}
 
     # ---- deterministic probe outputs (function-preservation checks) --------
     @torch.no_grad()
