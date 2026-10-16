@@ -107,6 +107,7 @@ def pretrain_seed(seed: int, attempt: int, wm_updates: int, bc_updates: int = P.
         m.opt_wm.step()
         if i % 500 == 0 or i == wm_updates - 1:
             log.append({"update": i, "wm_loss": float(loss.detach()), "kl": kl})
+            print(json.dumps({"seed": seed, **log[-1], "elapsed_s": round(time.time() - t0, 1)}), flush=True)
     bc_acc = []
     for i in range(bc_updates):
         fn, an, _ = focal_buf.sample(m.replay_rng, P.BATCH, P.SEQ)
