@@ -376,7 +376,7 @@ class LearnedMind(RuleBasedMind):
         v2 = state["v2"]
         arch = v2["arch"]
         model = WorldModel(arch["H"], arch["Z"], arch["E"], arch["dec_depth"], arch.get("expert_hidden"),
-                           arch.get("residual", False))
+                           arch.get("residual", False), arch.get("bounded", False))
         model.load_state_dict({k[len("model."):]: v for k, v in tensors.items() if k.startswith("model.")})
         buf = ReplayBuffer.from_parts(v2["buffer"], tensors["buffer.feats"].numpy())
         m.init_learned(model, buf, 0, learning or v2["learning"], v2["nll_baseline"])
