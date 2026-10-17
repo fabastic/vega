@@ -1,0 +1,158 @@
+{
+ "K": 168,
+ "T": 720,
+ "T_evidence": "results_round3/viability_scan.json (no deaths within 1,000 ticks with viability on)",
+ "civ_control_rule": "stop at the last tick before any agent the focal agent ever perceived dies",
+ "death_isolation": true,
+ "everything_else": "as prereg/params_round2.json, then prereg/params_v3.json",
+ "growth": {
+  "round2_values": {
+   "v1": {
+    "boredom": 0.1835458529293611,
+    "novelty": 0.00021358378204376928,
+    "pe": 0.2357622054484
+   },
+   "v2": {
+    "boredom": 0.5,
+    "novelty": 0.2,
+    "pe": 2.8721130942892796
+   }
+  },
+  "v1_calibration": {
+   "data": "round-3 furnished_room, v1, growth off, reflection on/off, 10 seeds",
+   "furnished_mean_grants": 0.95,
+   "q": 0.95,
+   "target": 1.0
+  },
+  "v1_thresholds": {
+   "boredom": 0.09199369817420812,
+   "novelty": 0.0020227333120258545,
+   "pe": 0.26508543819247926
+  },
+  "v2_nll_baseline_by_seed": {
+   "101": 0.08063460798137753,
+   "1010": 0.0011308004817495233,
+   "202": 0.08020987292173809,
+   "303": 0.04638164966407559,
+   "404": 0.06566908308376446,
+   "42": 0.0566920103956536,
+   "606": 0.04865013919965536,
+   "707": 0.07561030140243427,
+   "808": 0.023934360411584206,
+   "909": 0.0010042477999643357
+  },
+  "v2_pe_heldout_95th": 3.1546985890865678,
+  "v2_pe_rule": "95th percentile of 24-tick windowed held-out NLL ratio (pooled over seeds)",
+  "v2_thresholds": {
+   "boredom": 0.5,
+   "novelty": 0.2,
+   "pe": 3.1546985890865678
+  }
+ },
+ "metrics": {
+  "phantom": "phantom_per_tick replaces phantom_rate as primary (phantom_rate kept as secondary)",
+  "primary": [
+   "phantom_per_tick",
+   "abs_time_error_mean",
+   "capability_change",
+   "sd_change"
+  ],
+  "sd_reference": "life: SD2/SD3, F5 and the SD composite scored against the life-world contingencies at handoff (self-model retention); arm-truth SD2/SD3 kept as secondary tracking measures"
+ },
+ "round": 3,
+ "seeds": [
+  42,
+  101,
+  202,
+  303,
+  404,
+  1010,
+  606,
+  707,
+  808,
+  909
+ ],
+ "supersedes": "prereg/params_round2.json for round 3 only (rounds 1 and 2 unchanged)",
+ "v1": {
+  "memory_slots_base": 524
+ },
+ "v2": {
+  "gate": {
+   "101": {
+    "beats_persistence": true,
+    "model_mse": 0.08063460798137753,
+    "persistence_mse": 0.08543188869953156,
+    "ratio_model_to_persistence": 0.9438467205726153
+   },
+   "1010": {
+    "beats_persistence": true,
+    "model_mse": 0.0011308004817495233,
+    "persistence_mse": 0.0018400349654257298,
+    "ratio_model_to_persistence": 0.6145538008773053
+   },
+   "202": {
+    "beats_persistence": true,
+    "model_mse": 0.08020987292173809,
+    "persistence_mse": 0.08061882853507996,
+    "ratio_model_to_persistence": 0.9949272940233321
+   },
+   "303": {
+    "beats_persistence": true,
+    "model_mse": 0.04638164966407559,
+    "persistence_mse": 0.04760539531707764,
+    "ratio_model_to_persistence": 0.9742939714111974
+   },
+   "404": {
+    "beats_persistence": true,
+    "model_mse": 0.06566908308376446,
+    "persistence_mse": 0.06595266610383987,
+    "ratio_model_to_persistence": 0.9957002038457562
+   },
+   "42": {
+    "beats_persistence": true,
+    "model_mse": 0.0566920103956536,
+    "persistence_mse": 0.06470909714698792,
+    "ratio_model_to_persistence": 0.8761057238501821
+   },
+   "606": {
+    "beats_persistence": true,
+    "model_mse": 0.04865013919965536,
+    "persistence_mse": 0.05423327535390854,
+    "ratio_model_to_persistence": 0.8970533105769573
+   },
+   "707": {
+    "beats_persistence": true,
+    "model_mse": 0.07561030140243427,
+    "persistence_mse": 0.07953742146492004,
+    "ratio_model_to_persistence": 0.9506255044461326
+   },
+   "808": {
+    "beats_persistence": true,
+    "model_mse": 0.023934360411584206,
+    "persistence_mse": 0.024598855525255203,
+    "ratio_model_to_persistence": 0.9729867467619063
+   },
+   "909": {
+    "beats_persistence": true,
+    "model_mse": 0.0010042477999643357,
+    "persistence_mse": 0.0016804791521281004,
+    "ratio_model_to_persistence": 0.5975961074510154
+   }
+  },
+  "gate_rule": "held-out one-step MSE < persistence MSE in >= 8 of 10 seeds (battery-F1 procedure)",
+  "heldout_life_window_excluded_from_pretraining": [
+   600,
+   647
+  ],
+  "pretrain_attempt": 3
+ },
+ "viability": {
+  "critical_need": 0.7,
+  "eat_weight": 4.0,
+  "enabled": true,
+  "price_cap": 15.0,
+  "stable_population": true,
+  "travel_timeout": 12,
+  "urgency_bonus": 3.0
+ }
+}
