@@ -1,0 +1,85 @@
+{
+ "attempt": 3,
+ "pe95": 3.1546985890865678,
+ "memory_base": 524,
+ "rows": [
+  {
+   "seed": 42,
+   "grants": 0,
+   "grants_by_kind": {},
+   "requests": 0,
+   "nan_values": 0
+  },
+  {
+   "seed": 101,
+   "grants": 0,
+   "grants_by_kind": {},
+   "requests": 0,
+   "nan_values": 0
+  },
+  {
+   "seed": 202,
+   "grants": 0,
+   "grants_by_kind": {},
+   "requests": 0,
+   "nan_values": 0
+  },
+  {
+   "seed": 303,
+   "grants": 0,
+   "grants_by_kind": {},
+   "requests": 0,
+   "nan_values": 0
+  },
+  {
+   "seed": 404,
+   "grants": 0,
+   "grants_by_kind": {},
+   "requests": 0,
+   "nan_values": 0
+  },
+  {
+   "seed": 1010,
+   "grants": 6,
+   "grants_by_kind": {
+    "enlarge_latent": 3,
+    "reflection_working_set": 1,
+    "widen_hidden": 2
+   },
+   "requests": 182,
+   "nan_values": 0
+  },
+  {
+   "seed": 606,
+   "grants": 0,
+   "grants_by_kind": {},
+   "requests": 0,
+   "nan_values": 0
+  },
+  {
+   "seed": 707,
+   "grants": 0,
+   "grants_by_kind": {},
+   "requests": 0,
+   "nan_values": 0
+  },
+  {
+   "seed": 808,
+   "grants": 0,
+   "grants_by_kind": {},
+   "requests": 0,
+   "nan_values": 0
+  },
+  {
+   "seed": 909,
+   "grants": 6,
+   "grants_by_kind": {
+    "enlarge_latent": 3,
+    "widen_hidden": 3
+   },
+   "requests": 168,
+   "nan_values": 0
+  }
+ ],
+ "mean_grants": 1.2
+}
