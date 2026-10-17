@@ -9,8 +9,8 @@ import json
 
 import numpy as np
 
-from civsys_focal.viability import ViabilityConfig
-from experiments.common import RESULTS, ROOT, ROUND, SEEDS, T_LIFE, life_dir, memory_base
+from experiments.common import RESULTS, ROOT, ROUND, SEEDS, T_LIFE, life_dir, memory_base   # sets up sys.path first
+from civsys_focal.viability import ViabilityConfig  # noqa: E402
 
 
 def v2_threshold(attempt: int):
