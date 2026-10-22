@@ -1,0 +1,1737 @@
+<title>Vega White Room</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Schibsted+Grotesk:wght@400;500;600&family=Martian+Mono:wght@400;500&family=Reenie+Beanie&display=swap">
+<style>
+/* Layout: a one-screen observation console. A live 3D stage (the town, the sealed chamber on CCTV, then the dead town)
+   beside a case-file panel that reads out the subject's body, mind and wants. One deliberate look: clinical white paper,
+   graphite ink, a single alarm red for harm, a dusty ochre for the town and a moss green for what grows back. */
+:root{
+  --paper:#f2f3f0; --white:#fcfcfa; --ink:#16181b; --ink2:#5b6168; --rule:#d8dbd6; --rule2:#e7e9e5;
+  --alarm:#c4321f; --civ:#a8692a; --calm:#2b6684; --moss:#5d6f3a;
+  --display:'Syne','Arial Narrow',system-ui,sans-serif;
+  --body:'Schibsted Grotesk','Segoe UI',system-ui,sans-serif;
+  --mono:'Martian Mono',ui-monospace,Consolas,monospace;
+  --hand:'Reenie Beanie','Comic Sans MS',cursive;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font:14px/1.45 var(--body);display:flex;flex-direction:column;gap:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;overflow:hidden}
+[hidden]{display:none!important}
+button,select{font:500 12px var(--mono);color:var(--ink);background:var(--white);border:1px solid var(--rule);border-radius:3px;padding:7px 10px;cursor:pointer}
+button:hover{border-color:var(--ink2)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--calm);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--ink);color:var(--white);border-color:var(--ink)}
+button:disabled{opacity:.4;cursor:default}
+.lbl{font:500 10.5px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.dim{color:var(--ink2)}
+.primary{background:var(--ink);color:var(--white);border-color:var(--ink)}
+.primary:hover{background:#000}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font:800 22px/1 var(--display);letter-spacing:-.01em}
+.brand span{font:600 22px/1 var(--display);color:var(--ink2)}
+.phases{display:flex;gap:4px;list-style:none;margin:0;padding:0;counter-reset:ph;flex-wrap:wrap}
+.phases li{counter-increment:ph;font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;border:1px solid var(--rule);border-radius:999px;color:var(--ink2);white-space:nowrap}
+.phases li::before{content:counter(ph) " ";opacity:.6}
+.phases li.on{background:var(--ink);color:var(--white);border-color:var(--ink)}
+.phases li.done{color:var(--ink)}
+.clock{display:flex;flex-direction:column;font:500 12px/1.35 var(--mono);font-variant-numeric:tabular-nums;margin-left:auto}
+.clock #clkSub{color:var(--alarm)}
+.speed{display:flex;gap:4px;flex-wrap:wrap}
+.speed button{min-width:44px}
+
+/* main */
+.app{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:12px}
+.stage{position:relative;min-height:0;border:1px solid var(--rule);background:var(--white);overflow:hidden;border-radius:4px}
+.stage>canvas:first-child{display:block;width:100%;height:100%;touch-action:none}
+.cam{position:absolute;top:10px;left:12px;pointer-events:none;color:var(--ink);display:flex;gap:10px;align-items:center;mix-blend-mode:difference;filter:invert(1)}
+.cam.tr{left:auto;right:12px}
+.rec{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3bcde0;animation:blink 1.2s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.tag{position:absolute;transform:translate(-50%,-100%);font:500 10.5px var(--mono);letter-spacing:.04em;background:var(--white);color:var(--ink);border:1px solid var(--ink);padding:2px 6px;border-radius:2px;white-space:nowrap}
+.tag.place{background:transparent;border:0;color:var(--ink2);text-transform:uppercase;letter-spacing:.1em;font-size:10px}
+.tag.vega{background:var(--ink);color:var(--white)}
+.tag.ghost{background:transparent;border:1px dashed var(--ink2);color:var(--ink2);font-style:italic}
+.tag.grave{background:transparent;border:0;color:var(--ink);font-family:var(--hand);font-size:20px;letter-spacing:0}
+.tag.bones{background:transparent;border:0;color:var(--alarm);font-size:10px}
+.bub{position:absolute;transform:translate(-50%,-100%);max-width:220px;font:500 13px/1.3 var(--body);background:var(--white);color:var(--ink);border:1px solid var(--ink);padding:5px 8px;border-radius:10px 10px 10px 2px;white-space:normal;text-align:left}
+.bub.shout{font:800 15px/1.1 var(--display);text-transform:uppercase;border-color:var(--alarm);color:var(--alarm)}
+.bub.ghost{border-style:dashed;color:var(--ink2);font-style:italic}
+.whisper{position:absolute;transform:translate(-50%,-50%);font:400 28px var(--hand);color:var(--ink2)}
+#vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(20,18,16,.9) 100%);opacity:0}
+#grain{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;image-rendering:pixelated;mix-blend-mode:multiply}
+.viewbtns{position:absolute;right:12px;bottom:12px;display:flex;gap:6px}
+#tlWrap{position:absolute;left:12px;right:150px;bottom:10px;height:62px;pointer-events:none}
+#tl{width:100%;height:100%;display:block}
+#fade{position:absolute;inset:0;background:var(--white);display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity 1.4s;padding:24px;text-align:center}
+#fade.on{opacity:1;pointer-events:auto}
+#fade p{font:600 clamp(20px,2.6vw,34px)/1.15 var(--display);max-width:26ch;margin:0;text-wrap:balance}
+.over{position:absolute;inset:0;display:grid;place-items:center;background:rgba(242,243,240,.84);padding:16px;backdrop-filter:blur(3px);overflow:auto}
+.over .box{max-width:500px;width:100%;background:var(--white);border:1px solid var(--ink);padding:22px;display:flex;flex-direction:column;gap:12px}
+.over h2{margin:0;font:800 30px/1.02 var(--display);letter-spacing:-.02em;text-wrap:balance}
+.over p{margin:0}
+.over ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.over dl{display:grid;grid-template-columns:1fr auto;gap:4px 16px;margin:0;font:12px var(--mono)}
+.over dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.over .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.over input[type=range]{flex:1;min-width:160px;accent-color:var(--ink)}
+.over output{font:500 14px var(--mono);font-variant-numeric:tabular-nums;min-width:70px}
+.over .primary{font-size:13px;padding:10px 14px}
+
+/* panel */
+.panel{min-height:0;overflow-y:auto;display:flex;flex-direction:column;border-top:1px solid var(--ink)}
+.panel section{padding:14px 2px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:8px;min-width:0}
+.panel h2{margin:0;font:800 26px/1.02 var(--display);letter-spacing:-.02em;text-wrap:balance}
+.panel h3{margin:0;font:500 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.panel p{margin:0}
+.thought{font:400 25px/1 var(--hand);color:var(--ink);min-height:1em}
+.meters{display:grid;grid-template-columns:minmax(0,1fr) 120px 34px;gap:5px 10px;align-items:center;font-size:13px}
+.meters .bar{height:6px;background:var(--rule2);position:relative;overflow:hidden;border-radius:1px}
+.meters .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink);display:block}
+.meters .bar i.bad{background:var(--alarm)}
+.meters .bar i.good{background:var(--calm)}
+.meters .bar i.civ{background:var(--civ)}
+.meters .bar i.moss{background:var(--moss)}
+.meters .v{font:500 11px var(--mono);text-align:right;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.meters .k{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font:500 11px var(--mono);border:1px solid var(--rule);padding:3px 7px;border-radius:999px;white-space:nowrap}
+.chip.hi{border-color:var(--ink)}
+.rel{display:flex;flex-direction:column;gap:3px;font-size:13px}
+.rel span b{font-weight:600}
+#citList{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:2px 10px}
+#citList button{all:unset;cursor:pointer;display:flex;gap:6px;align-items:center;font-size:12.5px;padding:3px 0;min-width:0}
+#citList button:focus-visible{outline:2px solid var(--calm)}
+#citList button .d{flex:none;width:8px;height:8px;border-radius:50%}
+#citList button .n{font-weight:600}
+#citList button .a{color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#citList button.sel .n{text-decoration:underline}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;font-size:13px}
+.kv dt{color:var(--ink2)} .kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.iv{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.iv button{text-align:left}
+.dead{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;font-size:12.5px}
+.dead li{display:flex;gap:6px;min-width:0}
+.dead li b{font-weight:600;white-space:nowrap}
+.dead li span{color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dead li.buried span{color:var(--moss)}
+.dead li.found span{color:var(--alarm)}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.feed li{display:grid;grid-template-columns:76px minmax(0,1fr);gap:8px;font-size:13.5px;line-height:1.35}
+.feed li time{font:500 10.5px/1.6 var(--mono);color:var(--ink2);font-variant-numeric:tabular-nums}
+.feed li.ev span{color:var(--calm)}
+.feed li.bad span{color:var(--alarm)}
+.feed li.out span{color:var(--ink2);font-style:italic}
+.feed li.say span{font:400 22px/1 var(--hand)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font:500 10.5px var(--mono);color:var(--ink2)}
+.legend i{display:inline-block;width:10px;height:3px;margin-right:5px;vertical-align:middle}
+
+@media (max-width:900px){
+  body{overflow:auto;height:auto}
+  .app{grid-template-columns:1fr}
+  .stage{height:62vh;min-height:400px}
+  .clock{margin-left:0}
+  .panel{overflow:visible}
+  #tlWrap{right:12px;bottom:52px}
+}
+@media (max-width:520px){.brand span{display:none}.phases li{padding:4px 7px}.iv{grid-template-columns:1fr}#citList,.dead{grid-template-columns:1fr}.speed button{min-width:38px;padding:7px 6px}}
+@media (prefers-reduced-motion:reduce){.rec{animation:none}#fade{transition:none}}
+</style>
+
+<header class="top">
+  <div class="brand"><b>VEGA</b><span>White Room</span></div>
+  <ol class="phases" aria-label="Stage of Vega's life">
+    <li id="ph1">Life</li><li id="ph2">Chamber</li><li id="ph3">Return</li><li id="ph4">Alone</li>
+  </ol>
+  <div class="clock"><span id="clkReal">Day 1 · 07:00</span><span id="clkSub"></span></div>
+  <div class="speed" role="group" aria-label="Simulation speed">
+    <button type="button" data-s="0">Pause</button><button type="button" data-s="1" aria-pressed="true">1×</button><button type="button" data-s="8">8×</button><button type="button" data-s="64">64×</button><button type="button" data-s="256">256×</button>
+  </div>
+  <button type="button" id="snd" aria-pressed="false">Sound</button>
+</header>
+
+<div class="app">
+  <section class="stage" id="stage" aria-label="Simulation view">
+    <div class="cam lbl" id="camTL"></div>
+    <div class="cam tr lbl" id="camTR"></div>
+    <div id="labels"></div>
+    <div id="vig"></div>
+    <canvas id="grain" width="160" height="100"></canvas>
+    <div id="tlWrap" hidden><canvas id="tl"></canvas></div>
+    <div class="viewbtns"><button type="button" id="viewReset">Reset view</button></div>
+    <div id="fade"><p id="fadeTxt"></p></div>
+    <div class="over" id="setup">
+      <div class="box">
+        <p class="lbl dim">CivSYS · subject Vega</p>
+        <h2>How long does Vega get a normal life?</h2>
+        <ol>
+          <li><b>Life.</b> Vega lives in town with 29 others. Each has their own hungers, wants and friends.</li>
+          <li><b>Chamber.</b> One night he is taken and sealed in a white chamber for 120 days. While he is inside, everyone in town dies.</li>
+          <li><b>Return.</b> The power fails, the door opens, and he walks back into a town that is rotting.</li>
+          <li><b>Alone.</b> He finds what is left of the people he knew, and tries to survive.</li>
+        </ol>
+        <label class="lbl dim" for="lifeDays">Days of normal life</label>
+        <div class="row"><input type="range" id="lifeDays" min="30" max="60" step="1" value="45"><output id="lifeOut" for="lifeDays">45 days</output></div>
+        <div class="row"><button type="button" class="primary" id="begin">Begin his life</button><span class="dim" style="font-size:12.5px">Use 64× or 256×, or the skip buttons, to move through the long stretches.</span></div>
+      </div>
+    </div>
+    <div class="over" id="ending" hidden>
+      <div class="box">
+        <p class="lbl dim" id="endEyebrow">Outcome</p>
+        <h2 id="endTitle"></h2>
+        <p id="endText"></p>
+        <dl id="endStats"></dl>
+        <div class="row"><button type="button" class="primary" id="endRestart">Start a new life</button><button type="button" id="endWatch">Keep watching</button></div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel" id="panel">
+    <div id="lifePanel">
+      <section>
+        <p class="lbl dim" id="selEyebrow">CivSYS · selected citizen</p>
+        <h2 id="selName">Vega</h2>
+        <p class="dim" id="selLife"></p>
+        <p id="selDoing"></p>
+        <p class="thought" id="selThought"></p>
+      </section>
+      <section id="countdown">
+        <h3>Normal life</h3>
+        <div class="meters" id="lifeMeter"></div>
+        <p id="lifeText" class="dim"></p>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="skipLife">Skip to the night he is taken</button></div>
+      </section>
+      <section><h3>Needs</h3><div class="meters" id="selNeeds"></div></section>
+      <section><h3>Wants</h3><div class="meters" id="selWants"></div></section>
+      <section><h3>Personality</h3><div class="chips" id="selTraits"></div></section>
+      <section><h3>Closest to</h3><div class="rel" id="selRel"></div></section>
+      <section><h3>Citizens</h3><ul id="citList"></ul></section>
+    </div>
+
+    <div id="roomPanel" hidden>
+      <section>
+        <p class="lbl dim" id="rEyebrow">Chamber 7 · subject Vega</p>
+        <h2 id="rDoing">Waking up</h2>
+        <p class="thought" id="rThought"></p>
+      </section>
+      <section><h3>Body</h3><div class="meters" id="rBody"></div></section>
+      <section><h3>Mind</h3><div class="meters" id="rMind"></div></section>
+      <section><h3>Wants, strongest first</h3><div class="meters" id="rWants"></div></section>
+      <section><h3>The door</h3><div class="rel" id="rEscape"></div></section>
+      <section>
+        <h3>Observer controls</h3>
+        <div class="iv">
+          <button type="button" id="ivLights" aria-pressed="false">Lights off</button>
+          <button type="button" id="ivNoise" aria-pressed="false">Play static</button>
+          <button type="button" id="ivCam">Free camera</button>
+          <button type="button" id="skipRoom">Skip to day 120</button>
+        </div>
+        <div class="legend"><span><i style="background:var(--ink)"></i>grip on reality</span><span><i style="background:var(--calm)"></i>hope</span><span><i style="background:var(--alarm)"></i>health</span><span><i style="background:var(--civ)"></i>fear</span></div>
+      </section>
+      <section>
+        <h3>Meanwhile in town (Vega can't know)</h3>
+        <dl class="kv" id="outKv"></dl>
+        <ol class="feed" id="outFeed"></ol>
+      </section>
+    </div>
+
+    <div id="alonePanel" hidden>
+      <section>
+        <p class="lbl dim" id="aEyebrow">After · alone</p>
+        <h2 id="aDoing">Walking out</h2>
+        <p class="thought" id="aThought"></p>
+      </section>
+      <section><h3>Body</h3><div class="meters" id="aBody"></div></section>
+      <section><h3>Mind</h3><div class="meters" id="aMind"></div></section>
+      <section><h3>Survival</h3><dl class="kv" id="aSurv"></dl><div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="skipAlone">Skip ahead 10 days</button></div></section>
+      <section><h3>The people he knew</h3><ul class="dead" id="aDead"></ul></section>
+    </div>
+
+    <section id="feedSec" hidden><h3>Inner monologue</h3><ol class="feed" id="feedList"></ol></section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const TAU = Math.PI * 2;
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- seeded randomness ----------
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const SEED = (Date.now() % 1e6) | 0;
+const R = mulberry32(SEED);
+const rnd = (a = 0, b = 1) => a + (b - a) * R();
+const pick = a => a[Math.floor(R() * a.length)];
+const wide = () => clamp(.5 + (R() + R() - 1) * .85, .03, .97);
+const angDiff = (a, b) => { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+
+// ---------- renderer ----------
+const stage = $('#stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+stage.prepend(renderer.domElement);
+const camera = new THREE.PerspectiveCamera(50, 1, .1, 400);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = 1.5;
+
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(1, h);
+  camera.updateProjectionMatrix();
+  const tl = $('#tl'), r = tl.getBoundingClientRect();
+  tl.width = Math.max(10, r.width * devicePixelRatio); tl.height = Math.max(10, r.height * devicePixelRatio);
+}
+new ResizeObserver(resize).observe(stage);
+
+// ---------- articulated humans ----------
+const GEO = {
+  cyl: (a, b, h) => new THREE.CylinderGeometry(a, b, h, 10),
+  sph: r => new THREE.SphereGeometry(r, 14, 10),
+};
+function makeHuman(o) {
+  const mat = c => o.ghost
+    ? new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, depthWrite: false })
+    : new THREE.MeshStandardMaterial({ color: c, roughness: .82 });
+  const skin = mat(o.skin), shirt = mat(o.shirt), pants = mat(o.pants), hair = mat(o.hair), shoe = mat(0x2a2a2a), eye = mat(0x111111);
+  const handL = mat(o.skin), handR = mat(o.skin);
+  const root = new THREE.Group(), body = new THREE.Group(), hips = new THREE.Group();
+  root.add(body); body.add(hips);
+  const add = (parent, g, m, y = 0, x = 0, z = 0) => { const me = new THREE.Mesh(g, m); me.position.set(x, y, z); me.castShadow = !o.ghost; parent.add(me); return me; };
+  const pelvis = add(hips, new THREE.BoxGeometry(.32, .18, .2), pants);
+  const spine = new THREE.Group(); spine.position.y = .06; hips.add(spine);
+  const torso = add(spine, GEO.cyl(.19, .15, .5), shirt, .27); torso.scale.z = .65;
+  const neck = new THREE.Group(); neck.position.y = .52; spine.add(neck);
+  add(neck, GEO.cyl(.045, .05, .1), skin, .04);
+  const head = new THREE.Group(); head.position.y = .1; neck.add(head);
+  add(head, GEO.sph(.105), skin, .1).scale.set(.92, 1.08, 1);
+  add(head, GEO.sph(.11), hair, .135, 0, -.012).scale.set(.97, .82, 1.02);
+  add(head, GEO.sph(.013), eye, .11, .036, .093); add(head, GEO.sph(.013), eye, .11, -.036, .093);
+  const arm = side => {
+    const sh = new THREE.Group(); sh.position.set(side * .215, .47, 0); spine.add(sh);
+    const ua = add(sh, GEO.cyl(.052, .045, .3), shirt, -.15);
+    const el = new THREE.Group(); el.position.y = -.3; sh.add(el);
+    const fa = add(el, GEO.cyl(.043, .036, .27), skin, -.135);
+    const hand = add(el, GEO.sph(.048), side > 0 ? handL : handR, -.3);
+    return { sh, el, ua, fa, hand };
+  };
+  const leg = side => {
+    const hp = new THREE.Group(); hp.position.set(side * .095, -.06, 0); hips.add(hp);
+    const th = add(hp, GEO.cyl(.078, .06, .44), pants, -.22);
+    const kn = new THREE.Group(); kn.position.y = -.44; hp.add(kn);
+    const sn = add(kn, GEO.cyl(.056, .044, .42), pants, -.21);
+    add(kn, new THREE.BoxGeometry(.09, .06, .22), shoe, -.43, 0, .05);
+    return { hp, kn, th, sn };
+  };
+  const L = arm(1), Rr = arm(-1), LL = leg(1), RL = leg(-1);
+  root.scale.setScalar((o.height || 1.75) / 1.75);
+  return { root, body, hips, spine, neck, head, torso, pelvis, L, R: Rr, LL, RL, handL, handR, skin: new THREE.Color(o.skin),
+    mats: [skin, shirt, pants, hair, shoe, eye, handL, handR], pose: basePose(), phase: 0, mass: 1 };
+}
+const PK = ['y', 'tx', 'tz', 'sx', 'sz', 'nx', 'ny', 'lsx', 'lsz', 'lex', 'rsx', 'rsz', 'rex', 'lhx', 'lhz', 'lkx', 'rhx', 'rhz', 'rkx'];
+function basePose() { const p = {}; PK.forEach(k => p[k] = 0); p.lsz = p.rsz = .07; p.lex = p.rex = .15; return p; }
+function applyPose(h, t, k) {
+  const p = h.pose;
+  for (const key of PK) p[key] += (t[key] - p[key]) * k;
+  h.body.position.y = .95 + p.y; h.body.rotation.x = p.tx; h.body.rotation.z = p.tz;
+  h.spine.rotation.x = p.sx; h.spine.rotation.z = p.sz;
+  h.neck.rotation.x = p.nx; h.neck.rotation.y = p.ny;
+  h.L.sh.rotation.x = -p.lsx; h.L.sh.rotation.z = p.lsz; h.L.el.rotation.x = -p.lex;
+  h.R.sh.rotation.x = -p.rsx; h.R.sh.rotation.z = -p.rsz; h.R.el.rotation.x = -p.rex;
+  h.LL.hp.rotation.x = -p.lhx; h.LL.hp.rotation.z = p.lhz; h.LL.kn.rotation.x = p.lkx;
+  h.RL.hp.rotation.x = -p.rhx; h.RL.hp.rotation.z = -p.rhz; h.RL.kn.rotation.x = p.rkx;
+}
+function setMass(h, m) {
+  h.mass = m;
+  for (const part of [h.L.ua, h.L.fa, h.R.ua, h.R.fa, h.LL.th, h.LL.sn, h.RL.th, h.RL.sn]) { part.scale.x = part.scale.z = m; }
+  h.torso.scale.x = .6 + .4 * m; h.torso.scale.z = .65 * (.7 + .3 * m);
+}
+
+// Poses: every behaviour is a function of a phase and the body's condition (slump, tremor).
+function pose(kind, ph, c = {}) {
+  const p = basePose();
+  const slump = c.slump || 0, trem = c.tremor || 0;
+  const breathe = Math.sin(ph * .5) * .02;
+  p.sx = .03 + slump * .3 + breathe; p.nx = .04 + slump * .35;
+  switch (kind) {
+    case 'walk': case 'pace': {
+      const a = c.amp == null ? 1 : c.amp, s = Math.sin(ph);
+      p.lhx = s * .5 * a; p.rhx = -s * .5 * a;
+      p.lkx = Math.max(0, Math.sin(ph - 1.3)) * .9 * a + .05; p.rkx = Math.max(0, Math.sin(ph + Math.PI - 1.3)) * .9 * a + .05;
+      p.lsx = -s * .38 * a; p.rsx = s * .38 * a; p.lex = p.rex = .3;
+      p.y = Math.abs(Math.cos(ph)) * .03 - .02; p.sx += .06; break;
+    }
+    case 'run': {
+      const s = Math.sin(ph);
+      p.lhx = s * .8; p.rhx = -s * .8; p.lkx = Math.max(0, Math.sin(ph - 1.2)) * 1.5 + .2; p.rkx = Math.max(0, Math.sin(ph + Math.PI - 1.2)) * 1.5 + .2;
+      p.lsx = -s * .7; p.rsx = s * .7; p.lex = p.rex = 1.3; p.sx = .2; p.y = Math.abs(Math.cos(ph)) * .06 - .03; break;
+    }
+    case 'sit_hug': case 'rock':
+      p.y = -.8; p.lhx = p.rhx = 1.95; p.lkx = p.rkx = 2.3; p.sx = .5 + slump * .2; p.nx = .4;
+      p.lsx = p.rsx = .85; p.lsz = p.rsz = .28; p.lex = p.rex = 1.55;
+      if (kind === 'rock') p.sx += Math.sin(ph) * .28; break;
+    case 'sit_wall': case 'read':
+      p.y = -.8; p.lhx = p.rhx = 1.5; p.lkx = p.rkx = .15; p.lhz = p.rhz = .1; p.sx = .02 + slump * .45; p.nx = .1 + slump * .4;
+      p.lsx = p.rsx = .3; p.lex = p.rex = .35;
+      if (kind === 'read') { p.lsx = p.rsx = .55; p.lex = p.rex = 1.3; p.nx = .45; } break;
+    case 'eat_sit':
+      p.y = -.8; p.lhx = p.rhx = 1.5; p.lkx = 1.6; p.rkx = .3; p.sx = .25;
+      p.rsx = .9; p.rex = 2.2 + Math.sin(ph * 2) * .2; p.lsx = .7; p.lex = 1.4; p.nx = .2; break;
+    case 'eat_stand':
+      p.rsx = .9; p.rex = 2.1 + Math.sin(ph * 2) * .2; p.lsx = .4; p.lex = 1.1; break;
+    case 'lie':
+      p.y = -.83; p.tx = -Math.PI / 2; p.sx = 0; p.nx = 0; p.lsz = p.rsz = .2; p.lkx = p.rkx = .15; p.lhx = p.rhx = .12; break;
+    case 'curl':
+      p.y = -.8; p.tz = Math.PI / 2; p.lhx = p.rhx = 1.4; p.lkx = p.rkx = 1.8; p.sx = .55; p.nx = .5;
+      p.lsx = p.rsx = 1.3; p.lex = p.rex = 1.9; p.lsz = p.rsz = .1; break;
+    case 'collapsed':
+      p.y = -.84; p.tx = -Math.PI / 2; p.tz = .25; p.lsz = .9; p.rsz = .3; p.lex = .2; p.rex = .9; p.lhz = .25; p.lkx = .5; p.nx = -.3; p.ny = .7; break;
+    case 'reach_wall': {
+      const s = Math.sin(ph * .8);
+      p.lsx = 1.45 + s * .12; p.rsx = 1.45 - s * .12; p.lsz = .3 + s * .15; p.rsz = .3 - s * .15; p.lex = p.rex = .25;
+      p.lhz = Math.max(0, s) * .18; p.rhz = Math.max(0, -s) * .18; p.nx = .1; break;
+    }
+    case 'punch': {
+      const a = Math.max(0, Math.sin(ph * 2.2));
+      p.rsx = .85 + .7 * a; p.rex = 1.8 * (1 - a) + .05; p.lsx = .95; p.lex = 1.7; p.lsz = .15;
+      p.sx = .12 + a * .12; p.sz = -a * .12; p.lhx = .25; p.rkx = .25; p.y = -.04; break;
+    }
+    case 'hammer': {
+      const a = Math.max(0, Math.sin(ph * 2));
+      p.rsx = 1.3 + a * 1.1; p.rex = .5 + a * .6; p.lsx = .9; p.lex = 1; p.sx = .35; p.nx = .3; break;
+    }
+    case 'pry': {
+      const s = Math.sin(ph * 1.6);
+      p.lsx = p.rsx = 1.35; p.lsz = p.rsz = .06; p.lex = p.rex = .55 + .35 * s; p.sx = -.08 + .14 * s; p.lhx = .35; p.lkx = .5; p.rhx = -.15; p.y = -.06; break;
+    }
+    case 'shout': {
+      const s = Math.sin(ph * 1.3);
+      p.nx = -.5; p.sx = -.12; p.lsz = p.rsz = .75 + .2 * s; p.lsx = p.rsx = .6; p.lex = p.rex = .45; break;
+    }
+    case 'tally':
+      p.rsx = 1.65 + Math.sin(ph * 3) * .15; p.rex = .55; p.lsx = .9; p.lsz = .25; p.lex = .35; p.nx = .1; break;
+    case 'write':
+      p.rsx = 1.8 + Math.sin(ph * 2) * .25; p.rsz = .2 + Math.sin(ph * 1.3) * .3; p.rex = .4; p.lsx = .3; p.lex = .3; break;
+    case 'jump': {
+      const s = Math.sin(ph * 1.8), up = Math.max(0, s);
+      p.lsx = p.rsx = 2.9; p.lsz = p.rsz = .15; p.lex = p.rex = .1; p.y = up * .38 - Math.max(0, -s) * .14;
+      p.lhx = p.rhx = Math.max(0, -s) * .7; p.lkx = p.rkx = Math.max(0, -s) * 1.2; p.nx = -.5; break;
+    }
+    case 'talk': case 'chat': {
+      const s = Math.sin(ph * 1.4);
+      p.rsx = .5 + .25 * s; p.rex = 1.2 + .35 * Math.sin(ph * 1.9); p.lsx = .25; p.lex = .55; p.nx = -.03 + .05 * s; p.ny = .1 * Math.sin(ph * .7); break;
+    }
+    case 'stare':
+      p.nx = .2 + slump * .3; p.lsz = p.rsz = .02; p.lex = p.rex = .02; p.sx = .1 + slump * .3; break;
+    case 'clutch':
+      p.lsx = p.rsx = 2.5; p.lsz = p.rsz = .65; p.lex = p.rex = 2.3; p.sx = .45; p.nx = .55; p.lkx = p.rkx = .4; p.lhx = p.rhx = .3; p.y = -.08; break;
+    case 'forage':
+      p.y = -.35; p.lhx = p.rhx = 1.1; p.lkx = p.rkx = 1.6; p.sx = .7; p.lsx = p.rsx = 1.0 + Math.sin(ph * 2) * .2; p.lex = p.rex = .3; break;
+    case 'look':
+      p.ny = Math.sin(ph * .4) * .7; p.nx = -.1; break;
+  }
+  if (trem > 0) for (const k of ['sx', 'nx', 'lsx', 'rsx', 'lex', 'rex']) p[k] += (Math.random() - .5) * trem;
+  return p;
+}
+
+// ---------- labels ----------
+const labelsEl = $('#labels');
+const tagPool = new Map();
+let tagsSeen = new Set();
+const v3 = new THREE.Vector3();
+function tag(key, text, pos, cls) {
+  let el = tagPool.get(key);
+  if (!el) { el = document.createElement('div'); labelsEl.appendChild(el); tagPool.set(key, el); }
+  if (el._t !== text) { el.textContent = text; el._t = text; }
+  if (el._c !== cls) { el.className = cls; el._c = cls; }
+  v3.copy(pos).project(camera);
+  const vis = v3.z < 1 && Math.abs(v3.x) < 1.15 && Math.abs(v3.y) < 1.15;
+  el.style.display = vis ? '' : 'none';
+  if (vis) el.style.transform = `translate(${((v3.x + 1) / 2 * stage.clientWidth).toFixed(1)}px,${((1 - v3.y) / 2 * stage.clientHeight).toFixed(1)}px) translate(-50%,-100%)`;
+  el.style.left = el.style.top = '0';
+  tagsSeen.add(key);
+}
+function sweepTags() { for (const [k, el] of tagPool) if (!tagsSeen.has(k)) { el.remove(); tagPool.delete(k); } tagsSeen = new Set(); }
+
+// ---------- sim clock ----------
+const H_PER_SEC = .25;            // at 1x, one real second is a quarter of a sim hour
+const CHAMBER_DAYS = 120;
+let speed = 1;
+const sim = { phase: 'setup', hours: 7, lifeDays: 45, takeAt: 0, chamberStart: 0, aloneStart: 0, skipTo: null, collapseAt: Infinity };
+const fmtClock = h => { const d = Math.floor(h / 24) + 1, hh = Math.floor(h % 24), mm = Math.floor((h * 60) % 60); return `Day ${d} · ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; };
+const fmtShort = h => `D${Math.floor(h / 24) + 1} ${String(Math.floor(h % 24)).padStart(2, '0')}:${String(Math.floor((h * 60) % 60)).padStart(2, '0')}`;
+const escapeHtml = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+// =====================================================================
+// CIVSYS: a town where everyone has their own needs, wants and friends
+// =====================================================================
+const civScene = new THREE.Scene();
+civScene.fog = new THREE.Fog(0xdfe3dc, 60, 140);
+const hemi = new THREE.HemisphereLight(0xf4f1e6, 0x6b6250, .6); civScene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff3dd, 1.0);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 160 });
+civScene.add(sun, sun.target);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0xc9c09d, roughness: 1 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), groundMat);
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; civScene.add(ground);
+
+const PLACES = {
+  plaza: { pos: new THREE.Vector3(0, 0, 0), r: 4.5, label: 'Plaza' },
+  well: { pos: new THREE.Vector3(2.5, 0, -1.5), r: 1.6, label: 'Well' },
+  market: { pos: new THREE.Vector3(-13, 0, -6), r: 3.2, label: 'Market' },
+  workshop: { pos: new THREE.Vector3(13, 0, -6), r: 3.2, label: 'Workshop' },
+  library: { pos: new THREE.Vector3(10, 0, 11), r: 2.6, label: 'Library' },
+  fields: { pos: new THREE.Vector3(-13, 0, 13), r: 5, label: 'Fields' },
+  facility: { pos: new THREE.Vector3(34, 0, -24), r: 1, label: 'Facility' },
+};
+const matOf = c => new THREE.MeshStandardMaterial({ color: c, roughness: .9 });
+const BUILDINGS = [];
+function building(x, z, w, d, h, wall, roof) {
+  const g = new THREE.Group();
+  const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matOf(wall)); b.position.y = h / 2; b.castShadow = b.receiveShadow = true; g.add(b);
+  const r = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * .78, h * .6, 4), matOf(roof)); r.rotation.y = Math.PI / 4; r.position.y = h + h * .3; r.scale.z = d / w; r.castShadow = true; g.add(r);
+  g.position.set(x, 0, z); civScene.add(g); BUILDINGS.push({ g, b, r, h }); return g;
+}
+building(-13, -11, 7, 4, 2.6, 0xd8c7a0, 0x8a4f2a);
+const STALLS = [];
+for (let i = 0; i < 4; i++) { const s = new THREE.Mesh(new THREE.BoxGeometry(1.6, .9, .9), matOf([0xb5552e, 0xd19a3c, 0x5f7f4a, 0x9a6b4f][i])); s.position.set(-16 + i * 2.2, .45, -6.8); s.castShadow = true; civScene.add(s); STALLS.push(s); }
+building(13, -11, 7, 4.5, 3.2, 0xb9b3a6, 0x55514a);
+building(10, 15, 6, 4, 3.6, 0xe1dccf, 0x3d4a5a);
+// the facility: a windowless block at the edge of town that nobody talks about
+const facility = new THREE.Mesh(new THREE.BoxGeometry(7, 3.4, 6), matOf(0x8d918f)); facility.position.set(36.5, 1.7, -26); facility.castShadow = facility.receiveShadow = true; civScene.add(facility);
+const facDoor = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.1, .1), matOf(0x3b3f42)); facDoor.position.set(33.6, 1.05, -23.4); facDoor.rotation.y = -Math.PI / 4; civScene.add(facDoor);
+const FAC_DOOR = new THREE.Vector3(32.6, 0, -22.4);
+const wellM = new THREE.Mesh(new THREE.CylinderGeometry(.9, 1, .8, 16), matOf(0x8f8a80)); wellM.position.set(2.5, .4, -1.5); wellM.castShadow = true; civScene.add(wellM);
+const plazaMat = new THREE.MeshStandardMaterial({ color: 0xd9d3c1, roughness: 1 });
+const plazaM = new THREE.Mesh(new THREE.CircleGeometry(6, 40), plazaMat); plazaM.rotation.x = -Math.PI / 2; plazaM.position.y = .01; plazaM.receiveShadow = true; civScene.add(plazaM);
+const fieldMat = new THREE.MeshStandardMaterial({ color: 0x9da866, roughness: 1 });
+const fieldM = new THREE.Mesh(new THREE.PlaneGeometry(13, 9), fieldMat); fieldM.rotation.x = -Math.PI / 2; fieldM.position.set(-13, .012, 13); fieldM.receiveShadow = true; civScene.add(fieldM);
+const TREES = [];
+for (let i = 0; i < 26; i++) {
+  const a = rnd(0, TAU), r = rnd(30, 52), t = new THREE.Mesh(new THREE.ConeGeometry(rnd(1, 1.8), rnd(3, 5.5), 7), matOf(0x5d6e45));
+  t.position.set(Math.cos(a) * r, 2, Math.sin(a) * r);
+  if (t.position.distanceTo(facility.position) < 9) t.position.x -= 14;
+  t.castShadow = true; civScene.add(t); TREES.push(t);
+}
+const HOUSES = [];
+for (let i = 0; i < 10; i++) {
+  const a = (i / 10) * TAU + .3, x = Math.cos(a) * 25, z = Math.sin(a) * 25;
+  const g = building(x, z, 3.6, 3.2, 2.3, [0xe6dcc6, 0xd9c9ab, 0xe0d6c8][i % 3], [0x9a5532, 0x7b4b35, 0x6d5a48][i % 3]);
+  g.rotation.y = -a + Math.PI / 2;
+  HOUSES.push({ door: new THREE.Vector3(Math.cos(a) * 22.6, 0, Math.sin(a) * 22.6), pos: new THREE.Vector3(x, 0, z), i, stock: 0, searched: false });
+}
+
+const NAMES = ['Vega', 'Mira', 'Tomas', 'Anaya', 'Kofi', 'Lena', 'Ravi', 'Ines', 'Jun', 'Sana', 'Ola', 'Pavel', 'Noor', 'Dario', 'Hana', 'Felix', 'Amara', 'Yusuf', 'Elif', 'Bram', 'Keiko', 'Luca', 'Zara', 'Ade', 'Rhea', 'Mateo', 'Ivy', 'Omar', 'Tess', 'Nils'];
+const SKINS = [0x8d5524, 0xc68642, 0xe0ac69, 0xf1c27d, 0xffdbac, 0x5c3a21, 0xa66a3f];
+const HAIRS = [0x1d1a17, 0x3b2a1e, 0x6a4a2c, 0xb08a52, 0x2a2a2a, 0x8c8c86];
+const TRAIT_NAMES = { openness: 'open', conscientiousness: 'careful', extraversion: 'outgoing', agreeableness: 'kind', emotional_stability: 'steady', curiosity: 'curious', ambition: 'ambitious', independence: 'independent', persistence: 'stubborn', impulsiveness: 'impulsive' };
+const TRAIT_LOW = { openness: 'set in ways', conscientiousness: 'scattered', extraversion: 'quiet', agreeableness: 'prickly', emotional_stability: 'anxious', curiosity: 'incurious', ambition: 'content', independence: 'dependent', persistence: 'gives up easily', impulsiveness: 'deliberate' };
+const LIFE_WANTS = {
+  family: 'Wants a family of their own', freedom: 'Wants to leave town and see the coast', wealth: 'Wants to own a market stall',
+  knowledge: 'Wants to read every book in the library', status: 'Wants to be someone people listen to', community: 'Wants to belong somewhere',
+};
+const WANT_LABEL = { social: 'Company', achieve: 'To achieve', know: 'To learn', free: 'Freedom' };
+
+const citizens = [];
+function makeCitizen(i) {
+  const isVega = i === 0;
+  const p = {}; for (const k of Object.keys(TRAIT_NAMES)) p[k] = wide();
+  const v = { family: wide(), freedom: wide(), wealth: wide(), knowledge: wide(), status: wide(), community: wide() };
+  if (isVega) {
+    Object.assign(p, { openness: .74, conscientiousness: .55, extraversion: .8, agreeableness: .66, emotional_stability: .42, curiosity: .72, ambition: .5, independence: .7, persistence: .64, impulsiveness: .45 });
+    Object.assign(v, { family: .55, freedom: .85, wealth: .3, knowledge: .6, status: .35, community: .74 });
+  }
+  const w = {
+    social: { w: .2 + .8 * (p.extraversion * .6 + v.community * .4), l: rnd(.4, .8) },
+    achieve: { w: .2 + .8 * (p.ambition * .5 + v.wealth * .5), l: rnd(.4, .8) },
+    know: { w: .2 + .8 * (p.curiosity * .6 + v.knowledge * .4), l: rnd(.4, .8) },
+    free: { w: .2 + .8 * (p.independence * .5 + v.freedom * .5), l: rnd(.4, .8) },
+  };
+  const topVal = Object.entries(v).sort((a, b) => b[1] - a[1])[0][0];
+  const shirt = isVega ? 0x2b6684 : new THREE.Color().setHSL(rnd(0, 1), rnd(.25, .55), rnd(.35, .6)).getHex();
+  const h = makeHuman({ skin: pick(SKINS), shirt, pants: new THREE.Color().setHSL(rnd(0, 1), .15, rnd(.18, .35)).getHex(), hair: pick(HAIRS), height: isVega ? 1.76 : rnd(1.55, 1.92) });
+  const home = HOUSES[i % HOUSES.length];
+  const c = {
+    i, name: NAMES[i], isVega, p, v, w, h, home, shirt,
+    life: isVega ? 'Wants to leave town and see the coast' : LIFE_WANTS[topVal],
+    rates: { hunger: .035 * rnd(.7, 1.4), thirst: .06 * rnd(.75, 1.3), sleep: .045 * rnd(.8, 1.25) },
+    chrono: 21.5 + rnd(-2, 2.5),
+    needs: { hunger: rnd(.1, .4), thirst: rnd(.1, .4), sleep: rnd(0, .2), energy: rnd(.7, 1), health: 1 },
+    money: rnd(5, 25), rel: new Map(), act: null, thought: '', pos: home.door.clone().add(new THREE.Vector3(rnd(-1, 1), 0, rnd(-1, 1))), yaw: rnd(0, TAU), chatLine: null,
+    alive: true, sick: false, sickAt: Infinity, deathAt: Infinity, cause: '', deathPos: null, found: false, buried: false, remains: null,
+  };
+  h.root.position.copy(c.pos);
+  h.root.traverse(o => { o.userData.cit = c; });
+  civScene.add(h.root);
+  return c;
+}
+for (let i = 0; i < NAMES.length; i++) citizens.push(makeCitizen(i));
+const vegaC = citizens[0];
+{ const a = citizens[1 + Math.floor(R() * 14)], b = citizens[15 + Math.floor(R() * 14)];
+  vegaC.rel.set(a, .5); a.rel.set(vegaC, .45); vegaC.rel.set(b, .35); b.rel.set(vegaC, .3); }
+
+const marker = new THREE.Mesh(new THREE.RingGeometry(.45, .58, 32), new THREE.MeshBasicMaterial({ color: 0x16181b }));
+marker.rotation.x = -Math.PI / 2; marker.position.y = .02; civScene.add(marker);
+
+const isNight = (h, c) => { const hh = h % 24, s = c.chrono % 24, e = (c.chrono + 8.5) % 24; return s < e ? hh >= s && hh < e : hh >= s || hh < e; };
+const nearPlace = (k, rr) => { const pl = PLACES[k], a = rnd(0, TAU), r = Math.sqrt(R()) * (rr ?? pl.r); return pl.pos.clone().add(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r)); };
+function topFriend(c, n = 1) { const arr = [...c.rel.entries()].sort((a, b) => b[1] - a[1]); return n === 1 ? (arr[0] && arr[0][1] > .15 ? arr[0][0] : null) : arr.slice(0, n); }
+const inTown = c => c.alive && (!c.isVega || sim.phase === 'life' || sim.phase === 'setup');
+
+// the town's food supply; a blight takes it down while Vega is in the chamber
+const WORLD = { food: 1 };
+const OUT = [];   // what happens outside while Vega is sealed in
+
+const CIV_THOUGHTS = {
+  eat: c => c.needs.hunger > .7 ? 'Starving. Market, now.' : (WORLD.food < .5 ? 'The stalls are half empty again.' : pick(['Something to eat first.', 'Bread, then the rest of the day.'])),
+  forage: c => WORLD.food < .5 ? 'Digging for anything the blight left.' : pick(['No coins. The fields will have to do.', 'Picking whatever grows.']),
+  drink: c => c.needs.thirst > .7 ? 'Mouth like sand. The well.' : 'A drink at the well.',
+  sleep: c => c.sick ? 'Burning up. Can\'t get out of bed.' : (c.needs.sleep > .7 ? 'Can barely keep my eyes open.' : 'Home, and bed.'),
+  work: c => c.money < 8 ? 'Need coin before the market closes.' : pick(['Back to the bench.', `Every job gets me closer. ${c.life.replace('Wants', 'I want').replace('their own', 'my own')}.`]),
+  learn: c => pick(['There was a book I didn\'t finish.', 'The library is quiet this time of day.']),
+  social: c => { const f = topFriend(c); if (c !== vegaC && vegaC.rel.get(c) > .3 && sim.phase !== 'life') return 'Nobody has seen Vega in weeks.'; return f ? `Maybe ${f.name} is at the plaza.` : 'I could use some company.'; },
+  wander: c => c.p.independence > .6 ? 'Walking the edge of town. Thinking about leaving.' : 'Just walking.',
+};
+
+function civDecide(c, hour) {
+  const n = c.needs, W = c.w, noise = () => R() * .25 * (.5 + c.p.impulsiveness);
+  const want = k => W[k].w * Math.pow(1 - W[k].l, 1.3) * 1.25;
+  const night = isNight(hour, c), day = hour % 24 > 7 && hour % 24 < 19;
+  const U = {
+    eat: c.money >= 4 && WORLD.food > .15 ? Math.pow(n.hunger, 1.4) * 2.4 : 0,
+    forage: c.money < 4 || WORLD.food <= .15 ? Math.pow(n.hunger, 1.4) * 2 : 0,
+    drink: Math.pow(n.thirst, 1.4) * 2.4,
+    sleep: Math.pow(n.sleep, 1.5) * 2 + (night ? (n.sleep > .3 ? 1 : .35) : 0) + (n.energy < .15 ? 1 : 0) + (c.sick ? 4 : 0),
+    work: day ? want('achieve') + (c.money < 10 ? .35 : 0) : 0,
+    learn: want('know') * (night ? .4 : 1),
+    social: want('social') * (night ? .45 : 1),
+    wander: want('free') * (night ? .3 : 1),
+  };
+  let best = 'wander', bv = -1;
+  for (const k in U) { const u = U[k] + noise(); if (u > bv) { bv = u; best = k; } }
+  let target, dur, yaw = null;
+  switch (best) {
+    case 'eat': target = nearPlace('market', 2.5); target.z = -5.4 + rnd(-.6, .6); dur = .8; yaw = Math.PI; c.money -= 4; break;
+    case 'forage': target = nearPlace('fields'); dur = 1.5; break;
+    case 'drink': target = nearPlace('well', 1.8); dur = .4; break;
+    case 'sleep': target = c.home.door.clone(); dur = c.sick ? 24 : 8; break;
+    case 'work': target = nearPlace('workshop', 2.6); dur = rnd(2.5, 4.5); break;
+    case 'learn': target = nearPlace('library', 2.4); dur = rnd(1.5, 3); break;
+    case 'social': target = nearPlace('plaza'); dur = rnd(1.2, 2.8); break;
+    case 'wander': { const a = rnd(0, TAU), r = rnd(14, 34); target = new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r); dur = rnd(.6, 1.6); break; }
+  }
+  c.act = { kind: best, target, dur, t: 0, yaw, arrived: false };
+  c.thought = CIV_THOUGHTS[best](c);
+}
+
+const CIV_POSE = { eat: 'eat_stand', forage: 'forage', drink: 'eat_stand', sleep: 'lie', work: 'hammer', learn: 'read', social: 'chat', wander: 'look' };
+const CHAT = c => {
+  const f = topFriend(c);
+  const lines = [c.life.replace('Wants', 'I want').replace('their own', 'my own') + '.', 'Did you hear the well rope snapped?', 'Market prices again.', 'Long day at the bench.'];
+  if (f) lines.push(`Have you seen ${f.name}?`);
+  if (c.isVega) lines.push('I want to see the coast one day.', 'What do you think is in that grey building?');
+  if (WORLD.food < .7) lines.push('The fields are black.', 'My hands won\'t stop shaking.', 'Three more buried this week.');
+  return pick(lines);
+};
+
+function die(c) {
+  c.alive = false;
+  const asleep = c.act && c.act.kind === 'sleep' && c.act.arrived;
+  c.deathPos = (asleep ? c.home.door.clone() : c.pos.clone()).add(new THREE.Vector3(rnd(-.6, .6), 0, rnd(-.6, .6)));
+  c.h.root.visible = false;
+  const friend = (vegaC.rel.get(c) || 0) > .25;
+  OUT.push({ h: sim.hours, text: `${c.name} died of ${c.cause}${asleep ? ' at home' : ''}.`, friend });
+  const left = citizens.filter(o => o.alive && !o.isVega).length;
+  if (left === 0) OUT.push({ h: sim.hours, text: 'Nobody is left in town.', friend: false });
+}
+
+function civStep(dtH, dtR) {
+  const hour = sim.hours;
+  if (hour >= sim.collapseAt) {
+    if (!WORLD.blight) { WORLD.blight = true; OUT.push({ h: hour, text: 'A black rot spreads through the fields.' }); }
+    WORLD.food = clamp(WORLD.food - dtH / (24 * 22), .08, 1);
+  }
+  for (const c of citizens) {
+    if (!inTown(c)) continue;
+    const n = c.needs, a = c.act;
+    if (!c.sick && hour >= c.sickAt) { c.sick = true; c.act = null; if (OUT.length && R() < .25) OUT.push({ h: hour, text: `${c.name} has the fever.` }); }
+    if (hour >= c.deathAt) { die(c); continue; }
+    const sleeping = a && a.kind === 'sleep' && a.arrived;
+    n.hunger = clamp(n.hunger + c.rates.hunger * dtH * (sleeping ? .5 : 1));
+    n.thirst = clamp(n.thirst + c.rates.thirst * dtH * (sleeping ? .4 : 1));
+    if (!sleeping) { n.sleep = clamp(n.sleep + c.rates.sleep * dtH); n.energy = clamp(n.energy - .03 * dtH); }
+    if (c.sick) n.health = clamp(n.health - .3 / Math.max(6, c.deathAt - c.sickAt) * dtH * 24 / 24);
+    else if (n.hunger > .85 || n.thirst > .92) n.health = clamp(n.health - .02 * dtH); else n.health = clamp(n.health + .01 * dtH);
+    for (const k in c.w) c.w[k].l = clamp(c.w[k].l - c.w[k].w * .035 * dtH);
+
+    if (!c.act || c.act.t >= c.act.dur || (!c.sick && n.hunger > .85 && c.act.kind !== 'eat' && c.act.kind !== 'forage') || (!c.sick && n.thirst > .9 && c.act.kind !== 'drink')) {
+      if (c.act && c.act.kind === 'sleep') c.h.root.visible = true;
+      civDecide(c, hour);
+    }
+    const act = c.act;
+    const d = act.target.clone().sub(c.pos); d.y = 0; const dist = d.length();
+    if (!act.arrived) {
+      const step = Math.min(dist, 12 * dtH * (.6 + .4 * n.energy) * (c.sick ? .4 : 1));
+      if (dist > .12) { d.normalize(); c.pos.addScaledVector(d, step); c.yaw += angDiff(c.yaw, Math.atan2(d.x, d.z)) * Math.min(1, dtR * 8); c.h.phase += step * 4.6; }
+      else act.arrived = true;
+    } else {
+      act.t += dtH;
+      const k = act.kind;
+      if (k === 'eat') n.hunger = clamp(n.hunger - .65 * WORLD.food * dtH);
+      if (k === 'forage') n.hunger = clamp(n.hunger - .22 * WORLD.food * dtH);
+      if (k === 'drink') { n.thirst = clamp(n.thirst - 1.6 * dtH); if (n.thirst < .03) act.t = act.dur; }
+      if (k === 'sleep') { n.sleep = clamp(n.sleep - .17 * dtH); n.energy = clamp(n.energy + .13 * dtH); c.h.root.visible = false; if (!c.sick && n.sleep < .03 && !isNight(hour, c)) act.t = act.dur; }
+      if (k === 'work') { c.money += 6 * dtH; n.energy = clamp(n.energy - .03 * dtH); c.w.achieve.l = clamp(c.w.achieve.l + .13 * dtH); }
+      if (k === 'learn') c.w.know.l = clamp(c.w.know.l + .16 * dtH);
+      if (k === 'wander') c.w.free.l = clamp(c.w.free.l + .22 * dtH);
+      if (k === 'social' || k === 'work') {
+        let best = null, bd = 3.6;
+        for (const o of citizens) {
+          if (o === c || !inTown(o) || !o.act || o.act.kind !== k || !o.act.arrived) continue;
+          const dd = o.pos.distanceTo(c.pos); if (dd < bd) { bd = dd; best = o; }
+          if (dd < 3.6) c.rel.set(o, clamp((c.rel.get(o) || 0) + (k === 'social' ? .09 : .025) * dtH * (.3 + (c.p.agreeableness + o.p.agreeableness) / 2)));
+        }
+        if (k === 'social') {
+          c.w.social.l = clamp(c.w.social.l + .17 * dtH * (best ? 1 + (c.rel.get(best) || 0) : .4));
+          c.chatPartner = best;
+          if (best) { const dd = best.pos.clone().sub(c.pos); c.yaw += angDiff(c.yaw, Math.atan2(dd.x, dd.z)) * Math.min(1, dtR * 4); }
+          if (best && R() < dtH * .6) c.chatLine = { text: CHAT(c), until: performance.now() + 2600 };
+        }
+      }
+      if (act.yaw != null) c.yaw += angDiff(c.yaw, act.yaw) * Math.min(1, dtR * 5);
+    }
+  }
+}
+
+// light the town; `rot` is how far it has decayed (0 alive, 1 dead and overgrown)
+function lightTown(rot, winter) {
+  const h24 = sim.hours % 24, sunA = (h24 - 6) / 12 * Math.PI;
+  const day = clamp(Math.sin(sunA) * 1.4 + .15);
+  sun.position.set(Math.cos(sunA) * 50, Math.max(4, Math.sin(sunA) * 55), 22);
+  sun.intensity = (.08 + day * .72) * (1 - rot * .3); hemi.intensity = (.16 + rot * .1 + day * .32) * (1 - rot * .15);
+  const dayCol = new THREE.Color(0xdfe3dc).lerp(new THREE.Color(0xa9ada3), rot).lerp(new THREE.Color(0xe4e6e6), winter * .6);
+  const bg = new THREE.Color(0x1d2330).lerp(dayCol, day);
+  civScene.background = bg; civScene.fog.color.copy(bg);
+  civScene.fog.near = lerp(60, 22, rot); civScene.fog.far = lerp(140, 95, rot);
+  return day;
+}
+
+function civRender(dtR, now) {
+  lightTown(0, 0);
+  for (const c of citizens) {
+    if (!inTown(c)) continue;
+    const a = c.act, h = c.h;
+    h.root.position.copy(c.pos); h.root.rotation.y = c.yaw;
+    let kind = 'stand';
+    if (a) kind = a.arrived ? CIV_POSE[a.kind] : 'walk';
+    h.phase += (a && a.arrived ? dtR * 3 : 0);
+    applyPose(h, pose(kind, h.phase, { slump: c.sick ? .6 : 0, tremor: c.sick ? .05 : 0 }), 1 - Math.exp(-dtR * 9));
+    if (c.chatLine && now < c.chatLine.until && h.root.visible) tag('chat' + c.i, c.chatLine.text, new THREE.Vector3(c.pos.x, 2.3, c.pos.z), 'bub');
+  }
+  for (const k in PLACES) tag('pl' + k, PLACES[k].label, PLACES[k].pos.clone().setY(k === 'plaza' || k === 'fields' ? .3 : (k === 'facility' ? 4.2 : 4.4)), 'tag place');
+  const sel = selected;
+  if (sel && inTown(sel) && sel.h.root.visible) { marker.visible = true; marker.position.set(sel.pos.x, .02, sel.pos.z); tag('sel', sel.name, new THREE.Vector3(sel.pos.x, 2.15, sel.pos.z), sel.isVega ? 'tag vega' : 'tag'); }
+  else marker.visible = false;
+  if (sel !== vegaC && vegaC.h.root.visible && sim.phase === 'life') tag('vg', 'Vega', new THREE.Vector3(vegaC.pos.x, 2.15, vegaC.pos.z), 'tag vega');
+}
+
+// ---------- picking ----------
+let selected = vegaC;
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  if (sim.phase !== 'life' && sim.phase !== 'setup') return;
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hits = ray.intersectObjects(citizens.filter(c => c.h.root.visible && c.h.root.parent === civScene).map(c => c.h.root), true);
+  if (hits.length) { selected = hits[0].object.userData.cit; renderLifePanel(true); }
+});
+
+// =====================================================================
+// THE WHITE CHAMBER
+// =====================================================================
+const roomScene = new THREE.Scene();
+roomScene.background = new THREE.Color(0xfafaf7);
+const RS = 3, RH = 3;
+const roomGroup = new THREE.Group(); roomScene.add(roomGroup);
+const rHemi = new THREE.HemisphereLight(0xffffff, 0xd9d9d2, .78); roomScene.add(rHemi);
+const rLamp = new THREE.PointLight(0xffffff, .75, 14, 1.4); rLamp.position.set(0, 2.85, 0); rLamp.castShadow = true; rLamp.shadow.mapSize.set(1024, 1024); roomScene.add(rLamp);
+const floorM = new THREE.Mesh(new THREE.PlaneGeometry(RS * 2, RS * 2), new THREE.MeshStandardMaterial({ color: 0xefefeb, roughness: .95 }));
+floorM.rotation.x = -Math.PI / 2; floorM.receiveShadow = true; roomGroup.add(floorM);
+const ceilM = new THREE.Mesh(new THREE.PlaneGeometry(RS * 2, RS * 2), new THREE.MeshStandardMaterial({ color: 0xf6f6f2, roughness: 1 }));
+ceilM.rotation.x = Math.PI / 2; ceilM.position.y = RH; roomGroup.add(ceilM);
+const panelMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const lightPanel = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), panelMat); lightPanel.rotation.x = Math.PI / 2; lightPanel.position.y = RH - .01; roomGroup.add(lightPanel);
+
+const WALLS = [];
+function wallUV(i, x, z) { return i === 0 ? (x + RS) / (2 * RS) : i === 1 ? (z + RS) / (2 * RS) : i === 2 ? (RS - x) / (2 * RS) : (RS - z) / (2 * RS); }
+for (let i = 0; i < 4; i++) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+  const g = c.getContext('2d'); g.fillStyle = '#f3f3ef'; g.fillRect(0, 0, 1024, 512);
+  const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(RS * 2, RH), new THREE.MeshStandardMaterial({ map: tex, roughness: .95 }));
+  m.receiveShadow = true;
+  m.rotation.y = [0, -Math.PI / 2, Math.PI, Math.PI / 2][i]; m.position.set([0, RS, 0, -RS][i], RH / 2, [-RS, 0, RS, 0][i]);
+  roomGroup.add(m);
+  WALLS.push({ c, g, tex, m });
+}
+const wallPx = (u, y) => [u * 1024, (1 - y / RH) * 512];
+const DOOR = { x: .8, w: .92, h: 2.05 };
+function drawDoorSeam(alpha) {
+  const g = WALLS[0].g, [x0, y0] = wallPx(wallUV(0, DOOR.x - DOOR.w / 2, 0), DOOR.h), [x1] = wallPx(wallUV(0, DOOR.x + DOOR.w / 2, 0), 0);
+  g.strokeStyle = `rgba(60,60,58,${alpha})`; g.lineWidth = 1.4; g.strokeRect(x0, y0, x1 - x0, 512 - y0 - 1); WALLS[0].tex.needsUpdate = true;
+}
+drawDoorSeam(.035);
+{ const g = WALLS[2].g, [x0, y0] = wallPx(.5 - .1, .55); g.strokeStyle = 'rgba(80,80,78,.5)'; g.lineWidth = 2; g.strokeRect(x0, y0, 1024 * .2, 512 * (.35 / RH)); WALLS[2].tex.needsUpdate = true; }
+const doorPivot = new THREE.Group(); doorPivot.position.set(DOOR.x - DOOR.w / 2, 0, -RS + .02); roomGroup.add(doorPivot);
+const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(DOOR.w, DOOR.h, .05), new THREE.MeshStandardMaterial({ color: 0xf3f3ef, roughness: .95 }));
+doorPanel.position.set(DOOR.w / 2, DOOR.h / 2, 0); doorPanel.castShadow = true; doorPivot.add(doorPanel); doorPivot.visible = false;
+const outsideLight = new THREE.Mesh(new THREE.PlaneGeometry(DOOR.w, DOOR.h), new THREE.MeshBasicMaterial({ color: 0xd9dccf }));
+outsideLight.position.set(DOOR.x, DOOR.h / 2, -RS + .005); outsideLight.visible = false; roomGroup.add(outsideLight);
+const tray = new THREE.Group();
+{ const t = new THREE.Mesh(new THREE.BoxGeometry(.4, .03, .28), matOf(0x9a9a94)); t.position.y = .015; tray.add(t);
+  const bread = new THREE.Mesh(new THREE.BoxGeometry(.14, .06, .09), matOf(0xc89b5e)); bread.position.set(-.08, .06, 0); tray.add(bread);
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(.04, .035, .1, 12), matOf(0xdadad5)); cup.position.set(.1, .08, 0); tray.add(cup);
+  tray.position.set(0, 0, RS - .3); tray.visible = false; roomGroup.add(tray); tray.traverse(o => o.castShadow = true); }
+
+// ghosts: people Vega misses, rebuilt from memory
+const ghosts = new Map();
+function ghostOf(c, parent) {
+  let g = ghosts.get(c);
+  if (!g) { g = makeHuman({ skin: 0xbfbfba, shirt: c.shirt, pants: 0x888884, hair: 0x888884, height: 1.72, ghost: true }); g.op = 0; g.want = 0; g.root.visible = false; ghosts.set(c, g); }
+  if (parent && g.root.parent !== parent) parent.add(g.root);
+  return g;
+}
+
+// ---------- Vega's state, shared by the chamber and the life after ----------
+const S = {};
+const ROOM = {};
+const EVENTS = [];
+const pt = (x, z, yaw) => ({ x, z, yaw });
+function wallSpot(i, s, off = .5) {
+  const a = s * (RS - .5);
+  return [pt(a, -RS + off, Math.PI), pt(RS - off, a, -Math.PI / 2), pt(-a, RS - off, 0), pt(-RS + off, -a, Math.PI / 2)][i];
+}
+const CORNERS = [pt(-2.45, -2.45, Math.PI * .25), pt(2.45, -2.45, -Math.PI * .25), pt(-2.45, 2.45, Math.PI * .75)];   // not the corner under the camera
+const say = (text, cls = 'say') => {
+  if (!text) return;
+  EVENTS.push({ h: sim.hours, bh: sim.phase === 'chamber' ? sim.chamberStart + ROOM.believedHours : sim.hours, text, cls });
+  if (EVENTS.length > 80) EVENTS.shift();
+  if (cls === 'say') { const t = sim.phase === 'chamber' ? '#rThought' : '#aThought'; $(t).textContent = text; }
+  feedDirty = true;
+};
+let feedDirty = false;
+
+function enterRoom() {
+  const c = vegaC, n = c.needs;
+  Object.assign(S, {
+    hunger: Math.min(n.hunger, .35), thirst: Math.min(n.thirst, .3), sleep: Math.max(.2, n.sleep), energy: n.energy, health: n.health, pain: 0,
+    loneliness: clamp(.15 + (1 - c.w.social.l) * .3), boredom: .05, fear: .6, hope: .7, anger: .05, grip: 1, grief: 0,
+    weight: 1, hands: 0, timeRate: 1,
+  });
+  const friends = topFriend(c, 4).filter(([, a]) => a > .08).map(([o, a]) => ({ c: o, a }));
+  Object.assign(ROOM, {
+    hours: 0, believedHours: 0, sleeps: 0, nextMeal: 3, food: false, dark: false, noise: false, released: false,
+    seamFound: false, doorDamage: 0, stuckSaid: false, searched: [0, 0, 0, 0].map(() => new Array(6).fill(0)), tallies: 0, attempts: 0, shouts: 0, writings: 0,
+    beh: null, friends, pos: new THREE.Vector3(0, 0, .3), yaw: 0, hist: [], nextHist: 0, ghostC: null,
+    tallyWall: 3, lastTallySleep: 0, bubble: null, whispers: [], lastLine: '', cata: 0,
+  });
+  roomGroup.add(c.h.root); c.h.root.visible = true;
+  ROOM.beh = { kind: 'wake', target: pt(0, .3, Math.PI), dur: .25, t: 0, arrived: true, extra: {} };
+  c.h.pose = Object.assign(basePose(), pose('lie', 0));
+  say(pick(LINES.wake));
+}
+const mealDelay = () => { const d = ROOM.hours / 24; return d < 90 ? rnd(7, 9) : d < 118 ? rnd(9, 20) : Infinity; };
+
+const fr = () => ROOM.friends.length ? ROOM.friends[0].c.name : 'anyone';
+const fr2 = () => ROOM.friends.length > 1 ? ROOM.friends[1].c.name : fr();
+const LINES = {
+  wake: ['Where... This isn\'t home.', 'White. Everything is white.', 'I was asleep in my own bed. I was.'],
+  explore: () => ROOM.hours < 12
+    ? ['Four walls, a light, a hatch. No handle anywhere.', 'Six steps across. I counted twice.', 'The walls are smooth. Someone made this on purpose.']
+    : ['I know every inch of this floor.', 'Same walls. Checked them again anyway.'],
+  search: () => ['There has to be a seam. Rooms have doors.', 'Hands along the wall, inch by inch.', 'If they put me in, there is a way out.', 'Not this wall. The next one.'],
+  pry: () => ROOM.doorDamage >= .35 ? ['It won\'t move. It will never move.', 'Steel behind the paint. I can feel it.'] : ['Fingernails in the seam. Pull. Rest. Pull.', 'My fingers are raw. Keep going.', 'It has to open.'],
+  pound: () => ['If I break it they have to come.', 'I hit the wall until I stopped feeling my hands.', 'LET ME OUT.'],
+  shout: () => [`I called for ${fr()}. Nothing.`, 'Even the echo sounds tired.', 'I shouted until my throat went raw.'],
+  pace: () => ['Wall. Turn. Wall. Turn.', 'Moving helps. Standing still is worse.', 'I counted four thousand steps. Today, or yesterday.'],
+  tally: () => [`Another mark. Day ${ROOM.sleeps + 1}, I think.`, 'A line every time I wake up. The only clock I have.'],
+  write: () => ['I wrote it on the wall so I would remember.', 'Words on the wall. Something in here that is mine.'],
+  sit_hug: () => ['Knees up. Make myself small.', 'Nobody is coming.', `I miss the plaza. The noise. ${fr()} laughing at nothing.`, 'I keep thinking about bread from the market.'],
+  rock: () => ['Back and forth. Back and forth.', 'If I keep moving I am still here.'],
+  sleep: () => ROOM.dark ? ['Dark at last. I can sleep.'] : ['The light never goes off. I sleep anyway, badly.', 'Eyes shut. It is still white behind them.'],
+  talk_ghost: () => { const g = ROOM.ghostC ? ROOM.ghostC.name : fr(); return [`${g} is here. ${g} says it will be all right.`, `I told ${g} about the hatch. ${g} just listened.`, `${g} came. I knew ${g} would come.`, `${g} won't say how they got in.`]; },
+  stare: () => ['The white goes on forever if you look long enough.', 'I can\'t remember what colour the market stalls were.', 'Who am I talking to?'],
+  jump: () => ['Maybe the ceiling is softer.', 'Can\'t reach it. Can\'t reach anything.'],
+  eat: () => ROOM.hours < 48 ? ['Food. So someone knows I\'m here.', 'Someone is out there. Someone made this bread.'] : ROOM.hours / 24 > 90 ? ['The bread is stale now. Older every time.', 'Less on the tray. Something has changed out there.'] : ['They feed me like an animal.', 'I ate all of it. I don\'t know when the next one comes.'],
+  panic: () => ['My heart won\'t slow down.', 'Something is wrong with the room. With me.', 'Breathe. Breathe.'],
+  lowgrip: () => ['The walls are breathing.', 'Did the hatch just move?', 'I can hear the plaza. I can\'t hear the plaza.', 'There were more of me yesterday.', 'Someone wrote on the wall. It was me.'],
+};
+const SHOUTS = () => S.grip < .4 ? [`${fr()}!`, 'I CAN HEAR YOU', 'STOP WATCHING ME'] : ['HELLO?', 'IS ANYONE THERE?', 'LET ME OUT!', `${fr().toUpperCase()}!`, 'PLEASE!'];
+const SCRAWLS = () => S.grip < .35
+  ? ['WHO AM I', 'THEY ARE WATCHING', `${fr2().toUpperCase()} WAS HERE`, 'THE WALLS LIE', 'NOT REAL', 'VEGA VEGA VEGA']
+  : ['LET ME OUT', 'I AM VEGA', 'I AM STILL HERE', `${fr().toUpperCase()}`, 'WHERE IS EVERYONE', 'DAY ?', 'HELP'];
+function line(src, kind) {
+  let arr = typeof src === 'function' ? src() : src;
+  if (!arr) return null;
+  if (S.grip < .45 && R() < .35 && kind !== 'alone') arr = LINES.lowgrip();
+  let l = pick(arr); if (l === ROOM.lastLine) l = pick(arr); ROOM.lastLine = l; return l;
+}
+function bubble(text, cls, pos, ms = 3000) { ROOM.bubble = { text, cls, pos, until: performance.now() + ms }; }
+
+const BEH_LABEL = {
+  wake: 'Waking up', explore: 'Exploring the chamber', search: 'Searching the walls for a seam', pry: 'Prying at the door seam', pound: 'Pounding the wall',
+  shout: 'Shouting for help', pace: 'Pacing', tally: 'Scratching a tally mark', write: 'Writing on the wall', sit_hug: 'Curled up in a corner', rock: 'Rocking',
+  sleep: 'Sleeping', talk_ghost: 'Talking to someone who isn\'t there', stare: 'Staring at the wall', jump: 'Jumping for the ceiling', eat: 'Eating from the hatch',
+  panic: 'Panicking', escape: 'Walking out', catatonic: 'Unresponsive',
+};
+function derived() {
+  const p = vegaC.p, v = vegaC.v;
+  const despair = clamp(.5 * (1 - S.hope) + .2 * S.loneliness + .2 * (1 - S.grip) + .2 * (S.grief || 0));
+  const escape = clamp(.22 + .25 * v.freedom + .2 * p.independence + .3 * S.anger + .35 * S.hope - .45 * despair - .2 * (1 - S.grip) + (ROOM.seamFound && ROOM.doorDamage < .35 ? .15 : 0) - (ROOM.doorDamage >= .35 ? .25 : 0));
+  const novelty = Math.exp(-(ROOM.hours || 0) / 14);
+  return { despair, escape, novelty, slump: clamp(despair * .8 + (1 - S.energy) * .3 + (1 - S.health) * .3), strength: clamp(.25 + .75 * Math.min(S.energy, S.health) * S.weight) };
+}
+function chooseBehaviour() {
+  const p = vegaC.p, D = derived();
+  if (ROOM.cata > 24) return startBehaviour('catatonic');
+  const U = {
+    eat: ROOM.food ? Math.max(S.hunger, S.thirst) * 2.2 + .35 : 0,
+    sleep: Math.pow(S.sleep, 1.5) * 2.1 + (S.energy < .2 ? 1 : 0) + (ROOM.dark ? .35 : 0),
+    explore: D.novelty * (.6 + p.openness * .6),
+    search: ROOM.seamFound ? .05 : D.escape * (.4 + S.hope) * .9,
+    pry: ROOM.seamFound ? D.escape * (.6 + p.persistence) * (ROOM.doorDamage >= .35 ? .3 : 1) : 0,
+    pound: S.anger * 1.2 + D.escape * .2,
+    shout: S.loneliness * S.hope * .9 + S.fear * .15,
+    pace: S.boredom * .6 + S.fear * .3,
+    tally: ROOM.sleeps > ROOM.lastTallySleep ? (.4 + p.conscientiousness) * 1.1 : 0,
+    write: (D.despair > .45 || S.grip < .6 ? .35 : 0) + S.anger * .15 + (S.grip < .4 ? .2 : 0),
+    sit_hug: D.despair * .85 + S.fear * .35,
+    rock: (1 - S.grip) * D.despair * 1.3,
+    talk_ghost: S.grip < .58 && ROOM.friends.length ? S.loneliness * (1 - S.grip) * 1.6 : 0,
+    stare: (1 - S.grip) * .55 + D.despair * .25 * (ROOM.hours > 48 ? 1 : 0),
+    jump: D.escape * .22 * (ROOM.hours < 40 ? 1 : .2),
+    panic: S.fear > .65 ? (S.fear - .5) * 1.4 : 0,
+  };
+  let best = 'pace', bv = -1;
+  for (const k in U) { const u = U[k] + R() * .22; if (u > bv) { bv = u; best = k; } }
+  startBehaviour(best);
+}
+function startBehaviour(kind) {
+  let target = pt(ROOM.pos.x, ROOM.pos.z, ROOM.yaw), dur = 1;
+  const extra = {}, randWall = () => Math.floor(R() * 4);
+  switch (kind) {
+    case 'eat': target = pt(0, RS - .85, 0); dur = .5; break;
+    case 'sleep': target = R() < .5 ? pick(CORNERS) : pt(rnd(-1, 1), rnd(-1, 1), rnd(0, TAU)); dur = 9; break;
+    case 'explore': { const w = randWall(); target = wallSpot(w, rnd(-1, 1)); dur = rnd(.4, .9); break; }
+    case 'search': {
+      let bw = 0, bs = 0, bv = Infinity;
+      for (let w = 0; w < 4; w++) for (let s = 0; s < 6; s++) { const v = ROOM.searched[w][s] + R() * .4; if (v < bv) { bv = v; bw = w; bs = s; } }
+      target = wallSpot(bw, (bs + .5) / 3 - 1, .45); dur = rnd(.8, 1.6); extra.wall = bw; extra.seg = bs; break;
+    }
+    case 'pry': target = pt(DOOR.x, -RS + .45, Math.PI); dur = rnd(1, 2.2); ROOM.attempts++; break;
+    case 'pound': target = ROOM.seamFound && R() < .6 ? pt(DOOR.x + rnd(-.3, .3), -RS + .55, Math.PI) : wallSpot(randWall(), rnd(-.9, .9), .55); dur = rnd(.25, .6); ROOM.attempts++; break;
+    case 'shout': target = pt(rnd(-1, 1), rnd(-1, 1), rnd(0, TAU)); dur = rnd(.2, .45); ROOM.shouts++; break;
+    case 'pace': { const ax = R() < .5; extra.a = ax ? pt(-1.8, rnd(-1.5, 1.5), 0) : pt(rnd(-1.5, 1.5), -1.8, 0); extra.b = ax ? pt(1.8, extra.a.z, 0) : pt(extra.a.x, 1.8, 0); target = extra.a; dur = rnd(.8, 1.8); break; }
+    case 'tally': target = wallSpot(ROOM.tallyWall, -.75, .5); dur = .25; break;
+    case 'write': { const w = randWall(); target = wallSpot(w, rnd(-.85, .85), .5); dur = .35; extra.wall = w; break; }
+    case 'sit_hug': case 'rock': target = pick(CORNERS); dur = rnd(1.2, 3.5); break;
+    case 'talk_ghost': { const f = ROOM.friends[Math.floor(Math.pow(R(), 1.6) * ROOM.friends.length)]; ROOM.ghostC = f.c; target = pt(rnd(-1, 1), rnd(-1, 1), 0); dur = rnd(.8, 2); break; }
+    case 'stare': target = wallSpot(randWall(), rnd(-.8, .8), .38); dur = rnd(1, 3); break;
+    case 'jump': target = pt(rnd(-.4, .4), rnd(-.4, .4), rnd(0, TAU)); dur = .3; ROOM.attempts++; break;
+    case 'panic': dur = rnd(.25, .5); break;
+    case 'catatonic': target = pick(CORNERS); dur = 48; break;
+  }
+  ROOM.beh = { kind, target, dur, t: 0, arrived: false, extra };
+  if (R() < .7 && LINES[kind]) say(line(LINES[kind], kind));
+  if (kind === 'catatonic') say('He has stopped reacting to anything.', 'bad');
+  if (kind === 'shout') bubble(pick(SHOUTS()), 'bub shout', null, 2600);
+  if (kind === 'talk_ghost') { const g = ghostOf(ROOM.ghostC, roomGroup); g.want = 1; const a = rnd(0, TAU); g.root.position.set(clamp(target.x + Math.cos(a) * 1.3, -2.4, 2.4), 0, clamp(target.z + Math.sin(a) * 1.3, -2.4, 2.4)); }
+}
+
+function wallMark(i, x, z, y, fn) { const [px, py] = wallPx(wallUV(i, x, z), y); WALLS[i].g.save(); fn(WALLS[i].g, px, py); WALLS[i].g.restore(); WALLS[i].tex.needsUpdate = true; }
+function addTally() {
+  const n = ROOM.tallies++, grp = Math.floor(n / 5), k = n % 5;
+  const sp = wallSpot(ROOM.tallyWall, -.95, 0);
+  const u0 = wallUV(ROOM.tallyWall, sp.x, sp.z) * 1024 - 60;
+  const g = WALLS[ROOM.tallyWall].g;
+  const col = Math.floor(grp / 7), row = grp % 7;
+  const x = u0 + col * 58 + k * 8, y = 110 + row * 40;
+  g.strokeStyle = 'rgba(40,40,38,.75)'; g.lineWidth = 2; g.lineCap = 'round'; g.beginPath();
+  if (k < 4) { g.moveTo(x + rnd(-1, 1), y); g.lineTo(x + rnd(-2, 2), y + 28); } else { g.moveTo(x - 34, y + 24); g.lineTo(x + 4, y + 4); }
+  g.stroke(); WALLS[ROOM.tallyWall].tex.needsUpdate = true;
+}
+function addScrawl(i) {
+  const p = ROOM.pos, text = pick(SCRAWLS()), y = rnd(1.2, 1.9);
+  wallMark(i, p.x, p.z, y, (g, px, py) => {
+    g.translate(px, py); g.rotate(rnd(-.12, .12));
+    g.font = `${Math.round(rnd(38, 64))}px "Reenie Beanie", cursive`; g.textAlign = 'center';
+    g.fillStyle = S.hands > .3 ? 'rgba(120,40,30,.7)' : 'rgba(40,40,38,.78)'; g.fillText(text, 0, 0);
+  });
+  ROOM.writings++;
+}
+function addSmear(i) {
+  const p = ROOM.pos;
+  wallMark(i, p.x + rnd(-.15, .15), p.z + rnd(-.15, .15), rnd(1.2, 1.55), (g, px, py) => {
+    const r = rnd(8, 16), gr = g.createRadialGradient(px, py, 1, px, py, r);
+    gr.addColorStop(0, `rgba(130,38,28,${.25 + S.hands * .3})`); gr.addColorStop(1, 'rgba(130,38,28,0)');
+    g.fillStyle = gr; g.fillRect(px - r, py - r, r * 2, r * 2);
+  });
+}
+const wallOf = t => t.z < -RS + 1 ? 0 : t.x > RS - 1 ? 1 : t.z > RS - 1 ? 2 : 3;
+
+function roomStep(dtH) {
+  const p = vegaC.p, v = vegaC.v, r = vegaC.rates;
+  ROOM.hours += dtH;
+  if (!ROOM.released && ROOM.hours >= CHAMBER_DAYS * 24) release();
+  if (ROOM.released) return;
+  const b = ROOM.beh, sleeping = b && b.kind === 'sleep' && b.arrived;
+  S.timeRate = clamp(S.timeRate + (R() - .5) * .3 * dtH, .45, 1.8);
+  ROOM.believedHours += dtH * (sleeping ? 2.2 : S.timeRate);
+  if (!ROOM.food && ROOM.hours >= ROOM.nextMeal) deliverFood();
+  S.hunger = clamp(S.hunger + r.hunger * dtH * (sleeping ? .5 : 1));
+  S.thirst = clamp(S.thirst + r.thirst * dtH * (sleeping ? .4 : 1));
+  if (!sleeping) { S.sleep = clamp(S.sleep + r.sleep * dtH * (S.fear > .6 ? 1.3 : 1)); S.energy = clamp(S.energy - .035 * dtH); }
+  S.pain = clamp(S.pain * Math.exp(-.05 * dtH));
+  S.hands = clamp(S.hands - .01 * dtH);
+  // the chamber keeps him alive: a drip line in the hatch stops the body from failing completely
+  S.health = clamp(Math.max(.25, S.health - ((S.hunger > .85 ? .022 : 0) + (S.thirst > .9 ? .045 : 0) + S.pain * .008) * dtH + (S.hunger < .6 && S.thirst < .6 ? .004 * dtH : 0)));
+  if (S.hunger > .6) S.weight = clamp(S.weight - .006 * dtH, .55, 1); else S.weight = clamp(S.weight + .002 * dtH, .55, 1);
+  const D = derived(), stab = 1.4 - p.emotional_stability, sleepDebt = Math.max(0, S.sleep - .6);
+  // tuned so a 120-day stay wears him down over weeks, not hours
+  S.loneliness = clamp(S.loneliness + .0008 * (.4 + p.extraversion) * (.6 + v.community) * dtH);
+  S.boredom = clamp(S.boredom + .0016 * (.4 + p.openness) * (1 - D.novelty) * dtH - (ROOM.noise ? .006 * dtH : 0));
+  const fearT = clamp(.12 + (1 - p.emotional_stability) * .3 + D.novelty * .3 + (S.hunger > .7 ? .2 : 0) + (ROOM.dark ? .25 * (1.2 - S.grip) : 0) + (ROOM.noise ? .15 : 0) + (1 - S.grip) * .25);
+  S.fear = clamp(S.fear + (fearT - S.fear) * .12 * dtH);
+  S.hope = clamp(S.hope - .0005 * (1.3 - p.persistence) * dtH);
+  S.anger = clamp(S.anger - .03 * S.anger * dtH);
+  S.grip = clamp(S.grip - (.00012 + .0003 * S.loneliness + .0004 * sleepDebt + .00018 * S.boredom + (ROOM.noise ? .003 : 0) + (ROOM.dark ? .0003 : 0) + (S.hunger > .8 ? .0008 : 0)) * stab * dtH);
+  if (S.grip < .03 && D.despair > .85) ROOM.cata += dtH; else if (ROOM.cata < 24) ROOM.cata = 0;
+
+  if (!b || b.t >= b.dur || (b.kind !== 'eat' && b.kind !== 'catatonic' && ROOM.food && Math.max(S.hunger, S.thirst) > .55 && b.kind !== 'sleep') || (b.kind === 'sleep' && b.arrived && S.sleep < .06)) {
+    if (b && b.kind === 'sleep' && b.arrived) wokeUp();
+    if (b && b.kind === 'talk_ghost') { const g = ghosts.get(ROOM.ghostC); if (g) g.want = 0; }
+    chooseBehaviour();
+    return;
+  }
+  if (!b.arrived) {
+    // at high speed many sim steps pass per frame; arrive in the step so needs and actions stay in pace
+    if (speed >= 64 || sim.skipTo != null) { ROOM.pos.set(b.target.x, 0, b.target.z); ROOM.yaw = b.target.yaw; b.arrived = true; }
+    else return;
+  }
+  b.t += dtH;
+  if (b.kind === 'eat' && ROOM.food && b.t > b.dur * .5) { ROOM.food = false; tray.visible = false; S.hunger = clamp(S.hunger - .55); S.thirst = clamp(S.thirst - .8); if (R() < .5) say(line(LINES.eat, 'eat')); }
+  if (b.kind === 'tally' && !b.done) { b.done = true; addTally(); ROOM.lastTallySleep = ROOM.sleeps; }
+  if (b.kind === 'write' && !b.done) { b.done = true; addScrawl(b.extra.wall); }
+  const st = D.strength;
+  switch (b.kind) {
+    case 'explore': S.boredom = clamp(S.boredom - .12 * dtH); break;
+    case 'search': {
+      ROOM.searched[b.extra.wall][b.extra.seg] += dtH;
+      S.boredom = clamp(S.boredom - .03 * dtH);
+      const doorSeg = b.extra.wall === 0 && Math.abs(((b.extra.seg + .5) / 3 - 1) * (RS - .5) - DOOR.x) < .9;
+      if (doorSeg && !ROOM.seamFound && R() < dtH * .45 * (.5 + p.conscientiousness)) foundSeam();
+      else S.hope = clamp(S.hope - .0025 * dtH);
+      break;
+    }
+    case 'pry': {
+      ROOM.doorDamage = Math.min(.35, ROOM.doorDamage + dtH * .03 * st * (.6 + p.persistence));
+      S.pain = clamp(S.pain + .03 * dtH); S.hands = clamp(S.hands + .04 * dtH); S.anger = clamp(S.anger + .02 * dtH);
+      if (ROOM.doorDamage >= .35) { S.hope = clamp(S.hope - .012 * dtH); if (!ROOM.stuckSaid) { ROOM.stuckSaid = true; say('The paint is gone. Under it is steel. It will never move.', 'bad'); } }
+      if (R() < dtH * .8) wallMark(0, DOOR.x - DOOR.w / 2 + rnd(-.02, .02), 0, rnd(.9, 1.5), (g, px, py) => { g.strokeStyle = 'rgba(110,40,30,.45)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(px, py); g.lineTo(px + rnd(-3, 3), py + rnd(8, 20)); g.stroke(); });
+      break;
+    }
+    case 'pound': S.hope = clamp(S.hope - .006 * dtH); S.anger = clamp(S.anger - .15 * dtH); break;
+    case 'shout': S.loneliness = clamp(S.loneliness + .004 * dtH); S.hope = clamp(S.hope - .008 * dtH); S.anger = clamp(S.anger + .03 * dtH); break;
+    case 'pace': S.boredom = clamp(S.boredom - .1 * dtH); S.fear = clamp(S.fear - .05 * dtH); break;
+    case 'sit_hug': S.fear = clamp(S.fear - .07 * dtH); break;
+    case 'rock': S.fear = clamp(S.fear - .09 * dtH); S.grip = clamp(S.grip - .0003 * dtH); break;
+    case 'sleep':
+      S.sleep = clamp(S.sleep - .15 * (ROOM.dark ? 1 : .5) * dtH); S.energy = clamp(S.energy + .1 * dtH);
+      S.grip = clamp(S.grip + .0008 * (ROOM.dark ? 1 : .3) * dtH);
+      if (S.grip < .5 && R() < dtH * .08) { S.fear = clamp(S.fear + .25); b.t = b.dur; say(pick(['Woke up screaming. I don\'t know what about.', `Dreamt ${fr()} was knocking on the wall.`, 'A nightmare. The room was in it too.']), 'bad'); }
+      break;
+    case 'talk_ghost': S.loneliness = clamp(S.loneliness - .08 * dtH); S.grip = clamp(S.grip - .001 * dtH); S.hope = clamp(S.hope + .01 * dtH);
+      if (R() < dtH * 1.2) bubble(pick([`${ROOM.ghostC.name}, they took me.`, 'You came.', 'Don\'t go.', 'Is the market still open?', 'Tell them I\'m here.']), 'bub', null, 2600);
+      break;
+    case 'stare': S.grip = clamp(S.grip - .0006 * dtH); S.boredom = clamp(S.boredom - .02 * dtH); break;
+    case 'panic': S.fear = clamp(S.fear - .5 * dtH); break;
+    case 'catatonic': S.fear = clamp(S.fear - .02 * dtH); break;
+  }
+}
+function wokeUp() { ROOM.sleeps++; if (ROOM.sleeps > 1 && R() < .4) say(`Woke up. Day ${ROOM.sleeps + 1}? It feels like ${S.timeRate > 1.1 ? 'it has been longer' : 'no time passed at all'}.`); }
+function deliverFood() {
+  ROOM.food = true; tray.visible = true; ROOM.nextMeal = ROOM.hours + mealDelay(); sfx('hatch');
+  if (ROOM.hours < 36) S.hope = clamp(S.hope + .06);
+  if (R() < .3 || ROOM.hours < 12) say(ROOM.hours < 12 ? 'The hatch opened. A tray. It closed before I saw a hand.' : 'The hatch again.', 'ev');
+  if (ROOM.nextMeal === Infinity) say('The hatch is not opening any more.', 'bad');
+}
+function foundSeam() {
+  ROOM.seamFound = true; drawDoorSeam(.55);
+  S.hope = clamp(S.hope + .3); S.anger = clamp(S.anger + .05);
+  say('A line in the wall. Thin as a hair. It goes up, across, down. It\'s a door.', 'ev');
+  bubble('A DOOR', 'bub shout', null, 2400);
+}
+function release() {
+  ROOM.released = true; ROOM.dark = true; ROOM.food = false; tray.visible = false;
+  for (const [, g] of ghosts) g.want = 0;
+  doorPivot.visible = true; outsideLight.visible = true;
+  sfx('door'); updateAudio();
+  say('Day 120. The hum stopped. The light died. Something in the door clicked.', 'ev');
+  const wasCata = ROOM.beh && ROOM.beh.kind === 'catatonic';
+  if (wasCata) { S.grip = Math.max(S.grip, .12); say('He doesn\'t move for a long time. Then he stands up.', 'ev'); }
+  S.hope = clamp(S.hope + .35); S.fear = clamp(S.fear + .2);
+  ROOM.beh = { kind: 'escape', target: pt(DOOR.x, -RS + .5, Math.PI), dur: 99, t: 0, arrived: false, extra: {}, delay: performance.now() + (wasCata ? 3500 : 1500) };
+}
+
+// ---------- chamber rendering ----------
+let impactPrev = 0, shake = 0;
+const POSE_ROOM = { wake: 'lie', explore: 'reach_wall', search: 'reach_wall', pry: 'pry', pound: 'punch', shout: 'shout', pace: 'walk', tally: 'tally', write: 'write', sit_hug: 'sit_hug', rock: 'rock',
+  talk_ghost: 'talk', stare: 'stare', jump: 'jump', eat: 'eat_sit', panic: 'clutch', escape: 'walk', catatonic: 'sit_hug' };
+function roomRender(dtR, now) {
+  const h = vegaC.h, b = ROOM.beh, D = derived();
+  const k = 1 - Math.exp(-dtR * 8);
+  const fast = speed >= 64 || sim.skipTo != null;
+  let kind = b.kind;
+  const cond = { slump: D.slump, tremor: S.fear * .05 + (1 - S.health) * .06 + (1 - S.grip) * .03 };
+  const waiting = b.delay && now < b.delay;
+  if (!b.arrived && !waiting) {
+    const t = b.target, dx = t.x - ROOM.pos.x, dz = t.z - ROOM.pos.z, dist = Math.hypot(dx, dz);
+    const run = (b.kind === 'pound' && S.anger > .5) || b.kind === 'panic';
+    const sp = (run ? 2.6 : 1.05) * (.35 + .65 * Math.min(S.energy + .2, S.health, 1)) * Math.min(Math.max(speed, 1), 8);
+    if (dist > .08) {
+      const step = fast && b.kind !== 'escape' ? dist : Math.min(dist, sp * dtR);
+      ROOM.pos.x += dx / dist * step; ROOM.pos.z += dz / dist * step;
+      ROOM.yaw += angDiff(ROOM.yaw, Math.atan2(dx, dz)) * Math.min(1, dtR * 9);
+      h.phase += step * (run ? 3.4 : 4.6);
+      kind = run ? 'run' : 'walk'; cond.amp = .65 + .35 * S.energy;
+    } else b.arrived = true;
+    if (b.kind !== 'escape') { ROOM.pos.x = clamp(ROOM.pos.x, -2.6, 2.6); ROOM.pos.z = clamp(ROOM.pos.z, -2.6, 2.6); }
+  } else if (!waiting) {
+    ROOM.yaw += angDiff(ROOM.yaw, b.target.yaw) * Math.min(1, dtR * 4);
+    h.phase += dtR * (2.4 + S.fear * 1.5) * Math.min(Math.max(speed, 1), 3);
+    if (b.kind === 'pace' && b.extra.a) { b.target = b.target === b.extra.a ? b.extra.b : b.extra.a; b.arrived = false; }
+    if (b.kind === 'explore' && R() < dtR * .5) { b.target = wallSpot(Math.floor(R() * 4), rnd(-1, 1)); b.arrived = false; }
+    if (b.kind === 'talk_ghost' && ROOM.ghostC) { const g = ghosts.get(ROOM.ghostC); if (g) b.target.yaw = Math.atan2(g.root.position.x - ROOM.pos.x, g.root.position.z - ROOM.pos.z); }
+    if (b.kind === 'escape') {
+      if (!b.out) { b.out = true; b.target = pt(DOOR.x, -RS - 3, Math.PI); b.arrived = false; say('The door is open. There is grey daylight behind it.', 'ev'); }
+      else if (!b.left) { b.left = true; goAlone(); return; }
+    }
+  }
+  if (b.kind === 'escape' && b.out && ROOM.pos.z < -RS - 1.6 && !b.left) { b.left = true; goAlone(); return; }
+  if (kind === b.kind) kind = b.kind === 'sleep' ? (S.grip < .5 ? 'curl' : 'lie') : (POSE_ROOM[b.kind] || 'stand');
+  if (b.kind === 'talk_ghost' && (S.energy < .4 || D.despair > .6)) kind = 'sit_wall';
+  if (b.kind === 'wake' && b.t > .12) kind = 'sit_wall';
+  if (waiting) kind = 'sit_hug';
+  applyPose(h, pose(kind, h.phase, cond), k);
+  if (kind === 'punch') {
+    const a = Math.sin(h.phase * 2.2);
+    if (a > .95 && impactPrev <= .95) { S.pain = clamp(S.pain + .012); S.hands = clamp(S.hands + .015); sfx('thud'); if (S.hands > .25 && R() < .35) addSmear(wallOf(b.target)); shake = .06; }
+    impactPrev = a;
+  }
+  h.root.position.set(ROOM.pos.x, 0, ROOM.pos.z); h.root.rotation.y = ROOM.yaw;
+  setMass(h, S.weight);
+  const bruise = new THREE.Color(0x7d2f27);
+  h.handL.color.copy(h.skin).lerp(bruise, S.hands * .85); h.handR.color.copy(h.skin).lerp(bruise, S.hands);
+  if (ROOM.released) doorPivot.rotation.y = lerp(doorPivot.rotation.y, 1.4, dtR * 1.2);
+  renderGhosts(dtR, now, k, ROOM.pos, CORNERS.map(c => new THREE.Vector3(c.x * .9, 0, c.z * .9)));
+  const unreal = Math.pow(1 - S.grip, 1.6);
+  const br = Math.sin(now * .0009) * .018 * unreal * (ROOM.released ? 0 : 1);
+  roomGroup.scale.set(1 + br, 1 - br * .6, 1 + br);
+  const tint = new THREE.Color(0xfafaf7).lerp(new THREE.Color(0xe9ecdf), clamp(ROOM.hours / 2000)).lerp(new THREE.Color(0xf3e4e0), unreal * .5);
+  roomScene.background = ROOM.dark ? new THREE.Color(0x050505) : tint;
+  const flicker = S.grip < .4 && Math.random() < .015 ? .35 : 1;
+  rHemi.intensity = ROOM.dark ? (ROOM.released ? .12 : .035) : .78 * flicker; rLamp.intensity = ROOM.dark ? 0 : .75 * flicker; panelMat.color.setScalar(ROOM.dark ? .05 : 1);
+  renderer.domElement.style.filter = ROOM.dark ? 'grayscale(1) brightness(3.2) contrast(1.15) sepia(1) hue-rotate(60deg) saturate(2.4)' : (unreal > .05 ? `saturate(${1 - unreal * .5}) contrast(${1 + unreal * .2})` : '');
+  $('#vig').style.opacity = (.08 + unreal * .55 + (S.health < .4 ? (.4 - S.health) : 0)).toFixed(3);
+  grainLevel = ROOM.noise ? .3 : unreal * .14;
+  tag('vgr', 'Vega', new THREE.Vector3(ROOM.pos.x, /lie|curl/.test(kind) ? .7 : (/sit|rock|eat_sit/.test(kind) ? 1.3 : 2.1), ROOM.pos.z), 'tag vega');
+  if (ROOM.bubble && now < ROOM.bubble.until) tag('bub', ROOM.bubble.text, ROOM.bubble.pos || new THREE.Vector3(ROOM.pos.x, 2.55, ROOM.pos.z), ROOM.bubble.cls);
+  if (S.grip < .32 && !ROOM.released && R() < dtR * .25 * (1 - S.grip)) {
+    const sp = wallSpot(Math.floor(R() * 4), rnd(-1, 1), .02);
+    ROOM.whispers.push({ key: 'w' + Math.random(), text: pick([fr(), fr2(), 'vega', 'out', 'here', 'day ?', 'listen']), pos: new THREE.Vector3(sp.x, rnd(.8, 2.4), sp.z), until: now + 2500 });
+  }
+  ROOM.whispers = ROOM.whispers.filter(wh => { if (now > wh.until) return false; tag(wh.key, wh.text, wh.pos, 'whisper'); const el = tagPool.get(wh.key); if (el) el.style.opacity = String(.25 + .5 * Math.sin((wh.until - now) / 2500 * Math.PI)); return true; });
+  if (camMode === 'cctv') { camera.fov = 62 + Math.sin(now * .0007) * 3 * unreal; camera.updateProjectionMatrix(); }
+  if (shake > 0) { camera.position.x += (Math.random() - .5) * shake; camera.position.y += (Math.random() - .5) * shake; shake *= .85; }
+}
+function renderGhosts(dtR, now, k, center, spots) {
+  for (const [c, g] of ghosts) {
+    if (S.grip < .3 && !g.want && R() < dtR * .05 && sim.phase !== 'return') { g.want = .6; g.flickUntil = now + 900; const s = pick(spots); g.root.position.copy(s); }
+    if (g.flickUntil && now > g.flickUntil) { g.want = 0; g.flickUntil = 0; }
+    g.op = lerp(g.op, g.want * (.18 + .3 * (1 - S.grip)), Math.min(1, dtR * 1.6));
+    g.root.visible = g.op > .01;
+    for (const m of g.mats) m.opacity = g.op;
+    if (!g.root.visible) continue;
+    g.root.rotation.y = Math.atan2(center.x - g.root.position.x, center.z - g.root.position.z); g.phase += dtR * 2;
+    applyPose(g, pose('talk', g.phase, {}), k);
+    if (g.op > .08) tag('gh' + c.i, c.name + '?', new THREE.Vector3(g.root.position.x, 2.15, g.root.position.z), 'tag ghost');
+  }
+}
+
+// =====================================================================
+// AFTER: the dead town
+// =====================================================================
+const A = { day0: 0, food: 2, garden: null, buried: 0, found: 0, searches: 0, sick: 0, beh: null, pos: new THREE.Vector3(), yaw: 0, ended: false, lastSeasonSaid: '', weeds: null, weedBase: [], weedDay: -1, bubble: null };
+const GRAVES = [];
+const aloneDays = () => (sim.hours - sim.aloneStart) / 24;
+const seasonAt = h => { const d = Math.floor(h / 24) % 120; return d >= 80 && d < 112 ? 'winter' : d >= 112 || d < 20 ? 'spring' : d < 50 ? 'summer' : 'autumn'; };
+const winterAmt = () => { const d = (sim.hours / 24) % 120; return d >= 78 && d < 114 ? clamp(Math.min(d - 78, 114 - d) / 6) : 0; };
+
+function makeRemains(c) {
+  const g = new THREE.Group(), bone = matOf(0xd6cfbd);
+  const skull = new THREE.Mesh(GEO.sph(.1), bone); skull.position.set(0, .09, .55); skull.scale.set(1, .85, 1.1); g.add(skull);
+  for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.BoxGeometry(.32 - i * .03, .02, .03), bone); r.position.set(0, .03, .25 - i * .08); g.add(r); }
+  for (const s of [-1, 1]) { const l = new THREE.Mesh(GEO.cyl(.022, .02, .8), bone); l.rotation.x = Math.PI / 2; l.position.set(s * .1, .025, -.35); l.rotation.z = s * .08; g.add(l);
+    const a = new THREE.Mesh(GEO.cyl(.018, .016, .55), bone); a.rotation.x = Math.PI / 2; a.position.set(s * .26, .02, .15); a.rotation.y = s * .3; g.add(a); }
+  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(.55, .5), new THREE.MeshStandardMaterial({ color: new THREE.Color(c.shirt).lerp(new THREE.Color(0x4a4438), .45), roughness: 1, side: THREE.DoubleSide }));
+  cloth.rotation.x = -Math.PI / 2; cloth.rotation.z = rnd(-.5, .5); cloth.position.set(0, .012, .15); g.add(cloth);
+  g.position.copy(c.deathPos); g.rotation.y = rnd(0, TAU);
+  g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
+  civScene.add(g); c.remains = g;
+}
+function makeGrave(c) {
+  const g = new THREE.Group();
+  const mound = new THREE.Mesh(GEO.sph(.6), matOf(0x5b4a35)); mound.scale.set(.75, .22, 1.3); g.add(mound);
+  const stone = new THREE.Mesh(new THREE.BoxGeometry(.42, .55, .1), matOf(0x8e8c84)); stone.position.set(0, .28, -.85); g.add(stone);
+  g.position.copy(c.deathPos); g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
+  civScene.add(g); GRAVES.push({ c, g });
+}
+function decayTown() {
+  for (const { b, r, h } of BUILDINGS) {
+    for (const m of [b.material, r.material]) m.color.lerp(new THREE.Color(0x5b5446), .45);
+    r.rotation.z = rnd(-.3, .3); r.rotation.x = rnd(-.2, .2); r.position.y -= rnd(0, h * .25);
+    if (R() < .3) { b.scale.y = .62; b.position.y = h * .31; r.position.y = h * .62 + .25; r.rotation.x = rnd(.4, .7); }
+  }
+  for (const s of STALLS) { s.rotation.z = rnd(1, 1.5); s.position.y = .35; s.material.color.lerp(new THREE.Color(0x4a4438), .5); }
+  for (const t of TREES) t.material.color.lerp(new THREE.Color(0x3f4a2e), .3);
+  groundMat.color.set(0x8a8c5e); plazaMat.color.set(0x9a947f); fieldMat.color.set(0x6b7340);
+  facDoor.rotation.y = -Math.PI / 4 + 1.2;
+  const n = 900, geo = new THREE.ConeGeometry(.18, .7, 5), mat = matOf(0x55663a);
+  A.weeds = new THREE.InstancedMesh(geo, mat, n); A.weeds.castShadow = true;
+  for (let i = 0; i < n; i++) {
+    const near = R() < .55, a = rnd(0, TAU), r = near ? Math.sqrt(R()) * 28 : rnd(28, 55);
+    A.weedBase.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, s: rnd(.4, 1.3), rot: rnd(0, TAU) });
+  }
+  civScene.add(A.weeds); growWeeds(0);
+  for (const c of citizens) if (!c.isVega && !c.alive) makeRemains(c);
+  for (const h of HOUSES) h.stock = Math.floor(rnd(1, 7));
+}
+const dummy = new THREE.Object3D();
+function growWeeds(days) {
+  const grow = .35 + Math.min(1, days / 70) * .9, wint = 1 - winterAmt() * .5;
+  A.weedBase.forEach((w, i) => { dummy.position.set(w.x, .3 * w.s * grow * wint, w.z); dummy.rotation.set(0, w.rot, 0); dummy.scale.setScalar(w.s * grow * wint); dummy.updateMatrix(); A.weeds.setMatrixAt(i, dummy.matrix); });
+  A.weeds.instanceMatrix.needsUpdate = true;
+}
+
+const ALINES = {
+  arrive: ['Where is everyone?', 'The grass is up to my knees in the plaza.', 'No smoke from any chimney.', 'Hello? HELLO?'],
+  drink: ['The well still works. At least the well.', 'Cold water. The only thing that hasn\'t changed.'],
+  eat: ['Eating out of a tin, alone, on the market steps.', 'I eat slowly. There is nobody to save it for, but I do.'],
+  forage: () => seasonAt(sim.hours) === 'winter' ? ['Frozen ground. Nothing.', 'Roots and bark.'] : ['The fields went wild. Some of it is still food.', 'Picking through the rot for anything green.'],
+  scavenge: ['Someone\'s kitchen. I know whose.', 'Tins in the back of a cupboard. I say sorry out loud.', 'Their cups are still on the table.'],
+  sleep: () => S.grip < .5 ? ['I sleep with the door open now. Always open.'] : ['My own bed. It smells of dust.', 'I lie awake listening for anyone.'],
+  bury: () => ['Digging is slow. I don\'t want it to be fast.', 'Someone should say something. I say their name.'],
+  grave: () => { const g = pick(GRAVES); return g ? [`Sat with ${g.c.name} for a while.`, `Told ${g.c.name} about the chamber.`] : ['Nothing to visit.']; },
+  search: () => A.searches < 4 ? ['Maybe someone made it out. The next town.', 'I walk to the edge and call. I keep calling.'] : ['There is no one. I know there is no one. I go anyway.', 'Nobody answers. Nobody will.'],
+  ghost: () => { const c = A.ghostC; return c ? [`${c.name} is at the well again.`, `${c.name} asked where I've been.`, `I told ${c.name} I'm sorry I wasn't here.`] : []; },
+  sit: ['The plaza is so quiet I can hear the weeds.', 'One hundred and twenty days. And this is what was waiting.', 'Sometimes I wish they had left me in there.'],
+  wander: ['Walking the streets. Saying the names of who lived where.', 'The workshop door is hanging off. I close it.'],
+  plant: ['Seeds from the market sacks. Maybe something will grow.', 'A garden. Something to keep alive.'],
+  harvest: ['It grew. Something I did, worked.', 'Food from my own ground.'],
+};
+const ALABEL = { arrive: 'Walking back into town', drink: 'Drinking at the well', eat: 'Eating from his stores', forage: 'Foraging in the wild fields', scavenge: 'Searching a dead neighbour\'s house', sleep: 'Sleeping', bury: 'Burying someone', grave: 'Sitting by a grave', search: 'Looking for anyone alive', ghost: 'Talking to someone who isn\'t there', sit: 'Sitting in the empty plaza', wander: 'Walking the empty streets', plant: 'Planting a garden', harvest: 'Harvesting his garden', dead: 'Dead' };
+const APOSE = { arrive: 'walk', drink: 'eat_stand', eat: 'eat_sit', forage: 'forage', scavenge: 'reach_wall', sleep: 'lie', bury: 'forage', grave: 'sit_wall', search: 'shout', ghost: 'talk', sit: 'sit_hug', wander: 'look', plant: 'forage', harvest: 'forage', dead: 'collapsed' };
+
+function aloneChoose() {
+  const p = vegaC.p, D = derived(), hour = sim.hours % 24, night = hour < 6 || hour >= 21, winter = seasonAt(sim.hours) === 'winter';
+  const unburied = citizens.filter(c => c.found && !c.buried && c.remains);
+  const houses = HOUSES.filter(h => h.stock > 0);
+  const forageYield = winter ? .15 : .7;
+  const U = {
+    drink: Math.pow(S.thirst, 1.4) * 2.4 + (S.thirst > .7 ? 3 : 0),
+    eat: A.food >= 1 ? Math.pow(S.hunger, 1.4) * 2.6 + (S.hunger > .5 ? 1.5 : 0) : 0,
+    forage: Math.pow(S.hunger, 1.2) * 1.6 * forageYield + (A.food < 1 ? .3 : 0),
+    scavenge: houses.length ? S.hunger * 1.1 + (A.food < 3 ? .5 : 0) + .1 : 0,
+    harvest: A.garden && A.garden.growth >= 1 ? 1.6 : 0,
+    plant: !A.garden && aloneDays() > 2 && !winter ? .35 + p.conscientiousness * .4 : 0,
+    sleep: Math.pow(S.sleep, 1.5) * 2 + (night ? .9 : 0) + (S.energy < .15 ? 1 : 0),
+    bury: unburied.length ? .45 + S.grief * .5 + p.agreeableness * .3 : 0,
+    search: S.hope * .8 * (A.searches < 6 ? 1 : .35) * (night ? .2 : 1),
+    grave: GRAVES.length ? S.loneliness * .55 + S.grief * .45 : 0,
+    ghost: S.grip < .5 && ROOM.friends.length ? S.loneliness * (1 - S.grip) * 1.5 : 0,
+    sit: D.despair * .8,
+    wander: S.boredom * .5 + p.curiosity * .2,
+  };
+  if (A.sickLeft > 0) U.sleep += 2;
+  let best = 'wander', bv = -1;
+  for (const k in U) { const u = U[k] + R() * .2; if (u > bv) { bv = u; best = k; } }
+  let target = A.pos.clone(), dur = 1, extra = {};
+  switch (best) {
+    case 'drink': target = nearPlace('well', 1.8); dur = .4; break;
+    case 'eat': target = A.pos.clone(); dur = .5; break;
+    case 'forage': target = nearPlace('fields'); dur = rnd(1.5, 3); break;
+    case 'scavenge': { const h = houses.sort((a, b) => a.door.distanceTo(A.pos) - b.door.distanceTo(A.pos))[0]; target = h.door.clone(); extra.house = h; dur = 1.5; break; }
+    case 'harvest': case 'plant': target = new THREE.Vector3(-11, 0, 11); dur = best === 'plant' ? 3 : 2; break;
+    case 'sleep': target = vegaC.home.door.clone(); dur = 8; break;
+    case 'bury': { const c = unburied.sort((a, b) => (vegaC.rel.get(b) || 0) - (vegaC.rel.get(a) || 0))[0]; target = c.deathPos.clone().add(new THREE.Vector3(.9, 0, 0)); extra.c = c; dur = 3; break; }
+    case 'search': { const a = rnd(0, TAU), r = rnd(34, 50); target = new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r); dur = .6; A.searches++; break; }
+    case 'grave': { const g = GRAVES.slice().sort((a, b) => (vegaC.rel.get(b.c) || 0) - (vegaC.rel.get(a.c) || 0))[Math.floor(Math.pow(R(), 2) * GRAVES.length)]; target = g.g.position.clone().add(new THREE.Vector3(0, 0, 1.4)); extra.g = g; dur = rnd(1, 2.5); break; }
+    case 'ghost': { const f = ROOM.friends[Math.floor(Math.pow(R(), 1.6) * ROOM.friends.length)]; A.ghostC = f.c; target = nearPlace('plaza', 3); dur = rnd(1, 2); break; }
+    case 'sit': target = nearPlace('plaza', 3); dur = rnd(1.5, 4); break;
+    case 'wander': { const h = pick(HOUSES); target = h.door.clone().multiplyScalar(.85); dur = rnd(.5, 1.2); break; }
+  }
+  A.beh = { kind: best, target, dur, t: 0, arrived: false, extra };
+  if (R() < .6) { const src = ALINES[best]; if (src) say(line(src, 'alone')); }
+  if (best === 'ghost') { const g = ghostOf(A.ghostC, civScene); g.want = 1; g.root.position.copy(target).add(new THREE.Vector3(1.4, 0, .6)); }
+}
+
+function aloneStep(dtH) {
+  if (A.ended) return;
+  const p = vegaC.p, v = vegaC.v, r = vegaC.rates, b = A.beh;
+  const sleeping = b && b.kind === 'sleep' && b.arrived;
+  const winter = seasonAt(sim.hours) === 'winter';
+  const season = seasonAt(sim.hours);
+  if (season !== A.lastSeasonSaid) { A.lastSeasonSaid = season; if (aloneDays() > 1) say({ winter: 'Snow. The first winter with nobody.', spring: 'Green again. The world doesn\'t care who is left.', summer: 'Long days. Too long, with nothing to fill them.', autumn: 'Leaves in the empty houses.' }[season], 'ev'); }
+  S.hunger = clamp(S.hunger + r.hunger * dtH * (sleeping ? .5 : 1) * (winter ? 1.2 : 1));
+  S.thirst = clamp(S.thirst + r.thirst * dtH * (sleeping ? .4 : 1));
+  if (!sleeping) { S.sleep = clamp(S.sleep + r.sleep * dtH); S.energy = clamp(S.energy - .035 * dtH * (winter ? 1.3 : 1)); }
+  if (A.sickLeft > 0) { A.sickLeft -= dtH; S.health = clamp(S.health - .012 * dtH); S.energy = clamp(S.energy - .02 * dtH); if (A.sickLeft <= 0) say('The fever broke. I\'m still here.', 'ev'); }
+  else if (aloneDays() > 10 && R() < dtH * .0012) { A.sickLeft = rnd(48, 120); A.sick++; say('Fever. The same one, maybe. The one that took them.', 'bad'); }
+  const cold = winter && !(sleeping && b.target.distanceTo(vegaC.home.door) < 2) ? .006 : 0;
+  S.health = clamp(S.health - ((S.hunger > .85 ? .006 : 0) + (S.thirst > .9 ? .015 : 0) + cold) * dtH + (S.hunger < .6 && S.thirst < .6 && !A.sickLeft ? .006 * dtH : 0));
+  if (S.hunger > .6) S.weight = clamp(S.weight - .005 * dtH, .5, 1); else S.weight = clamp(S.weight + .003 * dtH, .5, 1);
+  const D = derived(), sleepDebt = Math.max(0, S.sleep - .6);
+  S.loneliness = clamp(S.loneliness + .004 * (.4 + p.extraversion) * (.6 + v.community) * dtH);
+  S.grief = clamp(S.grief - .004 * dtH);
+  S.boredom = clamp(S.boredom + .012 * (.4 + p.openness) * dtH);
+  S.hope = clamp(S.hope - .0015 * (1.3 - p.persistence) * dtH);
+  S.anger = clamp(S.anger - .03 * S.anger * dtH);
+  const hour = sim.hours % 24, night = hour < 6 || hour >= 21;
+  S.fear = clamp(S.fear + ((.08 + (night ? .25 * (1.1 - S.grip) : 0) + (A.sickLeft > 0 ? .2 : 0)) - S.fear) * .1 * dtH);
+  S.grip = clamp(S.grip + (.0016 - .0008 * S.loneliness - .002 * sleepDebt - .0005 * S.grief) * dtH);
+  if (S.health <= 0) return endAlone();
+
+  // finding the dead
+  for (const c of citizens) {
+    if (c.isVega || c.alive || c.found || !c.remains) continue;
+    if (c.deathPos.distanceTo(A.pos) < 5) {
+      c.found = true; A.found++;
+      const aff = vegaC.rel.get(c) || 0;
+      S.grief = clamp(S.grief + .08 + aff * .6); S.hope = clamp(S.hope - .03 - aff * .2);
+      say(aff > .3 ? `That's ${c.name}'s coat. That's ${c.name}.` : aff > .1 ? `${c.name}. I knew ${c.name} a little.` : pick([`Someone. I think it was ${c.name}.`, `${c.name}'s shoes. Just the shoes, and what's left.`]), aff > .3 ? 'bad' : 'say');
+      if (!ROOM.friends.find(f => f.c === c) && aff > .2) ROOM.friends.push({ c, a: aff });
+    }
+  }
+
+  if (!b || b.t >= b.dur || (b.kind !== 'drink' && S.thirst > .85) || (b.kind === 'sleep' && b.arrived && S.sleep < .05 && !night)) {
+    if (b && b.kind === 'ghost') { const g = ghosts.get(A.ghostC); if (g) g.want = 0; }
+    aloneChoose(); return;
+  }
+  if (!b.arrived) {
+    const d = b.target.clone().sub(A.pos); d.y = 0; const dist = d.length();
+    const step = Math.min(dist, 10 * dtH * (.4 + .6 * Math.min(S.energy + .2, S.health, 1)));
+    if (dist > .15) { d.normalize(); A.pos.addScaledVector(d, step); A.yawT = Math.atan2(d.x, d.z); vegaC.h.phase += step * 4.6; }
+    else {
+      b.arrived = true;
+      if (b.kind === 'search') { A.bubble = { text: pick(['HELLO?', 'IS ANYONE THERE?', `${fr().toUpperCase()}?`, 'ANYONE?']), cls: 'bub shout', until: performance.now() + 2600 }; S.hope = clamp(S.hope - .05); S.loneliness = clamp(S.loneliness + .03); }
+      if (b.kind === 'scavenge') { const h = b.extra.house; A.food += h.stock; if (h.stock) S.hope = clamp(S.hope + .02); h.stock = 0; h.searched = true; }
+      if (b.kind === 'eat') { const n = Math.min(A.food, 1); A.food -= n; S.hunger = clamp(S.hunger - .45 * n); }
+      if (b.kind === 'plant') { A.garden = { growth: 0 }; S.hope = clamp(S.hope + .06); }
+      if (b.kind === 'harvest') { A.food += 7; A.garden = null; S.hope = clamp(S.hope + .08); }
+    }
+    return;
+  }
+  b.t += dtH;
+  switch (b.kind) {
+    case 'drink': S.thirst = clamp(S.thirst - 1.8 * dtH); break;
+    case 'forage': S.hunger = clamp(S.hunger - (winter ? .05 : .2) * dtH); break;
+    case 'sleep': S.sleep = clamp(S.sleep - .17 * dtH); S.energy = clamp(S.energy + .13 * dtH); S.grip = clamp(S.grip + .006 * dtH); break;
+    case 'bury': if (b.t >= b.dur && !b.done) { b.done = true; const c = b.extra.c; c.buried = true; civScene.remove(c.remains); c.remains = null; makeGrave(c); A.buried++; S.hope = clamp(S.hope + .04); S.grief = clamp(S.grief - .05); say(`Buried ${c.name}. ${A.buried} graves now.`, 'ev'); } break;
+    case 'grave': S.loneliness = clamp(S.loneliness - .08 * dtH); S.grief = clamp(S.grief - .02 * dtH); break;
+    case 'ghost': S.loneliness = clamp(S.loneliness - .1 * dtH); S.grip = clamp(S.grip - .006 * dtH); break;
+    case 'sit': S.boredom = clamp(S.boredom - .03 * dtH); break;
+    case 'wander': S.boredom = clamp(S.boredom - .12 * dtH); break;
+    case 'search': S.boredom = clamp(S.boredom - .1 * dtH); break;
+  }
+  if (A.garden && !winter) A.garden.growth = Math.min(1, A.garden.growth + dtH / (24 * 22));
+  if (Math.floor(aloneDays()) === 365 && !A.yearSaid) { A.yearSaid = true; say('A year alone. I scratched it into the well.', 'ev'); }
+}
+function endAlone() {
+  A.ended = true; A.beh = { kind: 'dead', target: A.pos.clone(), dur: 1e9, t: 0, arrived: true, extra: {} };
+  say('...', 'bad');
+  showEnding();
+}
+
+const gardenM = new THREE.Group();
+{ const soil = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.8), matOf(0x4e3d2a)); soil.rotation.x = -Math.PI / 2; soil.position.y = .02; gardenM.add(soil);
+  const crops = new THREE.Mesh(new THREE.BoxGeometry(2.2, .5, 1.4), matOf(0x6f8f3a)); crops.position.y = .25; crops.name = 'crops'; gardenM.add(crops);
+  gardenM.position.set(-11, 0, 12.4); gardenM.visible = false; civScene.add(gardenM); }
+
+function aloneRender(dtR, now) {
+  const h = vegaC.h, b = A.beh, D = derived();
+  const k = 1 - Math.exp(-dtR * 8);
+  const winter = winterAmt();
+  const day = lightTown(1, winter);
+  groundMat.color.set(0x8a8c5e).lerp(new THREE.Color(0xdcdedb), winter * .85);
+  if (Math.floor(aloneDays()) !== A.weedDay) { A.weedDay = Math.floor(aloneDays()); growWeeds(aloneDays()); }
+  gardenM.visible = !!A.garden; if (A.garden) { const c = gardenM.getObjectByName('crops'); c.scale.y = .05 + A.garden.growth; c.position.y = .25 * (.05 + A.garden.growth); }
+  if (A.yawT != null && !b.arrived) A.yaw += angDiff(A.yaw, A.yawT) * Math.min(1, dtR * 8);
+  if (b.arrived && b.kind === 'bury' && b.extra.c) A.yaw += angDiff(A.yaw, Math.atan2(b.extra.c.deathPos.x - A.pos.x, b.extra.c.deathPos.z - A.pos.z)) * Math.min(1, dtR * 4);
+  if (b.arrived && b.kind === 'grave' && b.extra.g) A.yaw += angDiff(A.yaw, Math.PI) * Math.min(1, dtR * 4);
+  let kind = b.arrived ? APOSE[b.kind] : (b.kind === 'arrive' ? 'walk' : 'walk');
+  if (b.kind === 'sleep' && b.arrived && S.grip < .5) kind = 'curl';
+  if (b.arrived) h.phase += dtR * (b.kind === 'bury' ? 4 : 2.4) * Math.min(Math.max(speed, 1), 3);
+  applyPose(h, pose(kind, h.phase, { slump: D.slump, tremor: (A.sickLeft > 0 ? .05 : 0) + S.fear * .03, amp: .65 + .35 * S.energy }), k);
+  h.root.position.copy(A.pos); h.root.rotation.y = A.yaw;
+  setMass(h, S.weight);
+  const ghostSpots = [PLACES.well.pos, PLACES.plaza.pos, PLACES.market.pos].map(v => v.clone().add(new THREE.Vector3(1.5, 0, 1.5)));
+  renderGhosts(dtR, now, k, A.pos, ghostSpots);
+  for (const c of citizens) if (c.remains && c.found) tag('rm' + c.i, (vegaC.rel.get(c) || 0) > .1 ? c.name : '?', c.deathPos.clone().setY(.6), 'tag bones');
+  for (const g of GRAVES) if (g.g.position.distanceTo(A.pos) < 18) tag('gv' + g.c.i, g.c.name, g.g.position.clone().setY(.85), 'tag grave');
+  tag('va', 'Vega', new THREE.Vector3(A.pos.x, /lie|curl|collapsed/.test(kind) ? .7 : (/sit|eat_sit/.test(kind) ? 1.3 : 2.15), A.pos.z), 'tag vega');
+  if (A.bubble && now < A.bubble.until) tag('abub', A.bubble.text, new THREE.Vector3(A.pos.x, 2.6, A.pos.z), A.bubble.cls);
+  const unreal = Math.pow(1 - S.grip, 1.6);
+  $('#vig').style.opacity = (.12 + unreal * .5 + (S.health < .4 ? (.4 - S.health) : 0)).toFixed(3);
+  grainLevel = unreal * .08;
+  renderer.domElement.style.filter = `saturate(${.75 - unreal * .3})`;
+  if (camMode === 'follow') {
+    const want = A.pos.clone().add(new THREE.Vector3(10, 13, 13));
+    camera.position.lerp(want, Math.min(1, dtR * 1.2)); controls.target.lerp(A.pos.clone().setY(.8), Math.min(1, dtR * 2));
+  }
+}
+
+// ---------- timeline ----------
+function recordHist() {
+  while (ROOM.hours >= ROOM.nextHist) { ROOM.hist.push({ h: ROOM.nextHist, grip: S.grip, hope: S.hope, health: S.health, fear: S.fear }); ROOM.nextHist += 2; if (ROOM.hist.length > 4000) ROOM.hist.shift(); }
+}
+function drawTimeline() {
+  const c = $('#tl'), g = c.getContext('2d'), W = c.width, H = c.height, dpr = devicePixelRatio;
+  g.clearRect(0, 0, W, H);
+  const hist = ROOM.hist; if (hist.length < 2) return;
+  const span = CHAMBER_DAYS * 24, x = h => h / span * W, y = v => H - 6 * dpr - v * (H - 14 * dpr);
+  g.fillStyle = 'rgba(252,252,250,.78)'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#d8dbd6'; g.lineWidth = 1; g.font = `${10 * dpr}px "Martian Mono", monospace`; g.fillStyle = '#5b6168';
+  for (let d = 20; d < CHAMBER_DAYS; d += 20) { g.beginPath(); g.moveTo(x(d * 24), 0); g.lineTo(x(d * 24), H); g.stroke(); g.fillText('D' + d, x(d * 24) + 3 * dpr, 11 * dpr); }
+  for (const [key, col, w] of [['fear', '#a8692a', 1.2], ['health', '#c4321f', 1.5], ['hope', '#2b6684', 1.5], ['grip', '#16181b', 2]]) {
+    g.strokeStyle = col; g.lineWidth = w * dpr; g.beginPath();
+    hist.forEach((p, i) => i ? g.lineTo(x(p.h), y(p[key])) : g.moveTo(x(p.h), y(p[key]))); g.stroke();
+  }
+}
+
+// ---------- grain ----------
+const grain = $('#grain'), gctx = grain.getContext('2d'); let grainLevel = 0, grainT = 0;
+function drawGrain(now) {
+  grain.style.opacity = grainLevel.toFixed(3);
+  if (grainLevel < .01 || now - grainT < 70) return; grainT = now;
+  const img = gctx.createImageData(160, 100);
+  for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+  gctx.putImageData(img, 0, 0);
+}
+
+// ---------- sound (opt-in) ----------
+let AC = null, hum = null, staticNode = null, wind = null, soundOn = false;
+function initAudio() {
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  const g = AC.createGain(); g.gain.value = 0; g.connect(AC.destination);
+  const o1 = AC.createOscillator(); o1.frequency.value = 60; const o2 = AC.createOscillator(); o2.frequency.value = 120; o2.type = 'triangle';
+  const g2 = AC.createGain(); g2.gain.value = .3; o1.connect(g); o2.connect(g2); g2.connect(g); o1.start(); o2.start(); hum = g;
+  const buf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const src = AC.createBufferSource(); src.buffer = buf; src.loop = true; const sg = AC.createGain(); sg.gain.value = 0; src.connect(sg); sg.connect(AC.destination); src.start(); staticNode = sg;
+  const src2 = AC.createBufferSource(); src2.buffer = buf; src2.loop = true; const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400; const wg = AC.createGain(); wg.gain.value = 0; src2.connect(lp); lp.connect(wg); wg.connect(AC.destination); src2.start(); wind = wg;
+}
+function sfx(kind) {
+  if (!soundOn || !AC) return;
+  const t = AC.currentTime, g = AC.createGain(); g.connect(AC.destination);
+  if (kind === 'thud') { const o = AC.createOscillator(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(40, t + .15); g.gain.setValueAtTime(.5, t); g.gain.exponentialRampToValueAtTime(.001, t + .2); o.connect(g); o.start(t); o.stop(t + .25); }
+  if (kind === 'hatch') { const o = AC.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(220, t); g.gain.setValueAtTime(.06, t); g.gain.exponentialRampToValueAtTime(.001, t + .25); o.connect(g); o.start(t); o.stop(t + .3); }
+  if (kind === 'door') { const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.linearRampToValueAtTime(140, t + 1.2); g.gain.setValueAtTime(.08, t); g.gain.linearRampToValueAtTime(0, t + 1.4); o.connect(g); o.start(t); o.stop(t + 1.5); }
+}
+function updateAudio() {
+  if (!AC) return;
+  const inRoom = sim.phase === 'chamber';
+  hum.gain.value = soundOn && inRoom && !ROOM.dark ? .035 : 0;
+  staticNode.gain.value = soundOn && inRoom && ROOM.noise ? .04 : 0;
+  wind.gain.value = soundOn && sim.phase === 'alone' ? .05 : 0;
+}
+$('#snd').addEventListener('click', e => {
+  soundOn = !soundOn; e.currentTarget.setAttribute('aria-pressed', soundOn);
+  if (soundOn && !AC) { try { initAudio(); } catch (err) { soundOn = false; e.currentTarget.setAttribute('aria-pressed', 'false'); } }
+  if (AC && AC.state === 'suspended') AC.resume();
+  updateAudio();
+});
+
+// ---------- cameras ----------
+let camMode = 'town';
+function setTownCam() { camMode = 'town'; camera.fov = 45; camera.updateProjectionMatrix(); camera.position.set(0, 34, 40); controls.target.set(0, 0, 2); controls.minDistance = 4; controls.maxDistance = 95; controls.update(); }
+function setCCTV() { camMode = 'cctv'; camera.fov = 62; camera.updateProjectionMatrix(); camera.position.set(2.75, 2.82, 2.75); controls.target.set(-.2, .7, -.2); controls.minDistance = .5; controls.maxDistance = 4.5; controls.update(); }
+function setFollow() { camMode = 'follow'; camera.fov = 45; camera.updateProjectionMatrix(); controls.minDistance = 3; controls.maxDistance = 95; camera.position.copy(A.pos).add(new THREE.Vector3(10, 13, 13)); controls.target.copy(A.pos); controls.update(); }
+$('#viewReset').addEventListener('click', () => sim.phase === 'chamber' ? setCCTV() : sim.phase === 'alone' ? setFollow() : setTownCam());
+controls.addEventListener('start', () => { if (camMode === 'follow') camMode = 'free'; });
+$('#ivCam').addEventListener('click', () => { if (camMode === 'cctv') { camMode = 'free'; $('#ivCam').textContent = 'CCTV camera'; } else { setCCTV(); $('#ivCam').textContent = 'Free camera'; } });
+
+// ---------- phases ----------
+function setPhase(ph) {
+  sim.phase = ph;
+  const idx = { setup: 0, life: 0, taken: 1, chamber: 1, return: 2, alone: 3 }[ph];
+  ['ph1', 'ph2', 'ph3', 'ph4'].forEach((id, i) => { const el = $('#' + id); el.className = i === idx ? 'on' : (i < idx ? 'done' : ''); });
+  $('#lifePanel').hidden = !(ph === 'life' || ph === 'setup');
+  $('#roomPanel').hidden = ph !== 'chamber';
+  $('#alonePanel').hidden = !(ph === 'alone' || ph === 'return');
+  $('#feedSec').hidden = !(ph === 'chamber' || ph === 'alone' || ph === 'return');
+  $('#tlWrap').hidden = ph !== 'chamber';
+  updateAudio();
+}
+function clearTags() { for (const el of tagPool.values()) el.remove(); tagPool.clear(); }
+function fadeThen(text, fn, ms = 2200) {
+  $('#fadeTxt').textContent = text; $('#fade').classList.add('on');
+  sim.skipTo = null; setSpeed(0);
+  setTimeout(() => { clearTags(); fn(); setTimeout(() => { $('#fade').classList.remove('on'); setSpeed(1); }, 400); }, reduceMotion ? 300 : ms);
+}
+
+$('#lifeDays').addEventListener('input', e => { $('#lifeOut').textContent = e.target.value + ' days'; });
+$('#begin').addEventListener('click', () => {
+  sim.lifeDays = +$('#lifeDays').value;
+  sim.takeAt = sim.lifeDays * 24 + 3;          // 03:00 on the night after his last normal day
+  $('#setup').hidden = true;
+  setPhase('life'); setSpeed(1);
+});
+$('#skipLife').addEventListener('click', () => { if (sim.phase === 'life') sim.skipTo = sim.takeAt; });
+$('#skipRoom').addEventListener('click', () => { if (sim.phase === 'chamber' && !ROOM.released) sim.skipTo = sim.chamberStart + CHAMBER_DAYS * 24; });
+$('#skipAlone').addEventListener('click', () => { if (sim.phase === 'alone' && !A.ended) sim.skipTo = sim.hours + 240; });
+
+function takeVega() {
+  setPhase('taken');
+  fadeThen(`${fmtClock(sim.hours)}. Vega is taken from his bed. Nobody in town sees him go.`, () => {
+    sim.chamberStart = sim.hours;
+    // the outside world's fate is set the moment he goes in
+    sim.collapseAt = sim.hours + 24 * rnd(5, 12);
+    const cd = (sim.collapseAt - sim.chamberStart) / 24;
+    for (const c of citizens) {
+      if (c.isVega) continue;
+      const d = cd + 4 + Math.pow(R(), .85) * (114 - cd);
+      c.deathAt = sim.chamberStart + d * 24 + rnd(0, 24);
+      c.sickAt = c.deathAt - rnd(36, 96);
+      c.cause = d < cd + 30 ? pick(['the fever', 'the fever', 'the fever']) : d < 80 ? pick(['the fever', 'hunger', 'the fever']) : pick(['hunger', 'the cold', 'the fever']);
+    }
+    vegaC.act = null;
+    enterRoom();
+    renderer.domElement.style.filter = '';
+    setCCTV(); setPhase('chamber');
+    feedDirty = true;
+  });
+}
+function goAlone() {
+  setPhase('return');
+  sim.skipTo = null;
+  fadeThen(`Chamber day 120. The power failed and the door swung open. Vega walks out into ${seasonAt(sim.hours)} light.`, () => {
+    for (const c of citizens) if (!c.isVega && c.alive) { c.deathAt = sim.hours; die(c); }
+    for (const [, g] of ghosts) { g.want = 0; g.op = 0; g.root.visible = false; }
+    decayTown();
+    civScene.add(vegaC.h.root); vegaC.h.root.visible = true;
+    A.pos.copy(FAC_DOOR); A.yaw = Math.atan2(-FAC_DOOR.x, -FAC_DOOR.z); A.food = 3;
+    A.beh = { kind: 'arrive', target: nearPlace('plaza', 3), dur: .5, t: 0, arrived: false, extra: {} };
+    sim.aloneStart = sim.hours;
+    S.grief = 0; S.boredom = .2; S.loneliness = Math.max(S.loneliness, .5); S.fear = .5; S.health = Math.max(S.health, .45);
+    say('By the facility door: a crate of the same bread they fed me through the hatch. Three loaves left.', 'ev');
+    say(pick(ALINES.arrive));
+    renderer.domElement.style.filter = '';
+    setPhase('alone'); setFollow();
+  }, 2600);
+}
+function showEnding() {
+  const days = Math.floor(aloneDays());
+  $('#endEyebrow').textContent = `Outcome · ${fmtClock(sim.hours)}`;
+  $('#endTitle').textContent = `Vega died alone after ${days} day${days === 1 ? '' : 's'}`;
+  const cause = S.thirst > .9 ? 'thirst' : S.hunger > .85 ? 'hunger' : A.sickLeft > 0 ? 'the fever' : seasonAt(sim.hours) === 'winter' ? 'the cold' : 'everything at once';
+  $('#endText').textContent = `He lived ${sim.lifeDays} normal days, 120 in the white chamber, and ${days} alone in the town that died while he was gone. In the end it was ${cause}.`;
+  const st = [['Normal life', `${sim.lifeDays} days`], ['In the chamber', '120 days'], ['Days he thought passed inside', ROOM.sleeps + 1], ['Alone afterwards', `${days} days`], ['People he found', `${A.found} of 29`], ['Graves he dug', A.buried], ['Times he searched for survivors', A.searches], ['Grip on reality', Math.round(S.grip * 100) + '%']];
+  $('#endStats').innerHTML = st.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+  $('#ending').hidden = false;
+}
+$('#endWatch').addEventListener('click', () => { $('#ending').hidden = true; });
+$('#endRestart').addEventListener('click', () => location.reload());
+$('#ivLights').addEventListener('click', e => {
+  if (sim.phase !== 'chamber' || ROOM.released) return; ROOM.dark = !ROOM.dark; e.currentTarget.setAttribute('aria-pressed', ROOM.dark); e.currentTarget.textContent = ROOM.dark ? 'Lights on' : 'Lights off';
+  say(ROOM.dark ? (S.grip > .5 ? 'Dark. The first dark since I got here.' : 'Something is in here with me. In the dark.') : 'The light is back.', ROOM.dark && S.grip <= .5 ? 'bad' : 'ev');
+  updateAudio();
+});
+$('#ivNoise').addEventListener('click', e => {
+  if (sim.phase !== 'chamber' || ROOM.released) return; ROOM.noise = !ROOM.noise; e.currentTarget.setAttribute('aria-pressed', ROOM.noise);
+  say(ROOM.noise ? 'A hiss from everywhere. Like rain that never lands.' : 'The hiss stopped. The silence is louder.', 'ev'); updateAudio();
+});
+
+// ---------- panels ----------
+function meters(el, rows) {
+  if (el._n !== rows.length) { el.innerHTML = rows.map(() => '<span class="k"></span><span class="bar"><i></i></span><span class="v"></span>').join(''); el._n = rows.length; }
+  const ks = el.querySelectorAll('.k'), is = el.querySelectorAll('.bar i'), vs = el.querySelectorAll('.v');
+  rows.forEach(([label, val, cls, txt], i) => {
+    if (ks[i].textContent !== label) ks[i].textContent = label;
+    is[i].style.width = (clamp(val) * 100).toFixed(1) + '%'; is[i].className = cls || '';
+    vs[i].textContent = txt != null ? txt : Math.round(clamp(val) * 100);
+  });
+}
+const kv = (el, rows) => { const html = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join(''); if (el._h !== html) { el.innerHTML = html; el._h = html; } };
+const sev = (v, inv) => { const x = inv ? 1 - v : v; return x > .7 ? 'bad' : ''; };
+let lastSel = null;
+function renderLifePanel(force) {
+  const c = selected; if (!c) return;
+  if (force || lastSel !== c) {
+    lastSel = c;
+    $('#selName').textContent = c.name + (c.isVega ? ' (subject)' : '');
+    const ts = Object.entries(c.p).sort((a, b) => Math.abs(b[1] - .5) - Math.abs(a[1] - .5)).slice(0, 5);
+    $('#selTraits').innerHTML = ts.map(([k, v]) => `<span class="chip ${Math.abs(v - .5) > .25 ? 'hi' : ''}">${v >= .5 ? TRAIT_NAMES[k] : TRAIT_LOW[k]}</span>`).join('')
+      + `<span class="chip">eats ${c.rates.hunger > .042 ? 'often' : c.rates.hunger < .03 ? 'little' : 'normally'}</span><span class="chip">${c.chrono % 24 < 21 ? 'early sleeper' : c.chrono % 24 > 22.5 ? 'night owl' : 'sleeps at ten'}</span>`;
+    document.querySelectorAll('#citList button').forEach(b => b.classList.toggle('sel', +b.dataset.i === c.i));
+  }
+  $('#selLife').textContent = (c.isVega ? c.life.replace('their', 'his') : c.life) + '.';
+  const a = c.act;
+  const doing = !a ? 'Deciding' : (a.arrived ? { eat: 'Eating at the market', forage: 'Foraging in the fields', drink: 'Drinking at the well', sleep: 'Asleep at home', work: 'Working at the workshop', learn: 'Reading in the library', social: c.chatPartner ? `Talking with ${c.chatPartner.name}` : 'Looking for company at the plaza', wander: 'Wandering' }[a.kind] : `Walking to ${{ eat: 'the market', forage: 'the fields', drink: 'the well', sleep: 'home', work: 'the workshop', learn: 'the library', social: 'the plaza', wander: 'the edge of town' }[a.kind]}`);
+  $('#selDoing').textContent = `${doing} · ${Math.round(c.money)} coins`;
+  $('#selThought').textContent = c.thought;
+  const n = c.needs;
+  meters($('#selNeeds'), [['Hunger', n.hunger, sev(n.hunger)], ['Thirst', n.thirst, sev(n.thirst)], ['Tiredness', n.sleep, sev(n.sleep)], ['Energy', n.energy, sev(n.energy, 1) || 'good'], ['Health', n.health, sev(n.health, 1) || 'good']]);
+  meters($('#selWants'), Object.entries(c.w).sort((x, y) => y[1].w * (1 - y[1].l) - x[1].w * (1 - x[1].l)).map(([k, w]) => [`${WANT_LABEL[k]} · weight ${w.w.toFixed(2)}`, 1 - w.l, 'civ']));
+  const rel = topFriend(c, 4).filter(([, v]) => v > .03);
+  $('#selRel').innerHTML = rel.length ? rel.map(([o, v]) => `<span><b>${o.name}</b> <span class="dim">· ${v > .6 ? 'close friend' : v > .3 ? 'friend' : 'acquaintance'} (${Math.round(v * 100)})</span></span>`).join('') : '<span class="dim">Nobody yet.</span>';
+  const lived = clamp((sim.hours - 7) / (sim.takeAt - 7 || 1));
+  meters($('#lifeMeter'), [[`Day ${Math.floor(sim.hours / 24) + 1} of ${sim.lifeDays}`, lived, 'civ', Math.round(lived * 100) + '%']]);
+  $('#lifeText').textContent = sim.phase === 'setup' ? 'Choose how long his normal life lasts to begin.' : `On the night after day ${sim.lifeDays} he will be taken to the chamber. Every friendship he makes until then goes in with him.`;
+}
+function buildCitList() {
+  $('#citList').innerHTML = citizens.map(c => `<li><button type="button" data-i="${c.i}"><span class="d" style="background:#${new THREE.Color(c.shirt).getHexString()}"></span><span class="n">${c.name}</span><span class="a" id="ca${c.i}"></span></button></li>`).join('');
+  $('#citList').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; selected = citizens[+b.dataset.i]; renderLifePanel(true); if (selected.h.root.visible) controls.target.lerp(selected.pos, .6); });
+}
+const SHORT = { eat: 'eating', forage: 'foraging', drink: 'drinking', sleep: 'asleep', work: 'working', learn: 'reading', social: 'chatting', wander: 'wandering' };
+function renderCitList() {
+  for (const c of citizens) {
+    const el = document.getElementById('ca' + c.i); if (!el) continue;
+    const t = c.act ? (c.act.arrived ? SHORT[c.act.kind] : 'walking') : '';
+    if (el.textContent !== t) el.textContent = t;
+  }
+}
+function renderRoomPanel() {
+  const D = derived(), b = ROOM.beh;
+  $('#rEyebrow').textContent = `Chamber 7 · subject Vega · day ${Math.floor(ROOM.hours / 24) + 1} of ${CHAMBER_DAYS}`;
+  $('#rDoing').textContent = BEH_LABEL[b.kind] || 'Standing';
+  meters($('#rBody'), [['Hunger', S.hunger, sev(S.hunger)], ['Thirst', S.thirst, sev(S.thirst)], ['Exhaustion', S.sleep, sev(S.sleep)], ['Pain', S.pain, S.pain > .4 ? 'bad' : ''], ['Health', S.health, sev(S.health, 1) || 'good'], ['Body weight', S.weight, S.weight < .75 ? 'bad' : 'good']]);
+  meters($('#rMind'), [['Grip on reality', S.grip, sev(S.grip, 1) || 'good'], ['Hope', S.hope, sev(S.hope, 1) || 'good'], ['Fear', S.fear, sev(S.fear)], ['Loneliness', S.loneliness, sev(S.loneliness)], ['Boredom', S.boredom, sev(S.boredom)], ['Anger', S.anger, sev(S.anger)], ['Despair', D.despair, sev(D.despair)]]);
+  const f = ROOM.friends;
+  const wants = [['Get out', D.escape], [f.length ? `See ${f[0].c.name} again` : 'See anyone at all', S.loneliness * (.6 + (f[0] ? f[0].a * .6 : 0))], ['Food and water', Math.max(S.hunger, S.thirst)], ['Sleep in the dark', S.sleep * (ROOM.dark ? .4 : 1)],
+    ['Know what day it is', clamp((.25 + vegaC.p.conscientiousness * .5) * Math.min(1, ROOM.hours / 60) + .15)], ['Something to do', S.boredom], ['Be told why', clamp(.2 + ROOM.hours / 600 + S.anger * .3)]].sort((a, b) => b[1] - a[1]);
+  meters($('#rWants'), wants.map(([k, v]) => [k, v, v > .7 ? 'bad' : 'civ']));
+  const searched = Math.round(ROOM.searched.flat().filter(x => x > .3).length / 24 * 100);
+  $('#rEscape').innerHTML = (ROOM.released ? '<span><b>Open.</b> The power failed on day 120.</span>' : ROOM.seamFound ? `<span><b>Seam found</b> on the north wall. ${ROOM.doorDamage >= .35 ? 'Steel underneath. It will not move.' : 'He is trying to pry it open.'}</span>` : `<span>No way out found. He has searched ${searched}% of the walls.</span>`)
+    + `<span class="dim">${ROOM.attempts} escape attempts · ${ROOM.tallies} tally marks · thinks it is day ${ROOM.sleeps + 1}</span>`;
+  const alive = citizens.filter(c => !c.isVega && c.alive).length;
+  kv($('#outKv'), [['Alive in town', `${alive} of 29`], ['Food supply', Math.round(WORLD.food * 100) + '%'], ['His friends alive', ROOM.friends.filter(x => x.c.alive).length + ' of ' + ROOM.friends.length]]);
+  const out = OUT.slice(-8).reverse();
+  const html = out.map(e => `<li class="${e.friend ? 'bad' : 'out'}"><time>${fmtShort(e.h)}</time><span>${escapeHtml(e.text)}</span></li>`).join('') || '<li class="out"><time></time><span>Life goes on in town.</span></li>';
+  const of = $('#outFeed'); if (of._h !== html) { of.innerHTML = html; of._h = html; }
+  const skip = $('#skipRoom'); skip.disabled = ROOM.released;
+}
+function renderAlonePanel() {
+  const D = derived(), b = A.beh;
+  $('#aEyebrow').textContent = `After · day ${Math.floor(aloneDays()) + 1} alone · ${seasonAt(sim.hours)}`;
+  $('#aDoing').textContent = ALABEL[b.kind] || 'Standing';
+  meters($('#aBody'), [['Hunger', S.hunger, sev(S.hunger)], ['Thirst', S.thirst, sev(S.thirst)], ['Exhaustion', S.sleep, sev(S.sleep)], ['Health', S.health, sev(S.health, 1) || 'good'], ['Body weight', S.weight, S.weight < .75 ? 'bad' : 'good']]);
+  meters($('#aMind'), [['Grip on reality', S.grip, sev(S.grip, 1) || 'good'], ['Hope', S.hope, sev(S.hope, 1) || 'good'], ['Loneliness', S.loneliness, sev(S.loneliness)], ['Grief', S.grief, sev(S.grief)], ['Fear', S.fear, sev(S.fear)], ['Despair', D.despair, sev(D.despair)]]);
+  const left = HOUSES.filter(h => h.stock > 0).length;
+  kv($('#aSurv'), [['Food stored', `${Math.floor(A.food)} meal${Math.floor(A.food) === 1 ? '' : 's'}`], ['Houses left to search', `${left} of ${HOUSES.length}`], ['Garden', A.garden ? (A.garden.growth >= 1 ? 'ready to harvest' : `growing, ${Math.round(A.garden.growth * 100)}%`) : 'none'], ['Season', seasonAt(sim.hours)], ['Graves dug', A.buried], ['Fever', A.sickLeft > 0 ? 'sick' : 'no']]);
+  const dead = citizens.filter(c => !c.isVega).sort((a, b) => (vegaC.rel.get(b) || 0) - (vegaC.rel.get(a) || 0));
+  const html = dead.map(c => { const st = c.buried ? 'buried' : c.found ? 'found' : ''; const txt = c.buried ? 'buried' : c.found ? 'found dead' : 'not found'; return `<li class="${st}"><b>${c.name}</b><span>${txt}</span></li>`; }).join('');
+  const el = $('#aDead'); if (el._h !== html) { el.innerHTML = html; el._h = html; }
+  $('#skipAlone').disabled = A.ended;
+}
+function renderFeed() {
+  feedDirty = false;
+  const ev = EVENTS.slice(-40).reverse();
+  $('#feedList').innerHTML = ev.map(e => `<li class="${e.cls}"><time>${fmtShort(e.h)}${sim.phase === 'chamber' || e.bh !== e.h ? `<br><span style="color:var(--alarm)">feels ${fmtShort(e.bh)}</span>` : ''}</time><span>${escapeHtml(e.text)}</span></li>`).join('');
+}
+
+// ---------- speed ----------
+function setSpeed(s) { speed = s; document.querySelectorAll('.speed button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.s === s)); }
+document.querySelector('.speed').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setSpeed(+b.dataset.s); });
+addEventListener('keydown', e => {
+  if (e.target.closest('input,select,textarea')) return;
+  if (e.key === ' ') { e.preventDefault(); setSpeed(speed ? 0 : 1); }
+  const m = { '1': 1, '2': 8, '3': 64, '4': 256 }[e.key]; if (m) setSpeed(m);
+});
+
+// ---------- main loop ----------
+buildCitList();
+setTownCam();
+resize();
+setPhase('setup');
+setSpeed(1);
+let last = performance.now(), panelT = 0;
+function frame(now) {
+  const dtR = Math.min(.05, (now - last) / 1000); last = now;
+  let dtH = dtR * H_PER_SEC * speed;
+  if (sim.skipTo != null) { dtH = Math.min(Math.max(0, sim.skipTo - sim.hours), 240 * dtR + .5); if (dtH <= 0) sim.skipTo = null; }   // about ten days a second
+  const ph = sim.phase;
+  if (ph === 'setup' || ph === 'life' || ph === 'taken') {
+    const live = ph === 'setup' ? dtR * H_PER_SEC * .5 : dtH;   // the town idles slowly behind the setup card
+    const n = Math.max(1, Math.ceil(live / .05));
+    for (let i = 0; i < n; i++) { if (ph !== 'setup') sim.hours += live / n; civStep(live / n, dtR / n); }
+    if (ph === 'setup') sim.hours += live;
+    if (ph === 'life' && sim.hours >= sim.takeAt) { sim.skipTo = null; takeVega(); }
+    civRender(speed || sim.skipTo ? dtR : 0, now);
+    controls.update(); renderer.render(civScene, camera);
+    $('#camTL').textContent = 'CivSYS · 30 citizens';
+    $('#camTR').textContent = `${speed ? '' : 'Paused · '}${fmtClock(sim.hours)}`;
+    $('#clkReal').textContent = fmtClock(sim.hours);
+    $('#clkSub').textContent = ph === 'setup' ? '' : `Normal life · day ${Math.floor(sim.hours / 24) + 1} of ${sim.lifeDays}`;
+    if (now - panelT > 160) { panelT = now; renderLifePanel(false); renderCitList(); }
+  } else if (ph === 'chamber') {
+    const n = Math.max(1, Math.ceil(dtH / .04));
+    for (let i = 0; i < n; i++) { sim.hours += dtH / n; roomStep(dtH / n); }
+    const m = Math.max(1, Math.ceil(dtH / .1));
+    for (let i = 0; i < m; i++) civStep(dtH / m, 0);       // the town keeps living, and dying, outside
+    recordHist();
+    controls.update();
+    roomRender(speed || sim.skipTo ? dtR : 0, now);
+    renderer.render(roomScene, camera);
+    $('#camTL').textContent = `CAM 02 · Chamber 7 · ${ROOM.dark ? 'IR' : 'Day lens'}`;
+    $('#camTR').innerHTML = `<span class="rec"></span> REC · ${fmtShort(sim.hours)}`;
+    $('#clkReal').textContent = fmtClock(sim.hours);
+    $('#clkSub').textContent = `Chamber day ${Math.min(CHAMBER_DAYS, Math.floor(ROOM.hours / 24) + 1)} of ${CHAMBER_DAYS} · he thinks day ${ROOM.sleeps + 1}`;
+    if (now - panelT > 160) { panelT = now; renderRoomPanel(); drawTimeline(); }
+  } else if (ph === 'alone' || ph === 'return') {
+    if (ph === 'alone') { const n = Math.max(1, Math.ceil(dtH / .05)); for (let i = 0; i < n; i++) { sim.hours += dtH / n; aloneStep(dtH / n); } }
+    if (A.beh) aloneRender(speed || sim.skipTo ? dtR : 0, now);
+    controls.update(); renderer.render(civScene, camera);
+    $('#camTL').textContent = 'CivSYS · 1 citizen';
+    $('#camTR').textContent = `${speed ? '' : 'Paused · '}${fmtClock(sim.hours)}`;
+    $('#clkReal').textContent = fmtClock(sim.hours);
+    $('#clkSub').textContent = ph === 'return' ? 'Walking out' : A.ended ? `Vega died on day ${Math.floor(aloneDays()) + 1} alone` : `Alone · day ${Math.floor(aloneDays()) + 1} · ${seasonAt(sim.hours)}`;
+    if (now - panelT > 160 && A.beh) { panelT = now; renderAlonePanel(); }
+  }
+  if (feedDirty) renderFeed();
+  drawGrain(now);
+  sweepTags();
+  requestAnimationFrame(frame);
+}
+renderLifePanel(true);
+requestAnimationFrame(frame);
+})();
+</script>
