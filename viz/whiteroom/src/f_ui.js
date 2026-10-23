@@ -270,3 +270,58 @@ $('#ivLights').addEventListener('click', e => { if (sim.phase !== 'chamber' || R
 $('#ivNoise').addEventListener('click', e => { if (sim.phase !== 'chamber' || ROOM.released) return; ROOM.noise = !ROOM.noise; e.currentTarget.setAttribute('aria-pressed', ROOM.noise); say(ROOM.noise ? 'A hiss from everywhere. Like rain that never lands.' : 'The hiss stopped. The silence is louder.', 'ev'); updateAudio(); });
 $('#ivVoice').addEventListener('click', () => { if (sim.phase !== 'chamber' || ROOM.released) return; const keep = cfg.chamber.voice; cfg.chamber.voice = keep === 'none' ? 'kind' : keep; observerVoice(); cfg.chamber.voice = keep; });
 $('#ivFood').addEventListener('click', () => { if (sim.phase !== 'chamber' || ROOM.released || ROOM.food) return; deliverFood(true); });
+
+// ---------- views and cameras ----------
+let camMode = 'town', selected = null;
+function setTownCam() { camMode = 'town'; const v = VILL[vegaC.homeVillage]; camera.fov = 45; camera.updateProjectionMatrix(); camera.position.set(v.x + 10, v.h + 42, v.z + 52); controls.target.set(v.x, v.h, v.z + 2); controls.minDistance = 3; controls.maxDistance = 420; controls.update(); }
+function setMap() { camMode = 'map'; camera.fov = 45; camera.updateProjectionMatrix(); camera.position.set(0, 360, 210); controls.target.set(0, 0, -10); controls.update(); }
+function setCCTV() { camMode = 'cctv'; camera.fov = 70; camera.updateProjectionMatrix(); camera.position.set(RS - .25, RH - .18, RS - .25); controls.target.set(-.2, .7, -.2); controls.minDistance = .5; controls.maxDistance = RS * 2; controls.update(); }
+function setIso() { camMode = 'iso'; camera.fov = 22; camera.updateProjectionMatrix(); controls.minDistance = 10; controls.maxDistance = 200; }
+function setPov() { camMode = 'pov'; controls.minDistance = .01; }
+function setFollow() { camMode = 'follow'; camera.fov = 45; camera.updateProjectionMatrix(); controls.minDistance = 3; controls.maxDistance = 420; const t = followTarget(); camera.position.copy(t).add(new THREE.Vector3(10, 13, 14)); controls.target.copy(t); controls.update(); }
+const followTarget = () => sim.phase === 'after' ? A.pos.clone() : (selected ? selected.pos.clone() : VILL[0].places.plaza.pos.clone());
+controls.addEventListener('start', () => { if (camMode === 'follow' || camMode === 'town') camMode = 'free'; });
+const isoFollow = (t, dtR) => { const want = t.clone().add(new THREE.Vector3(30, 34, 30)); camera.position.lerp(want, Math.min(1, dtR * 2)); controls.target.lerp(t, Math.min(1, dtR * 3)); };
+$('#viewReset').addEventListener('click', () => sim.phase === 'chamber' ? setCCTV() : sim.phase === 'after' ? setFollow() : sim.phase === 'setup' ? null : setTownCam());
+$('#vFollow').addEventListener('click', setFollow);
+$('#vMap').addEventListener('click', setMap);
+$('#vIso').addEventListener('click', setIso);
+$('#vPov').addEventListener('click', () => camMode === 'pov' ? (sim.phase === 'chamber' ? setCCTV() : setFollow()) : setPov());
+$('#ivCam').addEventListener('click', () => { if (camMode === 'cctv') { camMode = 'free'; $('#ivCam').textContent = 'CCTV camera'; } else { setCCTV(); $('#ivCam').textContent = 'Free camera'; } });
+function setView(m) { viewMode = m; $('#vMind').setAttribute('aria-pressed', m === 'mind'); $('#vReal').setAttribute('aria-pressed', m === 'real'); }
+$('#vMind').addEventListener('click', () => setView('mind'));
+$('#vReal').addEventListener('click', () => setView('real'));
+
+// picking people in the villages
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!vegaC || !(sim.phase === 'chamber' || sim.phase === 'after' || sim.phase === 'life')) return;
+  const head = vegaC.h.root.position, dist = camera.position.distanceTo(head);
+  if (dist > 9 || camMode === 'pov') { HALL.mouse = null; return; }
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  HALL.mouse = ray.ray.at(dist * .9, new THREE.Vector3());
+});
+renderer.domElement.addEventListener('pointerleave', () => { HALL.mouse = null; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  if (godPlace(e)) return;
+  if (sim.phase === 'chamber' || sim.phase === 'after') {
+    const r = renderer.domElement.getBoundingClientRect();
+    mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(mouse, camera);
+    if (ray.intersectObject(vegaC.h.root, true).length) {
+      if (sim.phase === 'chamber') { spike('fear', .15); spike('surprise', .6); godAct('torment', 'tapped on the glass'); say(pick(['A knock. From above. From the camera.', 'Something tapped. Like a finger on glass.', 'Who is there? I heard that.']), 'mind'); ROOM.beh.t = ROOM.beh.dur; }
+      else { spike('surprise', .4); A.bubble = { text: pick(['Who\'s there?', 'Hello?', 'I know you\'re watching.']), cls: 'bub', until: performance.now() + 2200 }; GOD.lastAct = sim.hours; }
+      return;
+    }
+  }
+  if (sim.phase !== 'life') return;
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hits = ray.intersectObjects(citizens.filter(c => c.h.root.visible && c.h.root.parent === scene).map(c => c.h.root), true);
+  if (hits.length) { selected = hits[0].object.userData.cit; renderLifePanel(true); }
+});
