@@ -325,3 +325,62 @@ renderer.domElement.addEventListener('pointerup', e => {
   const hits = ray.intersectObjects(citizens.filter(c => c.h.root.visible && c.h.root.parent === scene).map(c => c.h.root), true);
   if (hits.length) { selected = hits[0].object.userData.cit; renderLifePanel(true); }
 });
+
+// ---------- timeline, grain, sound ----------
+function recordHist() { while (ROOM.hours >= ROOM.nextHist) { ROOM.hist.push({ h: ROOM.nextHist, grip: S.grip, hope: S.hope, health: S.health, fear: S.fear }); ROOM.nextHist += Math.max(1, cfg.time.chamberDays / 120 * 2); if (ROOM.hist.length > 5000) ROOM.hist.shift(); } }
+function drawTimeline() {
+  const c = $('#tl'), g = c.getContext('2d'), W = c.width, H = c.height, dpr = devicePixelRatio;
+  g.clearRect(0, 0, W, H);
+  const hist = ROOM.hist; if (hist.length < 2) return;
+  const span = cfg.time.chamberDays * 24, x = h => h / span * W, y = v => H - 6 * dpr - v * (H - 14 * dpr);
+  g.fillStyle = 'rgba(252,252,250,.78)'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#d8dbd6'; g.lineWidth = 1; g.font = `${10 * dpr}px "Martian Mono", monospace`; g.fillStyle = '#5b6168';
+  const stepD = cfg.time.chamberDays > 150 ? 50 : cfg.time.chamberDays > 60 ? 20 : 7;
+  for (let d = stepD; d < cfg.time.chamberDays; d += stepD) { g.beginPath(); g.moveTo(x(d * 24), 0); g.lineTo(x(d * 24), H); g.stroke(); g.fillText('D' + d, x(d * 24) + 3 * dpr, 11 * dpr); }
+  for (const [key, col, w] of [['fear', '#a8692a', 1.2], ['health', '#c4321f', 1.5], ['hope', '#2b6684', 1.5], ['grip', '#16181b', 2]]) {
+    g.strokeStyle = col; g.lineWidth = w * dpr; g.beginPath();
+    hist.forEach((p, i) => i ? g.lineTo(x(p.h), y(p[key])) : g.moveTo(x(p.h), y(p[key]))); g.stroke();
+  }
+}
+const grain = $('#grain'), gctx = grain.getContext('2d'); let grainLevel = 0, grainT = 0;
+function drawGrain(now) {
+  grain.style.opacity = (grainLevel * .65).toFixed(3);
+  if (grainLevel < .01 || now - grainT < 70) return; grainT = now;
+  const img = gctx.createImageData(320, 200);
+  for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+  gctx.putImageData(img, 0, 0);
+}
+let AC = null, hum = null, staticNode = null, wind = null, soundOn = false;
+function initAudio() {
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  const g = AC.createGain(); g.gain.value = 0; g.connect(AC.destination);
+  const o1 = AC.createOscillator(); o1.frequency.value = 60; const o2 = AC.createOscillator(); o2.frequency.value = 120; o2.type = 'triangle';
+  const g2 = AC.createGain(); g2.gain.value = .3; o1.connect(g); o2.connect(g2); g2.connect(g); o1.start(); o2.start(); hum = g;
+  const buf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const src = AC.createBufferSource(); src.buffer = buf; src.loop = true; const sg = AC.createGain(); sg.gain.value = 0; src.connect(sg); sg.connect(AC.destination); src.start(); staticNode = sg;
+  const tin = AC.createOscillator(); tin.frequency.value = 6800; const tg = AC.createGain(); tg.gain.value = 0; tin.connect(tg); tg.connect(AC.destination); tin.start(); HALL.tin = tg;
+  const src2 = AC.createBufferSource(); src2.buffer = buf; src2.loop = true; const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380; const wg = AC.createGain(); wg.gain.value = 0; src2.connect(lp); lp.connect(wg); wg.connect(AC.destination); src2.start(); wind = wg;
+}
+function sfx(kind) {
+  if (!soundOn || !AC) return;
+  const t = AC.currentTime, g = AC.createGain(); g.connect(AC.destination);
+  const osc = (type, f0, f1, dur, vol) => { const o = AC.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur); o.connect(g); o.start(t); o.stop(t + dur + .05); };
+  if (kind === 'thud') osc('sine', 110, 40, .2, .5);
+  if (kind === 'hatch') osc('square', 220, 200, .25, .06);
+  if (kind === 'door') osc('sawtooth', 70, 140, 1.4, .08);
+  if (kind === 'voice') osc('sine', 190, 150, .9, .05);
+  if (kind === 'beat') osc('sine', 62, 40, .16, .35);
+}
+function updateAudio() {
+  if (!AC) return;
+  const inRoom = sim.phase === 'chamber';
+  hum.gain.value = soundOn && inRoom && !ROOM.dark && cfg.chamber.sound !== 'silence' ? .035 : (soundOn && inRoom && !ROOM.dark ? .01 : 0);
+  staticNode.gain.value = soundOn && inRoom && ROOM.noise ? .04 : 0;
+  wind.gain.value = soundOn && (sim.phase === 'after' || sim.phase === 'life') ? (sim.phase === 'after' ? .05 : .015) : 0;
+}
+$('#snd').addEventListener('click', e => {
+  soundOn = !soundOn; e.currentTarget.setAttribute('aria-pressed', soundOn);
+  if (soundOn && !AC) { try { initAudio(); } catch (err) { soundOn = false; e.currentTarget.setAttribute('aria-pressed', 'false'); } }
+  if (AC && AC.state === 'suspended') AC.resume();
+  updateAudio();
+});
