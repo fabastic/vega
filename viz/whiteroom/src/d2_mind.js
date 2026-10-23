@@ -264,3 +264,61 @@ function sensorium(now, dtR, inPOV) {
   // tinnitus in the silence
   if (AC && soundOn && HALL.tin) HALL.tin.gain.value = mind && sim.phase === 'chamber' && HALL.stage >= 1 && cfg.chamber.sound === 'silence' ? .004 + (1 - S.grip) * .006 : 0;
 }
+
+// ---------- the scar: PTSD ----------
+// What the room did stays. White surfaces, being shut in, silence, a hum like the light, bread like the
+// hatch's: any of them can drop him back inside. It eases with company, routine and stillness, and comes
+// back worse if it is fed.
+const PTSD = { symptoms: [], lastCue: '', flash: null, cutUntil: 0, nextCut: 0, starvedInside: false };
+function ptsdInit() {
+  const days = ROOM.hours / 24, minGrip = ROOM.hist.length ? Math.min(...ROOM.hist.map(h => h.grip)) : S.grip;
+  const fearAvg = ROOM.hist.length ? ROOM.hist.reduce((s, h) => s + h.fear, 0) / ROOM.hist.length : S.fear;
+  const k = { none: 0, mild: .6, normal: 1, severe: 1.5 }[cfg.after.ptsd || 'normal'];
+  S.ptsd = clamp((.12 + days / 365 * .45 + (1 - minGrip) * .3 + fearAvg * .2 + GOD.torments * .02 + ROOM.voices * .01) * (1.25 - vegaC.p.emotional_stability * .6) * k * (1 - equanimity() * .4));
+  PTSD.starvedInside = ROOM.hist.some(h => h.health < .7) || S.weight < .8;
+}
+function ptsdCues() {
+  const hour = sim.hours % 24, night = hour < 6 || hour >= 21, b = A.beh || {};
+  const cues = {
+    white: winterAmt(sim.hours) * .8,
+    shut_in: b.kind === 'sleep' && b.arrived && A.sleepIndoors ? .6 : 0,
+    silence: !COMPANIONS.some(z => z.kind !== 'zombie') && night ? .35 : 0,
+    hum: FAC.lit && A.pos.distanceTo(FAC.door) < 35 ? .9 : 0,
+    facility: A.pos.distanceTo(FAC.door) < 18 ? 1 : 0,
+    dark: night && !(A.built.campfire && A.pos.distanceTo(structPos('campfire')) < 8) ? .3 : 0,
+    watched: sim.hours - GOD.lastAct < 6 ? .7 : 0,
+    hunger: S.hunger > .7 ? .5 : 0,
+  };
+  return cues;
+}
+function ptsdStep(dtH) {
+  if (!S.ptsd) return;
+  const cues = ptsdCues(), [cue, cv] = Object.entries(cues).sort((a, b) => b[1] - a[1])[0];
+  PTSD.lastCue = cv > .2 ? cue : '';
+  const company = COMPANIONS.some(z => z.kind !== 'zombie');
+  // recovery: time, company, routine, stillness
+  S.ptsd = clamp(S.ptsd - dtH * (.0003 + (company ? .0012 : 0) + equanimity() * .001 + (A.beh && A.beh.kind === 'journal' ? .002 : 0)));
+  // hypervigilance and a body braced for the hatch
+  S.fear = clamp(S.fear + S.ptsd * .02 * dtH * (cv + .2));
+  if (!PTSD.flash && cv > .15 && R() < dtH * S.ptsd * cv * .5) startFlashback(cue);
+  if (PTSD.flash && sim.hours > PTSD.flash.until) { PTSD.flash = null; say(pick(['I\'m out. I\'m out. I\'m outside. Grass. Sky.', 'Count five things you can see. I counted them.', 'It passed. My hands are still shaking.']), 'ev'); S.relief = clamp(S.relief + .4); }
+  const s = [];
+  if (S.ptsd > .15) s.push('On guard all the time');
+  if (S.ptsd > .25) s.push('Nightmares of the white');
+  if (S.ptsd > .3 && PTSD.starvedInside) s.push('Hoards food, eats too little');
+  if (S.ptsd > .35) s.push('Can\'t sleep behind a closed door');
+  if (S.ptsd > .4) s.push('Avoids the facility');
+  if (S.ptsd > .45) s.push('Startles at every sound');
+  if (S.ptsd > .5) s.push('Counts the days on a wall again');
+  if (S.ptsd > .6) s.push('Feels numb when he should feel glad');
+  PTSD.symptoms = s;
+}
+const CUE_LINE = { white: 'Snow. Everything white. The walls are back.', shut_in: 'The door. Is the door shut? I can\'t breathe behind a shut door.', silence: 'This silence. It\'s the room\'s silence.', hum: 'That hum. The light used to hum like that.',
+  facility: 'That building. I was in that building. I can\'t go in there.', dark: 'Dark like when the lights went off. I\'m back in it.', watched: 'Someone is watching me. Like the camera. Like the camera.', hunger: 'Hungry like the days the hatch didn\'t open.' };
+function startFlashback(cue) {
+  PTSD.flash = { until: sim.hours + rnd(.3, 1.1), cue };
+  spike('fear', .35 * S.ptsd + .15); S.grip = clamp(S.grip - .03); spike('surprise', .4); dayNote('flashbacks');
+  say(CUE_LINE[cue] || 'The room. I\'m back in the room.', 'bad');
+  if (A.beh && !A.ended) A.beh = { kind: 'flashback', target: A.pos.clone(), dur: PTSD.flash.until - sim.hours, t: 0, arrived: true, extra: {}, h0: S.hunger, th0: S.thirst };
+  PTSD.nextCut = 0;
+}
