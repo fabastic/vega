@@ -690,3 +690,46 @@ function pose(kind, ph, c = {}) {
 const poseHeight = k => /^(lie|curl|bed|collapsed|pushup)$/.test(k) ? .75 : /^(sit|rock|eat_sit|read|warm|fish|hold_sit|meditate|cower)/.test(k) ? 1.25 : /^(kneel|pray|pet|sit_bed|forage|wash)/.test(k) ? 1.6 : 2.15;
 // the poses that put him on the floor; getting up from them goes through sitting and kneeling
 const GROUND = new Set(['lie', 'curl', 'bed', 'collapsed', 'sit_hug', 'rock', 'sit_wall', 'read', 'warm', 'fish', 'hold_sit', 'eat_sit', 'meditate', 'cower', 'pushup']);
+
+// ---------- animals ----------
+const ANIMAL = {
+  deer: { w: .42, h: .5, len: 1.25, leg: .72, head: .15, neck: .55, col: 0x8a6240, speed: 30, flee: 18, meat: 6, hide: 1, hunt: true },
+  boar: { w: .45, h: .48, len: 1.05, leg: .34, head: .2, neck: .12, col: 0x3d332b, speed: 24, flee: 9, meat: 5, hide: 1, hunt: true, fights: true },
+  wolf: { w: .32, h: .38, len: 1.0, leg: .48, head: .15, neck: .25, col: 0x6d6a64, speed: 36, flee: 0, meat: 3, hide: 1, hunt: true, fights: true, predator: true },
+  rabbit: { w: .14, h: .16, len: .32, leg: .1, head: .08, neck: .06, col: 0x9a8a74, speed: 26, flee: 8, meat: 1, hide: 0, hunt: true, small: true },
+  chicken: { w: .14, h: .2, len: .26, leg: .16, head: .06, neck: .1, col: 0xe9e4d6, speed: 10, flee: 4, meat: 1, hide: 0, hunt: true, small: true, biped: true },
+  bear: { w: .85, h: .8, len: 1.75, leg: .55, head: .28, neck: .22, col: 0x4a3524, speed: 30, flee: 0, meat: 14, hide: 2, hunt: false, fights: true, predator: true, big: true },
+  dog: { w: .24, h: .3, len: .78, leg: .38, head: .12, neck: .16, col: 0x5a4a3a, speed: 34, flee: 0, meat: 2, hide: 1, hunt: false, fights: true, predator: true },
+  rat: { w: .06, h: .06, len: .17, leg: .03, head: .035, neck: .02, col: 0x6b625a, speed: 6, flee: 1.5, meat: .3, hide: 0, hunt: true, small: true },
+};
+function makeAnimal(type) {
+  const s = ANIMAL[type], m = c => stdMat(c, .95);
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const col = new THREE.Color(s.col).offsetHSL(rnd(-.02, .02), 0, rnd(-.06, .06)).getHex();
+  const torso = new THREE.Mesh(GEO.sph(.5, 12, 8), m(col)); torso.scale.set(s.w, s.h, s.len); torso.position.y = s.leg + s.h * .4; torso.castShadow = true; body.add(torso);
+  const headG = new THREE.Group(); headG.position.set(0, s.leg + s.h * .55 + s.neck * .5, s.len * .45); body.add(headG);
+  if (s.neck > .1) { const nk = new THREE.Mesh(GEO.cyl(s.head * .45, s.head * .6, s.neck, 8), m(col)); nk.position.set(0, -s.neck * .3, -s.head * .3); nk.rotation.x = .5; headG.add(nk); }
+  const hd = new THREE.Mesh(GEO.sph(s.head, 10, 8), m(col)); hd.scale.set(.8, .85, 1.35); hd.position.z = s.head * .3; hd.castShadow = true; headG.add(hd);
+  if (type === 'deer' && R() < .5) for (const x of [-1, 1]) { const an = new THREE.Mesh(GEO.cyl(.012, .018, .38, 5), m(0xd8c9a8)); an.position.set(x * .06, s.head * .9, 0); an.rotation.z = x * .4; headG.add(an); }
+  if (type === 'boar') { const sn = new THREE.Mesh(GEO.cyl(.06, .07, .08, 8), m(0x5a4a40)); sn.rotation.x = Math.PI / 2; sn.position.z = s.head * 1.6; headG.add(sn); }
+  if (type === 'chicken') { const cb = new THREE.Mesh(GEO.box(.02, .05, .05), m(0xc23a2a)); cb.position.set(0, s.head * 1.1, .01); headG.add(cb); }
+  if (type === 'bear') for (const x of [-1, 1]) { const ear = new THREE.Mesh(GEO.sph(.07, 6, 5), m(col)); ear.position.set(x * .16, s.head * .8, -.05); headG.add(ear); }
+  if (type === 'rat') { const t = new THREE.Mesh(GEO.cyl(.006, .002, .16, 4), m(0xc9a69a)); t.rotation.x = -1.2; t.position.set(0, s.leg + s.h * .3, -s.len * .7); body.add(t); }
+  if (type === 'rabbit') for (const x of [-1, 1]) { const ear = new THREE.Mesh(GEO.box(.025, .11, .015), m(col)); ear.position.set(x * .03, s.head * 1.3, -.01); headG.add(ear); }
+  const tail = new THREE.Mesh(GEO.sph(type === 'rabbit' ? .04 : .05, 6, 5), m(type === 'rabbit' ? 0xf0ebe0 : col)); tail.position.set(0, s.leg + s.h * .5, -s.len * .5); body.add(tail);
+  const legs = [];
+  const spots = s.biped ? [[-.05, 0], [.05, 0]] : [[-s.w * .32, s.len * .32], [s.w * .32, s.len * .32], [-s.w * .32, -s.len * .32], [s.w * .32, -s.len * .32]];
+  for (const [x, z] of spots) {
+    const g = new THREE.Group(); g.position.set(x, s.leg, z); body.add(g);
+    const l = new THREE.Mesh(GEO.cyl(Math.max(.012, s.w * .1), Math.max(.008, s.w * .07), s.leg, 6), m(s.biped ? 0xd8a23a : col)); l.position.y = -s.leg / 2; l.castShadow = true; g.add(l);
+    legs.push(g);
+  }
+  return { root, body, legs, head: headG, s, type, phase: rnd(0, TAU) };
+}
+function animateAnimal(a, gait, dt, graze) {
+  a.phase += gait * dt * 9;
+  const off = [0, Math.PI, Math.PI, 0];
+  a.legs.forEach((l, i) => { l.rotation.x = Math.sin(a.phase + off[i]) * .55 * Math.min(1, gait); });
+  a.head.rotation.x = lerp(a.head.rotation.x, graze ? .9 : 0, Math.min(1, dt * 3));
+  a.body.position.y = a.s.small && gait > .1 ? Math.abs(Math.sin(a.phase)) * .08 : 0;
+}
