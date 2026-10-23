@@ -194,3 +194,53 @@ function storesDuringCollapse(dtH) {
   for (const s of STORES) { s.stock.food = Math.max(0, s.stock.food - dtH * .02); if (WORLD.food < .5) s.stock.cans = Math.max(Math.floor(s.stock.cans * .5), s.stock.cans - dtH * .015); }
 }
 const lootValue = s => (s.stock.cans || 0) * 1 + (s.stock.food || 0) * .8 + (s.stock.medicine || 0) * 2 + (s.stock.tools || 0) * 3 + (s.stock.seeds || 0) * .5 + (s.stock.books || 0) * 1.5;
+
+// ---------- family ----------
+// A companion he trusts can become someone he loves, and someone who loves him back. Between a man and a
+// woman that can mean a child. A child changes what he wants: the dead matter less than the living.
+const FAMILY = { children: [], pregnant: null };
+const childOf = z => z.kind === 'child';
+function partnerOf() { return COMPANIONS.find(z => z.partner); }
+function familyStep(dtH) {
+  const P2 = partnerOf();
+  // attraction to the people he lives beside grows the same way it did in the village
+  for (const z of COMPANIONS) {
+    if (z.kind === 'zombie' || childOf(z) || !attractedTo(vegaC, z.c)) continue;
+    const near = z.pos.distanceTo(A.pos) < 6;
+    z.att = clamp((z.att ?? (vegaC.att && vegaC.att.get(z.c)) ?? .1) + (near ? .004 : 0) * dtH * (1 + (A.beh && A.beh.kind === 'talk' && A.beh.extra.z === z ? 3 : 0)));
+    z.attBack = clamp((z.attBack ?? (z.c.att && z.c.att.get(vegaC)) ?? .1) + (near ? .003 : 0) * dtH * (.5 + vegaC.p.agreeableness) * (S.hygiene > .4 ? 1 : .4) * (attractedTo(z.c, vegaC) ? 1 : 0));
+    if (!P2 && z.att > .55 && z.attBack > .5 && !z.partner && R() < dtH * .05) {
+      z.partner = true; z.since = sim.hours; S.attraction = Math.max(S.attraction, z.att); S.love = clamp(S.love + .3); S.joy = clamp(S.joy + .4); S.excite = .8; dayNote('love');
+      ROOM.crush = z.c; say(`${z.c.name} took my hand tonight and didn't let go. After everything. ${z.c.name}.`, 'ev');
+    }
+  }
+  // a pregnancy runs its course; a child is born and named
+  if (FAMILY.pregnant && sim.hours >= FAMILY.pregnant.due) {
+    const mom = FAMILY.pregnant.mother; FAMILY.pregnant = null;
+    if (COMPANIONS.includes(mom)) birth(mom);
+  }
+  for (const z of COMPANIONS) if (childOf(z)) {
+    z.age = (z.age || 0) + dtH / 24;
+    const grow = clamp(z.age / (cfg.after.growDays || 60));
+    z.h.root.scale.setScalar((.45 + .55 * grow) * z.c.look.height / 1.75);
+    A.inv.food = Math.max(0, A.inv.food - .3 / 24 * dtH);
+    if (A.inv.food < .5 && A.inv.cans < .5) { S.guilt = clamp(S.guilt + .01 * dtH); S.fear = clamp(S.fear + .01 * dtH); }
+  }
+}
+function tryConceive(z) {
+  if (cfg.after.family === 'off' || FAMILY.pregnant || !z.partner) return;
+  const mother = vegaC.sex === 'f' ? null : (z.c.sex === 'f' ? z : null);
+  if (!mother) return;
+  if (R() < .22 * (S.health > .5 ? 1 : .3) * (S.hunger < .7 ? 1 : .3)) { FAMILY.pregnant = { mother, due: sim.hours + 24 * (cfg.after.gestDays || 40) }; say(`${z.c.name} told me this morning. A child. In this world. I laughed and then I couldn't stop crying.`, 'ev'); S.hope = clamp(S.hope + .4); S.joy = clamp(S.joy + .3); S.fear = clamp(S.fear + .1); dayNote('love'); }
+}
+function birth(mom) {
+  const dead = citizens.filter(c => !c.isVega && !c.alive && (vegaC.rel.get(c) || 0) > .1).sort((a, b) => (vegaC.rel.get(b) || 0) - (vegaC.rel.get(a) || 0));
+  const sex = R() < .5 ? 'f' : 'm', name = dead.length && R() < .7 ? dead[0].name : pick(sex === 'f' ? ['Hope', 'June', 'Ada', 'Iris', 'Nell'] : ['Ash', 'Rowan', 'Eli', 'Tam', 'Finn']);
+  const look = Object.assign({ sex, skin: R() < .5 ? vegaC.look.skin : mom.c.look.skin, shirt: 0xe8e0c8, hair: R() < .5 ? vegaC.look.hair : mom.c.look.hair, height: 1.2, hairStyle: sex === 'f' ? 3 : 0, build: .8, child: true }, wardrobe(sex, false));
+  const c = { i: 1000 + FAMILY.children.length, name, isVega: false, sex, look, alive: true, companion: true, homeVillage: vegaC.homeVillage, village: vegaC.homeVillage, rel: new Map(), p: vegaC.p, child: true };
+  const h = makeHuman(look); c.h = h; scene.add(h.root);
+  const z = { c, kind: 'child', h, pos: mom.pos.clone(), yaw: 0, act: null, attacks: 0, nextLine: 4, age: 0 };
+  COMPANIONS.push(z); FAMILY.children.push(z); dayNote('births');
+  S.hope = clamp(S.hope + .5); S.joy = clamp(S.joy + .6); S.tenderness = clamp(S.tenderness + .7); S.grief = clamp(S.grief - .25); S.loneliness = clamp(S.loneliness - .3); S.grip = clamp(S.grip + .1);
+  say(dead.length && name === dead[0].name ? `A ${sex === 'f' ? 'girl' : 'boy'}. We named ${sex === 'f' ? 'her' : 'him'} ${name}, after ${name}.` : `A ${sex === 'f' ? 'girl' : 'boy'}. ${name}. Small and loud and alive.`, 'ev');
+}
