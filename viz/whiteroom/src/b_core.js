@@ -733,3 +733,23 @@ function animateAnimal(a, gait, dt, graze) {
   a.head.rotation.x = lerp(a.head.rotation.x, graze ? .9 : 0, Math.min(1, dt * 3));
   a.body.position.y = a.s.small && gait > .1 ? Math.abs(Math.sin(a.phase)) * .08 : 0;
 }
+
+// ---------- labels ----------
+const labelsEl = $('#labels');
+const tagPool = new Map();
+let tagsSeen = new Set();
+const v3 = new THREE.Vector3();
+function tag(key, text, pos, cls, anchor = 'bottom') {
+  let el = tagPool.get(key);
+  if (!el) { el = document.createElement('div'); labelsEl.appendChild(el); tagPool.set(key, el); }
+  if (el._t !== text) { el.textContent = text; el._t = text; }
+  if (el._c !== cls) { el.className = cls; el._c = cls; }
+  v3.copy(pos).project(camera);
+  const vis = v3.z < 1 && Math.abs(v3.x) < 1.15 && Math.abs(v3.y) < 1.15;
+  el.style.display = vis ? '' : 'none';
+  if (vis) el.style.transform = `translate(${((v3.x + 1) / 2 * stage.clientWidth).toFixed(1)}px,${((1 - v3.y) / 2 * stage.clientHeight).toFixed(1)}px) translate(-50%,${anchor === 'center' ? '-50%' : '-100%'})`;
+  tagsSeen.add(key);
+  return el;
+}
+function sweepTags() { for (const [k, el] of tagPool) if (!tagsSeen.has(k)) { el.remove(); tagPool.delete(k); } tagsSeen = new Set(); }
+function clearTags() { for (const el of tagPool.values()) el.remove(); tagPool.clear(); }
