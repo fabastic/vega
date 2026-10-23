@@ -407,7 +407,7 @@ function roomStep(dtH) {
   S.shame = clamp(S.shame + ((1 - S.hygiene) * .5 - S.shame) * .02 * dtH);
   S.pride = clamp(S.pride - .01 * S.pride * dtH);
   S.curiosity = clamp(S.curiosity + ((vegaC.p.curiosity * .6 * (1 - D.apathy)) - S.curiosity) * .01 * dtH);
-  S.grip = clamp(S.grip - (.00008 + .0002 * S.loneliness + .00026 * sleepDebt + .00012 * S.boredom + (ROOM.noise ? .002 : 0) + (ROOM.dark ? .0002 : 0) + (S.hunger > .8 ? .0005 : 0) + (S.hygiene < .15 ? .00012 : 0)) * stab * dtH * hum * books * (1 - .45 * equanimity()) * (ITEMS.drug > 0 ? 2.5 : 1) * (1 + (ITEMS.strobe > 0 ? .8 : 0) + (ITEMS.siren > 0 ? .5 : 0)));
+  S.grip = clamp(S.grip - (.00008 + .00015 * Math.min(1, ROOM.hours / 300) + .0002 * S.loneliness + .00026 * sleepDebt + .00012 * S.boredom + (ROOM.noise ? .002 : 0) + (ROOM.dark ? .0002 : 0) + (S.hunger > .8 ? .0005 : 0) + (S.hygiene < .15 ? .00012 : 0)) * stab * dtH * hum * books * (1 - .25 * equanimity()) * (ITEMS.drug > 0 ? 2.5 : 1) * (1 + (ITEMS.strobe > 0 ? .8 : 0) + (ITEMS.siren > 0 ? .5 : 0)));
   if (S.grip < .03 && D.despair > .85) ROOM.cata += dtH; else if (ROOM.cata < 24) ROOM.cata = 0;
   S.daysGroomed = ROOM.hours / 24;
 
@@ -453,7 +453,7 @@ function roomStep(dtH) {
     case 'sit_hug': S.fear = clamp(S.fear - .07 * dtH); break;
     case 'rock': S.fear = clamp(S.fear - .09 * dtH); S.grip = clamp(S.grip - .0003 * dtH); break;
     case 'remember': S.loneliness = clamp(S.loneliness - .02 * dtH); S.nostalgia = clamp(S.nostalgia - .04 * dtH); S.grip = clamp(S.grip - .0004 * dtH); S.hope = clamp(S.hope + .002 * dtH); break;
-    case 'read': S.boredom = clamp(S.boredom - .15 * dtH); S.grip = clamp(S.grip + .0012 * dtH); S.curiosity = clamp(S.curiosity + .01 * dtH); break;
+    case 'read': S.boredom = clamp(S.boredom - .15 * dtH); S.grip = clamp(S.grip + .0006 * dtH * Math.max(.3, 1 - ROOM.booksRead / 60));   // the same book helps less each time S.curiosity = clamp(S.curiosity + .01 * dtH); break;
     case 'toilet': S.hygiene = clamp(S.hygiene + .8 * dtH); break;
     case 'sleep':
       S.sleep = clamp(S.sleep - .15 * (ROOM.dark ? 1 : .5) * (FURN.bed ? 1.3 : 1) * dtH); S.energy = clamp(S.energy + .1 * dtH);
@@ -466,7 +466,7 @@ function roomStep(dtH) {
     case 'stare': S.grip = clamp(S.grip - .0006 * dtH); S.boredom = clamp(S.boredom - .02 * dtH); break;
     case 'panic': S.fear = clamp(S.fear - .5 * dtH); break;
     case 'catatonic': S.fear = clamp(S.fear - .02 * dtH); break;
-    case 'meditate': S.fear = clamp(S.fear - .12 * dtH * (.4 + S.depth)); S.boredom = clamp(S.boredom - .05 * dtH); S.grip = clamp(S.grip + .0015 * S.depth * dtH); S.anger = clamp(S.anger - .1 * dtH); break;
+    case 'meditate': S.fear = clamp(S.fear - .12 * dtH * (.4 + S.depth)); S.boredom = clamp(S.boredom - .05 * dtH); S.grip = clamp(S.grip + .0006 * smooth(.4, .9, S.depth) * dtH); S.anger = clamp(S.anger - .1 * dtH); break;
     case 'philosophize': if (!b.done) { b.done = true; addScrawl(b.extra.wall, depthThought().toUpperCase().slice(0, 34)); } S.boredom = clamp(S.boredom - .1 * dtH); break;
     case 'knock': if (!b.done) { b.done = true; sfx('thud'); S.loneliness = clamp(S.loneliness - .03); S.grip = clamp(S.grip - .004); hallBoost('voices', .05); } break;
     case 'phantom': if (!b.done) { b.done = true; ROOM.letdown = .8; S.hope = clamp(S.hope - .04); S.grip = clamp(S.grip - .01); ROOM.litost = .6; say('Nothing there. There was never anything there.', 'bad'); hallBoost('food', .06); } break;

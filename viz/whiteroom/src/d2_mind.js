@@ -136,11 +136,11 @@ const DEPTH_LINES = {
     'If I am an experiment, then you are part of it too.', 'I forgive you. Whoever you are. I think I have to, to be free of you.'],
 };
 function depthStep(dtH, kind) {
-  const rate = .4 + (cfg.vega.philosophy ?? .5) * 1.2, p = vegaC.p;
+  const rate = (.4 + (cfg.vega.philosophy ?? .5) * 1.2) * .22, p = vegaC.p;   // depth is slow: weeks of practice, not days
   let d = .00015 * p.openness;
   if (kind === 'read' || kind === 'research') d += .0035 * (.5 + p.curiosity);
   if (kind === 'journal' || kind === 'philosophize') d += .005;
-  if (kind === 'meditate' || kind === 'contemplate') d += .008;
+  if (kind === 'meditate' || kind === 'contemplate') d += .008 * clamp(1.2 - S.fear) * (.4 + S.grip * .6);   // hard to sit still in terror or confusion
   if (kind === 'stare' && S.grip > .3) d += .0012;
   if (S.fear > .75) d -= .001;
   const before = S.depth;
