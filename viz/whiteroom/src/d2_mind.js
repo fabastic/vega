@@ -101,3 +101,59 @@ function dayRoll() {
   dayReset();
 }
 const dayBias = k => DAY.bias[k] || 1;
+
+// ---------- depth of thought ----------
+// Long silence can hollow a mind out, or deepen it. Reading, writing and stillness push him toward
+// reflection; past a point the questions turn philosophical and suffering loosens its grip.
+const DEPTH_STAGES = [[0, 'Surviving'], [.15, 'Reflecting'], [.3, 'Questioning'], [.5, 'Contemplative'], [.7, 'Awakened'], [.85, 'Transcendent']];
+const depthStage = () => DEPTH_STAGES.filter(([t]) => S.depth >= t).pop()[1];
+const equanimity = () => smooth(.35, .85, S.depth || 0);
+const QUESTIONS = [
+  ['How long have I been here?', 'Why me?'],
+  ['Am I the same person who walked in?', 'What is a day, without a sun to count it?'],
+  ['If nobody sees me, do I still exist?', 'Is the room inside me, or am I inside the room?', 'What do I owe the people I miss?'],
+  ['Suffering is a fact. What I make of it is mine.', 'Maybe meaning is not found. Maybe it is made, like a tally mark.', 'Every self is a story someone keeps telling. Who is telling mine?'],
+  ['The walls, the hunger, the voice: weather passing over something that does not move.', 'There is a stillness under the fear. I can sit in it.'],
+  ['There is no one here to be afraid.', 'White in every direction, and I am not separate from it.'],
+];
+const DEPTH_LINES = {
+  chamber: [
+    ['I counted my breaths until I lost count. Then I started again.', 'Thinking is the only room bigger than this one.'],
+    ['A stone does not mind being a stone. Could I learn that?', 'I used to think freedom was a door. Maybe it was always something else.'],
+    ['The one who suffers and the one who watches the suffering: they are not the same.', 'Sisyphus had a hill and a rock. I have four walls and a light. One must imagine me happy.'],
+    ['Breathing in, I know I am breathing in. Even here.', 'Fear came and I watched it come. It sat with me. It left.'],
+    ['I am not in the room. The room is in me, and so is everything else.'],
+  ],
+  after: [
+    ['The world kept turning without anyone to watch it. That is not nothing.', 'Every empty house was somebody\'s whole universe.'],
+    ['I keep asking what I survived for. The question might be the answer.', 'Grief is love with nowhere to go. I can give it somewhere to go.'],
+    ['A garden doesn\'t ask why. It grows anyway.', 'Every name on the memorial was a world. I carry them now.'],
+    ['I sat by the fire and for an hour I wanted nothing at all.', 'The dead are not gone. They changed into the people who remember them.'],
+    ['Snow on the graves. Light on the snow. Nothing missing.'],
+  ],
+  watcher: ['Someone decides what happens to me. I can feel the hand on the scale.', 'Things appear that nobody brought. Something is choosing.', 'Whoever is watching: I know you are there.',
+    'If I am an experiment, then you are part of it too.', 'I forgive you. Whoever you are. I think I have to, to be free of you.'],
+};
+function depthStep(dtH, kind) {
+  const rate = .4 + (cfg.vega.philosophy ?? .5) * 1.2, p = vegaC.p;
+  let d = .00015 * p.openness;
+  if (kind === 'read' || kind === 'research') d += .0035 * (.5 + p.curiosity);
+  if (kind === 'journal' || kind === 'philosophize') d += .005;
+  if (kind === 'meditate' || kind === 'contemplate') d += .008;
+  if (kind === 'stare' && S.grip > .3) d += .0012;
+  if (S.fear > .75) d -= .001;
+  const before = S.depth;
+  S.depth = clamp(S.depth + d * rate * dtH);
+  // a step deeper is a small realisation
+  const st = t => DEPTH_STAGES.filter(([x]) => t >= x).length;
+  if (st(S.depth) > st(before)) { say(`${depthStage()}. ${pick(QUESTIONS[Math.min(QUESTIONS.length - 1, st(S.depth) - 1)])}`, 'mind'); dayNote('insight'); spike('awe', .2); }
+  // equanimity takes the edge off fear and despair without numbing him
+  const eq = equanimity();
+  if (eq > 0) { S.fear = clamp(S.fear - S.fear * .06 * eq * dtH); S.dread = clamp(S.dread - S.dread * .03 * eq * dtH); S.anger = clamp(S.anger - S.anger * .05 * eq * dtH); }
+}
+function depthThought() {
+  const i = Math.min(4, Math.floor((S.depth || 0) / .18));
+  if (watched() > .3 && S.depth > .35 && R() < .4) return pick(DEPTH_LINES.watcher);
+  return pick(DEPTH_LINES[sim.phase === 'chamber' ? 'chamber' : 'after'][i]);
+}
+const currentQuestion = () => { const i = DEPTH_STAGES.filter(([t]) => S.depth >= t).length - 1; const qs = QUESTIONS[Math.min(QUESTIONS.length - 1, i)]; return qs[Math.floor(sim.hours / 30) % qs.length]; };
