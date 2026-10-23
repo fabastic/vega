@@ -384,3 +384,126 @@ $('#snd').addEventListener('click', e => {
   if (AC && AC.state === 'suspended') AC.resume();
   updateAudio();
 });
+
+// ---------- panels ----------
+function meters(el, rows) {
+  if (el._n !== rows.length) { el.innerHTML = rows.map(() => '<span class="k"></span><span class="bar"><i></i></span><span class="v"></span>').join(''); el._n = rows.length; }
+  const ks = el.querySelectorAll('.k'), is = el.querySelectorAll('.bar i'), vs = el.querySelectorAll('.v');
+  rows.forEach(([label, val, cls, txt], i) => {
+    if (ks[i].textContent !== label) ks[i].textContent = label;
+    is[i].style.width = (clamp(val) * 100).toFixed(1) + '%'; is[i].className = cls || '';
+    vs[i].textContent = txt != null ? txt : Math.round(clamp(val) * 100);
+  });
+}
+const kv = (el, rows) => { const html = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join(''); if (el._h !== html) { el.innerHTML = html; el._h = html; } };
+const setHTML = (el, html) => { if (el._h !== html) { el.innerHTML = html; el._h = html; } };
+const sev = (v, inv) => { const x = inv ? 1 - v : v; return x > .7 ? 'bad' : ''; };
+function feelings() {
+  const D = derived();
+  const f = [['fear', S.fear, '#c4321f'], ['loneliness', S.loneliness, '#2b6684'], ['boredom', S.boredom, '#5b6168'], ['hope', S.hope, '#3d7a4f'], ['anger', S.anger, '#c4321f'], ['grief', S.grief, '#16181b'],
+    ['guilt', S.guilt, '#6a4f9c'], ['nostalgia', S.nostalgia, '#a8692a'], ['shame', S.shame, '#a8692a'], ['dread', S.dread, '#6a4f9c'], ['pride', S.pride, '#3d7a4f'], ['awe', S.awe, '#2b6684'],
+    ['curiosity', S.curiosity, '#2b6684'], ['love', S.love, '#c4321f'], ['despair', D.despair, '#16181b'], ['apathy', D.apathy, '#5b6168']];
+  return f.filter(x => x[1] > .08).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([n, v, c]) => `<span style="border-color:${c};background:color-mix(in srgb, ${c} ${Math.round(v * 28)}%, transparent);font-weight:${v > .6 ? 600 : 500}">${n} ${Math.round(v * 100)}</span>`).join('');
+}
+const perceiveHTML = () => perceptions().map(p => `<li class="${p.u ? 'unreal' : ''}"><span>${escapeHtml(p.t)}${p.u ? ' <em>(not real)</em>' : ''}</span></li>`).join('');
+let lastSel = null;
+function renderLifePanel(force) {
+  const c = selected; if (!c) return;
+  if (force || lastSel !== c) {
+    lastSel = c;
+    $('#selName').textContent = c.name + (c.isVega ? ' (subject)' : '');
+    const ts = Object.entries(c.p).sort((a, b) => Math.abs(b[1] - .5) - Math.abs(a[1] - .5)).slice(0, 5);
+    $('#selTraits').innerHTML = ts.map(([k, v]) => `<span class="chip ${Math.abs(v - .5) > .25 ? 'hi' : ''}">${v >= .5 ? TRAIT_NAMES[k] : TRAIT_LOW[k]}</span>`).join('')
+      + `<span class="chip">${c.occupation}</span><span class="chip">eats ${c.rates.hunger > .042 ? 'often' : c.rates.hunger < .03 ? 'little' : 'normally'}</span><span class="chip">${c.chrono % 24 < 21 && c.chrono < 24 ? 'early sleeper' : c.chrono % 24 > 22.5 || c.chrono >= 24 ? 'night owl' : 'sleeps at ten'}</span>`;
+    document.querySelectorAll('#citList button').forEach(b => b.classList.toggle('sel', +b.dataset.i === c.i));
+  }
+  $('#selEyebrow').textContent = `${VILL[c.village].name} · ${c.occupation}`;
+  $('#selLife').textContent = (c.isVega ? c.life : c.life) + '.';
+  const a = c.act;
+  const where = { eat: 'the market', forage: 'the fields', drink: 'the well', sleep: 'home', work: 'the workshop', learn: 'the library', social: 'the plaza', wander: 'the edge of the village', family: 'home', visit: a && a.visitV != null ? VILL[a.visitV].name : '' };
+  const doing = !a ? 'Deciding' : (a.arrived ? { eat: 'Eating at the market', forage: 'Foraging in the fields', drink: 'Drinking at the well', sleep: 'Asleep at home', work: 'Working at the workshop', learn: 'Reading in the library', social: c.chatPartner ? `Talking with ${c.chatPartner.name}` : 'Looking for company at the plaza', wander: 'Wandering', family: 'At home with family', visit: `Visiting ${where.visit}` }[a.kind] : `Walking to ${where[a.kind]}`);
+  $('#selDoing').textContent = `${doing} · ${Math.round(c.money)} coins`;
+  $('#selThought').textContent = c.thought;
+  const n = c.needs;
+  meters($('#selNeeds'), [['Hunger', n.hunger, sev(n.hunger)], ['Thirst', n.thirst, sev(n.thirst)], ['Tiredness', n.sleep, sev(n.sleep)], ['Energy', n.energy, sev(n.energy, 1) || 'good'], ['Health', n.health, sev(n.health, 1) || 'good']]);
+  meters($('#selWants'), Object.entries(c.w).sort((x, y) => y[1].w * (1 - y[1].l) - x[1].w * (1 - x[1].l)).map(([k, w]) => [`${WANT_LABEL[k]} · weight ${w.w.toFixed(2)}`, 1 - w.l, 'civ']));
+  const ls = lifeState(c);
+  setHTML($('#selFeel'), feelChips(emoWords(ls, { company: !!(c.chatPartner && c.act && c.act.arrived), partnerNear: c.partner && c.partner.pos.distanceTo(c.pos) < 6, crushNear: c.crush && c.crush.pos.distanceTo(c.pos) < 6 }), 10));
+  setHTML($('#selHeart'), heartHTML(c));
+  const rel = topFriend(c, 4).filter(([, v]) => v > .03);
+  $('#selRel').innerHTML = rel.length ? rel.map(([o, v]) => `<span><b>${o.name}</b> <span class="dim">· ${VILL[o.homeVillage].name}, ${v > .6 ? 'close friend' : v > .3 ? 'friend' : 'acquaintance'} (${Math.round(v * 100)})</span></span>`).join('') : '<span class="dim">Nobody yet.</span>';
+  const lived = clamp((sim.hours - 7) / (sim.takeAt - 7 || 1));
+  meters($('#lifeMeter'), [[`Day ${Math.floor(sim.hours / 24) + 1} of ${cfg.time.lifeDays}`, lived, 'civ', Math.round(lived * 100) + '%']]);
+  $('#lifeText').textContent = `On the night after day ${cfg.time.lifeDays}, ${NAME()} is taken to the chamber for ${cfg.time.chamberDays} days. Every friendship he makes until then goes in with him.`;
+}
+function buildCitList() {
+  $('#citList').innerHTML = citizens.map(c => `<li><button type="button" data-i="${c.i}"><span class="d" style="background:#${new THREE.Color(c.shirt).getHexString()}"></span><span class="n">${escapeHtml(c.name)}</span><span class="a" id="ca${c.i}"></span></button></li>`).join('');
+  $('#citList').onclick = e => { const b = e.target.closest('button'); if (!b) return; selected = citizens[+b.dataset.i]; renderLifePanel(true); setFollow(); };
+}
+const SHORT = { eat: 'eating', forage: 'foraging', drink: 'drinking', sleep: 'asleep', work: 'working', learn: 'reading', social: 'chatting', wander: 'wandering', visit: 'travelling', family: 'at home' };
+function renderCitList() { for (const c of citizens) { const el = document.getElementById('ca' + c.i); if (!el) continue; const t = `${VILL[c.village].name.slice(0, 4)} · ${c.act ? (c.act.arrived ? SHORT[c.act.kind] : 'walking') : ''}`; if (el.textContent !== t) el.textContent = t; } }
+function renderRoomPanel() {
+  const D = derived(), b = ROOM.beh;
+  $('#rEyebrow').textContent = `Chamber · subject ${NAME()} · day ${Math.min(cfg.time.chamberDays, Math.floor(ROOM.hours / 24) + 1)} of ${cfg.time.chamberDays}`;
+  $('#rDoing').textContent = BEH_LABEL[b.kind] || 'Standing';
+  setHTML($('#rPerceive'), perceiveHTML());
+  meters($('#rBody'), [['Hunger', S.hunger, sev(S.hunger)], ['Thirst', S.thirst, sev(S.thirst)], ['Exhaustion', S.sleep, sev(S.sleep)], ['Cleanliness', S.hygiene, sev(S.hygiene, 1) || 'good'], ['Pain', S.pain, S.pain > .4 ? 'bad' : ''], ['Health', S.health, sev(S.health, 1) || 'good'], ['Body weight', S.weight, S.weight < .75 ? 'bad' : 'good']]);
+  setHTML($('#rFeel'), feelChips(vegaFeelings()));
+  setHTML($('#rDepth'), mindHTML()); setHTML($('#rDay'), dayHTML());
+  meters($('#rMind'), [['Grip on reality', S.grip, (sev(S.grip, 1) || 'mind')], ['Hope', S.hope, sev(S.hope, 1) || 'good'], ['Despair', D.despair, sev(D.despair)]]);
+  const f = ROOM.friends;
+  const wants = [['Get out', D.escape], [f.length ? `See ${f[0].c.name} again` : 'See anyone at all', S.loneliness * (.6 + (f[0] ? f[0].a * .6 : 0))], ['Food and water', Math.max(S.hunger, S.thirst)], ['Sleep in the dark', S.sleep * (ROOM.dark ? .4 : 1)],
+    ['Know what day it is', clamp((.25 + vegaC.p.conscientiousness * .5) * Math.min(1, ROOM.hours / 60) + .15)], ['Something to do', S.boredom], ['Be told why', clamp(.2 + ROOM.hours / 600 + S.anger * .3)], ['Feel clean', 1 - S.hygiene], ['Go home', S.nostalgia]].sort((a, b) => b[1] - a[1]);
+  meters($('#rWants'), wants.map(([k, v]) => [k, v, v > .7 ? 'bad' : 'civ']));
+  const searched = Math.round(ROOM.searched.flat().filter(x => x > .3).length / 24 * 100);
+  const C = cfg.chamber;
+  setHTML($('#rEscape'), (ROOM.released ? `<span><b>Open.</b> ${ROOM.broke ? 'He broke it himself.' : 'The power failed.'}</span>` : ROOM.seamFound ? `<span><b>Seam found</b> on the north wall. ${C.door === 'breakable' ? `He has forced it ${Math.round(ROOM.doorDamage * 100)}% of the way.` : ROOM.doorDamage >= .35 ? 'Steel underneath. It will not move.' : 'He is trying to pry it open.'}</span>` : `<span>No way out found. He has searched ${searched}% of the walls.</span>`)
+    + `<span class="dim">${ROOM.attempts} escape attempts · ${ROOM.tallies} tally marks · ${ROOM.booksRead ? ROOM.booksRead + ' books read · ' : ''}thinks it is day ${ROOM.sleeps + 1}</span>`);
+  const alive = citizens.filter(c => !c.isVega && c.alive).length;
+  kv($('#outKv'), [['Alive outside', `${alive} of ${citizens.length - 1}`], ['Food supply', Math.round(WORLD.food * 100) + '%'], ['His friends alive', ROOM.friends.filter(x => x.c.alive).length + ' of ' + ROOM.friends.length]]);
+  const out = OUT.slice(-8).reverse();
+  setHTML($('#outFeed'), out.map(e => `<li class="${e.friend ? 'bad' : 'out'}"><time>${fmtShort(e.h)}</time><span>${escapeHtml(e.text)}</span></li>`).join('') || '<li class="out"><time></time><span>Life goes on in the villages.</span></li>');
+  $('#skipRoom').disabled = ROOM.released; $('#ivFood').disabled = ROOM.food || ROOM.released;
+}
+function buildDirs() {
+  $('#dirs').innerHTML = Object.entries(DIRECTIVES).map(([k, d]) => `<button type="button" data-d="${k}" aria-pressed="${A.directive === k}"${k === 'revive' && cfg.after.revival === 'off' || k === 'research' && cfg.after.research === 'off' ? ' disabled' : ''}>${d.label}</button>`).join('');
+}
+$('#dirs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; A.directive = b.dataset.d; buildDirs(); if (A.beh && !A.ended && A.beh.kind !== 'arrive') A.beh.t = A.beh.dur; $('#dirHint').textContent = A.directive === 'free' ? 'He decides for himself.' : `He leans toward: ${DIRECTIVES[A.directive].label.toLowerCase()}. Hunger, thirst and cold still come first.`; });
+function renderAfterPanel() {
+  const D = derived(), b = A.beh;
+  $('#aEyebrow').textContent = `After · day ${Math.floor(aloneDays()) + 1} outside · ${WORLD.season} · ${Math.round(tempAt(sim.hours))}°C`;
+  $('#aDoing').textContent = (ALABEL[b.kind] || 'Standing') + (b.kind === 'build' ? `: ${STRUCT[b.extra.k].label.toLowerCase()}` : b.kind === 'hunt' && b.extra.a ? ` ${b.extra.a.type}` : b.kind === 'explore' && b.extra.v ? ` toward ${b.extra.v.name}` : '');
+  setHTML($('#aPerceive'), perceiveHTML());
+  meters($('#aBody'), [['Hunger', S.hunger, sev(S.hunger)], ['Thirst', S.thirst, sev(S.thirst)], ['Exhaustion', S.sleep, sev(S.sleep)], ['Warmth', S.warmth, sev(S.warmth, 1) || 'good'], ['Cleanliness', S.hygiene, sev(S.hygiene, 1) || 'good'], ['Pain', S.pain, S.pain > .4 ? 'bad' : ''], ['Health', S.health, sev(S.health, 1) || 'good'], ['Body weight', S.weight, S.weight < .75 ? 'bad' : 'good']]);
+  setHTML($('#aFeel'), feelChips(vegaFeelings()));
+  setHTML($('#aDepth'), mindHTML()); setHTML($('#aDay'), dayHTML()); setHTML($('#aPtsd'), ptsdHTML()); setHTML($('#aFam'), familyHTML()); setHTML($('#aThreat'), threatHTML());
+  meters($('#aMind'), [['Grip on reality', S.grip, (sev(S.grip, 1) || 'mind')], ['Hope', S.hope, sev(S.hope, 1) || 'good'], ['Despair', D.despair, sev(D.despair)]]);
+  const dead = citizens.filter(c => !c.isVega && !c.alive && !c.companion);
+  const wants = [['Survive the day', Math.max(S.hunger, S.thirst, 1 - S.warmth, 1 - S.health)], ['Company', S.loneliness], ['Bring them back', cfg.after.revival !== 'off' ? S.grief * .6 + S.love * .4 : 0], ['Understand what happened', clamp(S.curiosity * .6 + (A.research.done.medicine ? 0 : .3))],
+    ['Lay them to rest', dead.length ? clamp(dead.filter(c => !c.buried).length / Math.max(1, dead.length) * (.4 + vegaC.p.agreeableness * .5)) : 0], ['Feel safe', Math.max(S.fear, S.dread)], ['Comfort', clamp((1 - S.hygiene) * .5 + (1 - S.warmth) * .5)], ['Purpose', D.apathy * .7 + (1 - S.pride) * .3], ['See what is out there', VILL.filter(v => !v.visited).length / VILL.length * vegaC.p.curiosity]].sort((a, b) => b[1] - a[1]);
+  meters($('#aWants'), wants.map(([k, v]) => [k, v, v > .7 ? 'bad' : 'civ']));
+  const I = A.inv;
+  setHTML($('#aInv'), [['food', 'meals'], ['cans', 'tins'], ['meat', 'raw meat'], ['wood', 'wood'], ['stone', 'stone'], ['seeds', 'seeds'], ['books', 'books'], ['specimens', 'specimens'], ['medicine', 'medicine'], ['hides', 'hides']].map(([k, l]) => `<div><b>${Math.floor(I[k])}</b><span>${l}</span></div>`).join(''));
+  kv($('#aSurv'), [['Built', Object.keys(A.built).map(k => STRUCT[k].label.toLowerCase()).join(', ') || 'nothing yet'], ['Garden', A.garden ? (A.garden.growth >= 1 ? 'ready to harvest' : `growing, ${Math.round(A.garden.growth * 100)}%`) : (A.built.garden ? 'empty' : 'none')], ['Hens in the pen', A.pen], ['Houses searched', `${HOUSES.filter(h => h.searched).length} of ${HOUSES.length}`], ['Villages seen', `${VILL.filter(v => v.visited).length} of ${VILL.length}`], ['Hunted / fish caught', `${A.kills} / ${A.fish}`], ['Weapons and tools', A.tools ? 'spear, axe, line' : 'bare hands'], ['Coat', A.coat ? 'hide coat' : 'what he wore in'], ['Fever', A.sickLeft > 0 ? 'sick' : 'no'], ['Stores stripped', `${STORES.filter(s => s.store !== 'crate' && s.searched).length} of ${STORES.filter(s => s.store !== 'crate').length}`]]);
+  setHTML($('#aRes'), !researchOn() ? '<li class="locked">Research is turned off in this run.</li>' : RESEARCH.filter(resAllowed).map(n => {
+    const done = A.research.done[n.id], active = A.research.active === n, avail = n.need.every(x => A.research.done[x]);
+    const st = done ? 'done' : active ? `${Math.round(A.research.progress / n.hours * 100)}%` : avail ? `needs ${n.books} book${n.books > 1 ? 's' : ''}${n.spec ? `, ${n.spec} specimens` : ''}` : 'locked';
+    return `<li class="${done ? 'done' : avail || active ? '' : 'locked'}"><b>${n.name}</b><span class="st">${st}</span>${active ? `<span class="bar"><i style="width:${Math.min(100, A.research.progress / n.hours * 100).toFixed(1)}%"></i></span>` : ''}<small>${n.desc}</small></li>`;
+  }).join(''));
+  setHTML($('#aComp'), COMPANIONS.length ? COMPANIONS.map(z => `<span><b>${escapeHtml(z.c.name)}</b> <span class="dim">· ${z.kind === 'survivor' ? 'survivor, from ' + VILL[z.c.homeVillage].name : z.kind === 'zombie' ? (z.unstable ? 'revived, unstable' : 'revived, docile') : 'brought back as themselves'}</span></span>`).join('') : `<span class="dim">Nobody.${citizens.some(c => c.survivor && c.alive && !c.met) ? ' Someone may still be out there.' : ''}</span>`);
+  const people = citizens.filter(c => !c.isVega).sort((a, b) => (vegaC.rel.get(b) || 0) - (vegaC.rel.get(a) || 0));
+  setHTML($('#aDead'), people.map(c => { const st = c.companion ? (c.revived === 'zombie' ? 'zombie' : 'alive') : c.alive ? 'alive' : c.buried ? 'buried' : c.found ? 'found' : ''; const txt = c.companion ? (c.revived === 'zombie' ? 'walking again' : c.revived === 'restored' ? 'brought back' : 'with him') : c.alive ? (c.survivor ? 'alive somewhere' : 'dying') : c.buried ? 'buried' : c.found ? 'found dead' : 'not found'; return `<li class="${st}"><b>${escapeHtml(c.name)}</b><span>${txt}</span></li>`; }).join(''));
+  $('#skipAfter').disabled = A.ended;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-atlas]'); if (!b) return;
+  if (b.dataset.atlas === 'life' && selected) openAtlas(emoWords(lifeState(selected), {}), `${selected.name}, right now`);
+  else openAtlas(vegaFeelings(), `${NAME()}, right now`);
+});
+$('#atlasClose').addEventListener('click', () => { $('#atlas').hidden = true; });
+$('#atlasQ').addEventListener('input', renderAtlas); $('#atlasNow').addEventListener('change', renderAtlas);
+function renderFeed() {
+  feedDirty = false;
+  const ev = EVENTS.slice(-45).reverse();
+  setHTML($('#feedList'), ev.map(e => `<li class="${e.cls}"><time>${fmtShort(e.h)}${Math.abs(e.bh - e.h) > .5 ? `<br><span style="color:var(--alarm)">feels ${fmtShort(e.bh)}</span>` : ''}</time><span>${escapeHtml(e.text)}</span></li>`).join(''));
+}
