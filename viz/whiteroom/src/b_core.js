@@ -195,3 +195,20 @@ function paintFace(h, s) {
   if (zombie) { blob(.33, .05, .22, .16, 'rgba(60,70,40,.35)'); blob(-.33, .05, .22, .16, 'rgba(60,70,40,.35)'); }
   fc.tex.needsUpdate = true;
 }
+
+// ---------- people ----------
+// Bodies are a hierarchy of simple shapes, in the low-poly, readable style of Project Zomboid survivors:
+// layered clothes (shirt under an open jacket, jeans, boots), a face that shows what they feel, and a fist
+// that can hold a tool.
+const GEO = {
+  cyl: (a, b, h, s = 10) => new THREE.CylinderGeometry(a, b, h, s),
+  sph: (r, w = 14, h = 10) => new THREE.SphereGeometry(r, w, h),
+  box: (x, y, z) => new THREE.BoxGeometry(x, y, z),
+};
+const stdMat = (c, rough = .85) => new THREE.MeshStandardMaterial({ color: c, roughness: rough });
+const HAIR_STYLES = 6;   // 0 short, 1 long, 2 bald, 3 ponytail, 4 bun, 5 curly
+// People are rigged characters, built the way the Codrops interactive character is: one skinned mesh over
+// a skeleton of bones, so the body bends smoothly at the shoulders, elbows, hips and knees instead of
+// coming apart at the joints. A morph target thins the whole body when he starves. The head, hands,
+// boots and hair are rigid parts carried by their bones.
+// bones: 0 body, 1 hips, 2 spine, 3 neck, 4 head, 5 L shoulder, 6 L elbow, 7 R shoulder, 8 R elbow, 9 L hip, 10 L knee, 11 R hip, 12 R knee
