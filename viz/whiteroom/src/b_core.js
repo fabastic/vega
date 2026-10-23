@@ -212,3 +212,278 @@ const HAIR_STYLES = 6;   // 0 short, 1 long, 2 bald, 3 ponytail, 4 bun, 5 curly
 // coming apart at the joints. A morph target thins the whole body when he starves. The head, hands,
 // boots and hair are rigid parts carried by their bones.
 // bones: 0 body, 1 hips, 2 spine, 3 neck, 4 head, 5 L shoulder, 6 L elbow, 7 R shoulder, 8 R elbow, 9 L hip, 10 L knee, 11 R hip, 12 R knee
+// ---------- clothes as textures ----------
+// Knitwear: a turtleneck or crew-neck sweater, striped in bands that carry across the sleeves at the same
+// height, with a stitch texture; and denim with twill and fading. The body's v coordinate is height in
+// metres / 2, so a band painted at a height lands at that height on the torso and on both sleeves.
+const TEXC = {};
+const STACY = [0x6b4a36, 0x4e6763, 0xe7e1cf, 0xc89a2c, 0x2f241d];
+const STACY_BANDS = [[0, 1.05, 0], [1.05, 1.1, 1], [1.1, 1.16, 0], [1.16, 1.25, 2], [1.25, 1.28, 3], [1.28, 1.33, 2], [1.33, 1.355, 4], [1.355, 1.43, 1], [1.43, 1.47, 0], [1.47, 1.556, 2], [1.556, 2, 4]];
+function knitTex(kind, cols, neckCol) {
+  const key = kind + cols.join(',') + neckCol;
+  if (TEXC[key]) return TEXC[key];
+  const c = document.createElement('canvas'); c.width = 64; c.height = 512; const g = c.getContext('2d');
+  const Y = y => (1 - y / 2) * 512, hx = h => '#' + new THREE.Color(h).convertSRGBToLinear().getHexString();
+  g.fillStyle = hx(cols[0]); g.fillRect(0, 0, 64, 512);
+  if (kind === 'stripes') for (const [a, b, ci] of (cols.bands || STACY_BANDS)) { g.fillStyle = hx(cols[ci % cols.length]); g.fillRect(0, Y(b), 64, Y(a) - Y(b) + 1); }
+  if (neckCol != null) { g.fillStyle = hx(neckCol); g.fillRect(0, 0, 64, Y(1.556)); }
+  // stitches: little vees in rows, and a rib down the cuffs and collar
+  for (let y = 0; y < 512; y += 4) for (let x = 0; x < 64; x += 4) { g.fillStyle = `rgba(0,0,0,${.06 + ((x * 7 + y * 3) % 5) * .012})`; g.fillRect(x, y, 1, 3); g.fillRect(x + 2, y, 1, 3); g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(x + 1, y + 1, 1, 2); }
+  if (kind === 'rib') for (let x = 0; x < 64; x += 3) { g.fillStyle = 'rgba(0,0,0,.14)'; g.fillRect(x, 0, 1, 512); }
+  g.fillStyle = 'rgba(0,0,0,.12)'; for (let x = 0; x < 64; x += 2) g.fillRect(x, Y(.99), 1, 10);   // ribbed hem
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 1); t.anisotropy = 4;
+  return (TEXC[key] = t);
+}
+function denimTex(col) {
+  const key = 'denim' + col; if (TEXC[key]) return TEXC[key];
+  const c = document.createElement('canvas'); c.width = 64; c.height = 512; const g = c.getContext('2d'), base = new THREE.Color(col).convertSRGBToLinear();
+  g.fillStyle = '#' + base.getHexString(); g.fillRect(0, 0, 64, 512);
+  for (let y = 0; y < 512; y += 2) for (let x = 0; x < 64; x += 2) { const v = ((x + y) % 4 === 0 ? .06 : 0) + Math.random() * .04; g.fillStyle = `rgba(255,255,255,${v * .35})`; g.fillRect(x, y, 1, 1); }
+  const Y = y => (1 - y / 2) * 512;
+  let gr = g.createLinearGradient(0, Y(.56), 0, Y(.4)); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.5, 'rgba(255,255,255,.05)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, Y(.56), 64, Y(.4) - Y(.56));
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, 0, 1, 512); g.fillRect(32, 0, 1, 512);   // seams
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1); t.anisotropy = 4;
+  return (TEXC[key] = t);
+}
+function strandTex(col) {
+  const key = 'hair' + col; if (TEXC[key]) return TEXC[key];
+  const c = document.createElement('canvas'); c.width = 128; c.height = 64; const g = c.getContext('2d'), base = new THREE.Color(col).convertSRGBToLinear();
+  g.fillStyle = '#' + base.getHexString(); g.fillRect(0, 0, 128, 64);
+  for (let x = 0; x < 128; x++) { const k = .75 + Math.random() * .5; g.fillStyle = '#' + base.clone().multiplyScalar(k).getHexString(); g.globalAlpha = .55; g.fillRect(x, 0, 1, 64); }
+  g.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4;
+  return (TEXC[key] = t);
+}
+// several small shapes merged into one geometry (hands, trainers)
+function mergeGeos(parts) {
+  const P = [], N = [];
+  for (const [geo, m] of parts) { const g = geo.index ? geo.toNonIndexed() : geo; g.applyMatrix4(m); g.computeVertexNormals(); P.push(...g.attributes.position.array); N.push(...g.attributes.normal.array); }
+  const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); return out;
+}
+const M4 = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz));
+const HANDG = {};
+function handGeometry(side) {
+  if (HANDG[side]) return HANDG[side];
+  const parts = [[GEO.box(.046, .064, .022), M4(0, -.3, 0)]];
+  for (let i = 0; i < 4; i++) parts.push([GEO.cyl(.0085, .0075, .052 - Math.abs(i - 1.5) * .006, 6), M4((i - 1.5) * .012, -.355, .006, .28, 0, 0)]);
+  parts.push([GEO.cyl(.0095, .008, .045, 6), M4(-side * .027, -.3, .012, .3, 0, side * .55)]);
+  return (HANDG[side] = mergeGeos(parts));
+}
+let SNEAKER = null;
+function sneakerGeometry() {
+  if (SNEAKER) return SNEAKER;
+  SNEAKER = { upper: mergeGeos([[GEO.box(.088, .06, .17), M4(0, -.418, .03)], [GEO.sph(.046, 10, 8), M4(0, -.432, .115, 0, 0, 0, .95, .62, 1)], [GEO.cyl(.045, .048, .06, 10), M4(0, -.385, -.02)]]),
+    sole: mergeGeos([[GEO.box(.095, .024, .24), M4(0, -.458, .05)]]) };
+  return SNEAKER;
+}
+const HAIRCAP = {};
+function hairCapGeometry() {
+  if (HAIRCAP.g) return HAIRCAP.g;
+  const g = new THREE.SphereGeometry(.108, 28, 14, 0, TAU, 0, 1.455); g.rotateX(-.525); g.scale(.95, 1.1, 1.04);
+  return (HAIRCAP.g = g);
+}
+
+function bodyGeometry(b, shW, hpW, fem, o) {
+  const pos = [], uv = [], thin = [], si = [], sw = [], idx = [[], [], []];   // groups: 0 top, 1 trousers, 2 skin
+  const SEG = 24, smoothW = (a, b2, x) => smooth(a, b2, x);
+  const turtle = o.neck === 'turtle', sleeveEnd = o.sleeve === 'short' ? 1.29 : o.sleeve === 'mid' ? 1.15 : .95;
+  const tube = (rings, cx, matOf, capBottom) => {
+    const base = pos.length / 3;
+    for (const r of rings) {
+      for (let k = 0; k <= SEG; k++) {
+        const a = k / SEG * TAU, ca = Math.cos(a), sa = Math.sin(a);
+        let x = cx + ca * r.rx, z = sa * r.rz;
+        // the bust: two lobes either side of the breastbone
+        const lobe = r.bump ? r.bump * (Math.exp(-((a - Math.PI / 2 - .4) ** 2) / .09) + Math.exp(-((a - Math.PI / 2 + .4) ** 2) / .09)) : 0;
+        z += lobe * sa; x += lobe * ca * .35;
+        pos.push(x, r.y, z); uv.push(k / SEG, r.y / 2);
+        thin.push(cx + ca * r.rx * (r.thin ?? .62) + lobe * ca * .3, r.y, sa * r.rz * (r.thin ?? .62) + lobe * .85 * sa);
+        const ws = r.w.slice(0, 4); while (ws.length < 4) ws.push([0, 0]);
+        const tot = ws.reduce((s, x2) => s + x2[1], 0) || 1;
+        for (const [bi, wv] of ws) { si.push(bi); sw.push(wv / tot); }
+      }
+    }
+    const RW = SEG + 1;
+    for (let i = 0; i < rings.length - 1; i++) for (let k = 0; k < SEG; k++) {
+      const a = base + i * RW + k, b2 = a + 1, c = a + RW, d = b2 + RW;
+      const m = matOf((rings[i].y + rings[i + 1].y) / 2);
+      idx[m].push(a, c, b2, b2, c, d);
+    }
+    if (capBottom != null) {
+      const r = rings[0], ci = pos.length / 3; pos.push(cx, r.y - .02, 0); uv.push(.5, r.y / 2); thin.push(cx, r.y - .02, 0);
+      const ws = r.w.slice(0, 4); while (ws.length < 4) ws.push([0, 0]); const tot = ws.reduce((s, x2) => s + x2[1], 0) || 1; for (const [bi, wv] of ws) { si.push(bi); sw.push(wv / tot); }
+      for (let k = 0; k < SEG; k++) idx[capBottom].push(ci, base + k, base + k + 1);
+    }
+  };
+  const tw = y => y < .95 ? [[1, 1]] : y < 1.08 ? [[1, 1 - smoothW(.95, 1.08, y)], [2, smoothW(.95, 1.08, y)]] : y < 1.53 ? [[2, 1]] : y < 1.6 ? [[2, 1 - smoothW(1.53, 1.6, y)], [3, smoothW(1.53, 1.6, y)]] : [[3, 1]];
+  const W = fem ? .9 : 1;   // a woman's waist draws in further
+  const T = [[.8, .158 * hpW, .114], [.86, .17 * hpW, .122], [.93, .172 * hpW, .124], [.99, .16 * hpW, .116], [1.06, .148 * W, .106], [1.14, .152 * W, .108], [1.22, .166 * shW, .114],
+    [1.26, .174 * shW, .118], [1.3, .182 * shW, .122], [1.34, .188 * shW, .123], [1.38, .194 * shW, .124], [1.41, .195 * shW, .121], [1.45, .195 * shW, .116], [1.5, .168 * shW, .1], [1.54, .1, .076], ...(turtle ? [[1.57, .066, .064], [1.62, .062, .061], [1.65, .058, .058]] : [[1.57, .056, .054], [1.63, .051, .051]])];
+  tube(T.map(([y, rx, rz]) => ({ y, rx: rx * b, rz: rz * b, w: tw(y), bump: fem && !o.child ? .088 * Math.pow(Math.max(0, Math.sin((y - 1.23) / .2 * Math.PI)), 1.3) * (y > 1.23 && y < 1.43 ? 1 : 0) : 0, thin: y > 1.54 ? .88 : .66 })), 0,
+    y => y < .985 ? 1 : y > 1.555 && !turtle ? 2 : 0, 1);
+  const armK = fem ? .88 : 1;
+  for (const side of [1, -1]) {
+    const sh = side > 0 ? 5 : 7, el = sh + 1, cx = side * .215 * b * shW;
+    const aw = y => y > 1.44 ? [[2, smoothW(1.44, 1.52, y) * .7], [sh, 1 - smoothW(1.44, 1.52, y) * .7]] : y > 1.235 ? [[sh, 1]] : y > 1.13 ? [[sh, 1 - smoothW(1.13, 1.235, 2.365 - y)], [el, smoothW(1.13, 1.235, 2.365 - y)]] : [[el, 1]];
+    let A = [[1.55, .05], [1.52, .062], [1.46, .06], [1.38, .054], [1.3, .05], [1.22, .045], [1.18, .043], [1.12, .043], [1.04, .039], [.97, .033], [.91, .03]];
+    // a short sleeve ends in a slightly flared hem, then bare arm
+    if (o.sleeve === 'short') A = [[1.55, .05], [1.52, .064], [1.46, .063], [1.38, .06], [1.3, .058], [1.295, .046], [1.22, .044], [1.18, .042], [1.12, .042], [1.04, .038], [.97, .032], [.91, .03]];
+    tube(A.slice().reverse().map(([y, r]) => ({ y, rx: r * b * armK, rz: r * b * armK * .92, w: aw(y), thin: .68 })), cx, y => y > sleeveEnd ? 0 : 2, 2);
+  }
+  for (const side of [1, -1]) {
+    const hp = side > 0 ? 9 : 11, kn = hp + 1, cx = side * .095 * b * hpW;
+    const lw = y => y > .9 ? [[1, smoothW(.9, 1.0, y) * .8], [hp, 1 - smoothW(.9, 1.0, y) * .8]] : y > .51 ? [[hp, 1]] : y > .39 ? [[hp, smoothW(.39, .51, y)], [kn, 1 - smoothW(.39, .51, y)]] : [[kn, 1]];
+    const Lg = [[1.0, .088], [.92, .086], [.82, .078], [.7, .068], [.58, .058], [.48, .054], [.42, .053], [.33, .052], [.22, .045], [.1, .041]];
+    tube(Lg.slice().reverse().map(([y, r]) => ({ y, rx: r * b, rz: r * b * .95, w: lw(y), thin: .72 })), cx, () => 1, 1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+  geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+  const all = []; idx.forEach((list, m) => { geo.addGroup(all.length, list.length, m); all.push(...list); });
+  geo.setIndex(all); geo.computeVertexNormals();
+  geo.morphAttributes.position = [new THREE.Float32BufferAttribute(thin, 3)];
+  return geo;
+}
+function makeHuman(o) {
+  const ghost = !!o.ghost, shadow = !!o.shadow, fem = o.sex === 'f', child = !!o.child;
+  const mat = (c, rough, skinned, map) => {
+    const m = ghost || shadow ? new THREE.MeshBasicMaterial({ color: shadow ? 0x0b0b0e : c, transparent: true, opacity: 0, depthWrite: false }) : new THREE.MeshStandardMaterial({ color: map ? 0xffffff : c, roughness: rough, map: map || null });
+    if (skinned) { m.skinning = true; m.morphTargets = true; }
+    return m;
+  };
+  // the palette is authored in sRGB; convert so the colours render as picked
+  const lin = c => new THREE.Color(c).convertSRGBToLinear().getHex();
+  const raw = o;
+  o = Object.assign({}, o, { skin: lin(o.skin), shirt: lin(o.shirt), pants: lin(o.pants), hair: lin(o.hair), jacket: o.jacket != null ? lin(o.jacket) : null, boots: o.boots != null ? lin(o.boots) : null });
+  const skinC = o.zombie ? new THREE.Color(o.skin).lerp(new THREE.Color(0x4a5a3a), .6).getHex() : o.skin;
+  const jacketed = o.jacket != null, knit = !ghost && !shadow;
+  const topTex = knit ? knitTex(raw.top || 'plain', raw.stripes || [raw.shirt], raw.neck === 'turtle' ? (raw.neckCol != null ? raw.neckCol : null) : null) : null;
+  const topMat = mat(jacketed ? o.jacket : o.shirt, .92, true, jacketed ? null : topTex), pants = mat(o.pants, .88, true, knit ? denimTex(raw.pants) : null), skinBody = mat(skinC, .62, true);
+  const skin = mat(skinC, .62), shirt = mat(o.shirt, .9, false, topTex), hair = knit ? new THREE.MeshStandardMaterial({ map: strandTex(raw.hair), roughness: .55 }) : mat(o.hair, .9);
+  const shoeC = raw.shoes === 'sneaker' ? 0xe9e9e6 : (o.boots != null ? o.boots : 0x3a2c22);
+  const shoe = mat(shoeC, raw.shoes === 'sneaker' ? .5 : .75), sole = mat(raw.shoes === 'sneaker' ? 0xb9bab6 : 0x17140f, .9), belt = mat(0x2e241c, .6), buckle = mat(0xb59a5a, .35);
+  const handL = mat(skinC, .62), handR = mat(skinC, .62);
+  const b = (o.build || 1) * (child ? .85 : 1), shW = fem ? .9 : 1, hpW = fem ? 1.1 : 1;
+  const bone = (parent, x, y, z) => { const bn = new THREE.Bone(); bn.position.set(x, y, z); if (parent) parent.add(bn); return bn; };
+  const root = new THREE.Group();
+  const body = bone(null, 0, .95, 0); root.add(body);
+  const hips = bone(body, 0, 0, 0), spine = bone(hips, 0, .06, 0), neck = bone(spine, 0, .55, 0), head = bone(neck, 0, .08, 0);
+  const shL = bone(spine, .215 * b * shW, .47, 0), elL = bone(shL, 0, -.3, 0), shR = bone(spine, -.215 * b * shW, .47, 0), elR = bone(shR, 0, -.3, 0);
+  const hpL = bone(hips, .095 * b * hpW, -.06, 0), knL = bone(hpL, 0, -.44, 0), hpR = bone(hips, -.095 * b * hpW, -.06, 0), knR = bone(hpR, 0, -.44, 0);
+  const bones = [body, hips, spine, neck, head, shL, elL, shR, elR, hpL, knL, hpR, knR];
+  const geo = bodyGeometry(b, shW, hpW, fem, { neck: raw.neck, sleeve: raw.sleeve, child });
+  const mesh = new THREE.SkinnedMesh(geo, [topMat, pants, skinBody]);
+  mesh.castShadow = mesh.receiveShadow = !(ghost || shadow); mesh.frustumCulled = false;
+  root.add(mesh); root.updateMatrixWorld(true);
+  mesh.bind(new THREE.Skeleton(bones));
+  mesh.morphTargetInfluences[0] = 0;
+  const add = (p, g, m, y = 0, x = 0, z = 0) => { const me = new THREE.Mesh(g, m); me.position.set(x, y, z); me.castShadow = !(ghost || shadow); me.receiveShadow = !(ghost || shadow); p.add(me); return me; };
+  // a belt that peeks out under the hem, and the open jacket's front
+  add(hips, GEO.cyl(.165 * b * hpW, .165 * b * hpW, .03, 18), belt, .015).scale.z = .72;
+  if (!fem) add(hips, GEO.box(.04, .028, .01), buckle, .015, 0, .121 * b);
+  if (jacketed) add(spine, GEO.box(.1 * b, .46, .02), shirt, .26, 0, .123 * b).rotation.x = -.06;
+  // head: one sculpted mesh with a painted face
+  if (child) head.scale.setScalar(1.28);
+  const fc = shadow ? null : makeFace({ skinC, hair: o.hair, hairStyle: o.hairStyle || 0, sex: o.sex, zombie: !!o.zombie, iris: o.iris });
+  const headMat = shadow ? mat(0x0b0b0e) : ghost ? new THREE.MeshBasicMaterial({ map: fc.tex, color: 0xc9c4bc, transparent: true, opacity: 0, depthWrite: false }) : new THREE.MeshStandardMaterial({ map: fc.tex, roughness: .55 });
+  const headMesh = add(head, headGeometry(fem), headMat, .085);
+  for (const s of [-1, 1]) add(head, GEO.sph(.022, 8, 6), skin, .082, s * .092, -.005).scale.set(.45, 1, .8);
+  // hair: swept back over the crown with strands, then the style's own shape
+  const style = o.hairStyle || 0, hairMeshes = [];
+  if (style !== 2) { const cp = add(head, hairCapGeometry(), hair, .085, 0, -.004); hairMeshes.push(cp); }
+  if (style === 1) { const back = add(head, GEO.sph(.1, 16, 12), hair, .0, 0, -.045); back.scale.set(.95, 1.25, .55); hairMeshes.push(back); }
+  if (style === 3) { const t = add(head, GEO.cyl(.024, .008, .24, 8), hair, .03, 0, -.14); t.rotation.x = .45; hairMeshes.push(t); add(head, GEO.sph(.026, 8, 6), hair, .1, 0, -.11); }
+  if (style === 4) { hairMeshes.push(add(head, GEO.sph(.05, 14, 12), hair, .12, 0, -.115)); hairMeshes[hairMeshes.length - 1].scale.set(1, .9, .85); }
+  if (style === 5) for (let i = 0; i < 9; i++) { const a = i / 9 * TAU; hairMeshes.push(add(head, GEO.sph(.036, 8, 6), hair, .16 + Math.sin(a * 2) * .01, Math.cos(a) * .074, Math.sin(a) * .07 - .02)); }
+  // hands with fingers, trainers or boots
+  const handOn = (el, side) => {
+    const hand = add(el, handGeometry(side), side > 0 ? handL : handR);
+    const sock = new THREE.Group(); sock.position.set(0, -.345, .01); el.add(sock);
+    if (jacketed) add(el, GEO.cyl(.05, .047, .05, 12), mat(o.jacket, .85), -.02);
+    return { hand, sock };
+  };
+  const hl = handOn(elL, 1), hr = handOn(elR, -1);
+  for (const kn of [knL, knR]) {
+    if (raw.shoes === 'sneaker') { const sg = sneakerGeometry(); add(kn, sg.upper, shoe); add(kn, sg.sole, sole); }
+    else { add(kn, GEO.cyl(.052, .055, .12, 12), shoe, -.36); add(kn, GEO.box(.096, .068, .2), shoe, -.425, 0, .045); add(kn, GEO.box(.1, .022, .23), sole, -.462, 0, .05); }
+  }
+  const pack = new THREE.Group(); pack.visible = false; spine.add(pack);
+  { const pm = mat(0x55603f, .9), sm = mat(0x3a3324, .8);
+    add(pack, GEO.box(.27, .34, .13), pm, .33, 0, -.18); add(pack, GEO.box(.24, .12, .05), pm, .22, 0, -.26);
+    add(pack, GEO.box(.28, .07, .15), sm, .52, 0, -.17); add(pack, GEO.cyl(.05, .05, .3, 8), mat(0x6f6a5a, .9), .1, 0, -.2).rotation.z = Math.PI / 2;
+    for (const s of [-1, 1]) add(pack, GEO.box(.035, .36, .02), sm, .34, s * .1, .13).rotation.x = .12; }
+  root.scale.setScalar((o.height || 1.75) / 1.75);
+  const L = { sh: shL, el: elL, hand: hl.hand, sock: hl.sock }, Rr = { sh: shR, el: elR, hand: hr.hand, sock: hr.sock };
+  const hm = { root, body, hips, spine, neck, head, mesh, headMesh, fc, L, R: Rr, LL: { hp: hpL, kn: knL }, RL: { hp: hpR, kn: knR }, handL, handR, hairMeshes, pack,
+    socketR: Rr.sock, socketL: L.sock, skin: new THREE.Color(skinC), shirtMat: topMat, shirtBase: topMat.color.clone(), pantsMat: pants, pantsBase: pants.color.clone(),
+    mats: [topMat, pants, skinBody, skin, shirt, hair, shoe, sole, belt, buckle, headMat, handL, handR], pose: basePose(), phase: 0, mass: 1, ghost, shadow, fem, child,
+    face: { brow: 0, knit: 0, sad: 0, smile: 0, open: 0, shut: 0, gaze: 0 }, blink: Math.random() * 4, look: null, lookW: 0, lookYaw: 0, lookPitch: 0, beardAmt: 0, dirt: 0 };
+  if (fc) paintFace(hm, {});
+  return hm;
+}
+// what people wear: the women in the striped turtleneck, slim dark jeans and white trainers of the
+// reference character; the men in the same spirit, in knitwear, slim jeans and trainers or boots
+const MALE_KNITS = [[0x2b3a52, 0x8c939a, 0xe6e2d8], [0x3c4a34, 0xd8cfb4, 0x7a5a3a], [0x5a2a2a, 0x9a9a96, 0x2a2a2e], [0x2f2f33, 0x6a7a8a, 0xd8d4c8], [0x6a5a48, 0xe0d8c4, 0x3a4a5a]];
+const MALE_BANDS = [[0, 1.12, 0], [1.12, 1.17, 1], [1.17, 1.21, 2], [1.21, 1.26, 1], [1.26, 1.36, 0], [1.36, 1.4, 2], [1.4, 2, 0]];
+function wardrobe(sex, isVega, shirt) {
+  if (isVega) return { top: 'rib', stripes: [shirt], neck: 'crew', sleeve: 'long', shoes: 'boot', pants: 0x2c3442 };
+  if (sex === 'f') {
+    const exact = R() < .6, pal = exact ? STACY : STACY.map(c => new THREE.Color(c).offsetHSL(rnd(-.025, .025), rnd(-.05, .03), rnd(-.04, .04)).getHex());
+    return { top: 'stripes', stripes: pal, neck: 'turtle', neckCol: pal[4], sleeve: 'short', shoes: 'sneaker', pants: pick([0x1e2622, 0x1f2430, 0x232220, 0x2a2f3a]) };
+  }
+  const k = R();
+  if (k < .5) { const pal = pick(MALE_KNITS); pal.bands = MALE_BANDS; return { top: 'stripes', stripes: pal, neck: R() < .3 ? 'turtle' : 'crew', neckCol: pal[0], sleeve: R() < .7 ? 'long' : 'short', shoes: R() < .5 ? 'sneaker' : 'boot', pants: pick([0x2f4058, 0x1f2430, 0x3a3a3e, 0x5a5444]) }; }
+  return { top: k < .8 ? 'rib' : 'plain', stripes: [pick([0x3a4a5a, 0x5a3a2a, 0x4a5a3a, 0x7a6a5a, 0x2a2a2e, 0x8a7a5a])], neck: R() < .35 ? 'turtle' : 'crew', sleeve: R() < .75 ? 'long' : 'short', shoes: R() < .5 ? 'sneaker' : 'boot', pants: pick([0x2f4058, 0x1f2430, 0x3a3a3e, 0x5a5444]) };
+}
+// After the pose is applied, the neck and head turn toward whatever he is looking at, the way the
+// Codrops character follows the cursor: the turn is split between neck and head and clamped to what a
+// neck can do.
+const _lv = new THREE.Vector3();
+function lookAtPoint(h, target, dt, weight = 1) {
+  const want = target && weight > 0 && Math.abs(h.pose.tx) < .4 && Math.abs(h.pose.tz) < .4;
+  h.lookW += ((want ? weight : 0) - h.lookW) * Math.min(1, dt * 4);
+  if (want) {
+    h.neck.getWorldPosition(_lv);
+    const dx = target.x - _lv.x, dz = target.z - _lv.z, dy = target.y - _lv.y - .1;
+    const yaw = clamp(angDiff(h.root.rotation.y, Math.atan2(dx, dz)), -1.25, 1.25), pitch = clamp(-Math.atan2(dy, Math.hypot(dx, dz)), -.55, .6);
+    h.lookYaw += (yaw - h.lookYaw) * Math.min(1, dt * 5); h.lookPitch += (pitch - h.lookPitch) * Math.min(1, dt * 5);
+  }
+  if (h.lookW < .01) return;
+  h.neck.rotation.y += h.lookYaw * .55 * h.lookW; h.head.rotation.y = h.lookYaw * .45 * h.lookW;
+  h.neck.rotation.x += h.lookPitch * .5 * h.lookW; h.head.rotation.x = h.lookPitch * .4 * h.lookW;
+  h.face.gaze = clamp(h.lookYaw * .9, -1, 1) * h.lookW;
+}
+const PK = ['y', 'tx', 'tz', 'sx', 'sz', 'nx', 'ny', 'nz', 'lsx', 'lsz', 'lex', 'rsx', 'rsz', 'rex', 'lhx', 'lhz', 'lkx', 'rhx', 'rhz', 'rkx', 'mo'];
+function basePose() { const p = {}; PK.forEach(k => p[k] = 0); p.lsz = p.rsz = .07; p.lex = p.rex = .15; return p; }
+function applyPose(h, t, k) {
+  const p = h.pose;
+  for (const key of PK) p[key] += (t[key] - p[key]) * k;
+  h.body.position.y = .95 + p.y; h.body.rotation.x = p.tx; h.body.rotation.z = p.tz;
+  h.spine.rotation.x = p.sx; h.spine.rotation.z = p.sz;
+  h.neck.rotation.x = p.nx; h.neck.rotation.y = p.ny; h.neck.rotation.z = p.nz;
+  h.L.sh.rotation.x = -p.lsx; h.L.sh.rotation.z = p.lsz; h.L.el.rotation.x = -p.lex;
+  h.R.sh.rotation.x = -p.rsx; h.R.sh.rotation.z = -p.rsz; h.R.el.rotation.x = -p.rex;
+  h.LL.hp.rotation.x = -p.lhx; h.LL.hp.rotation.z = p.lhz; h.LL.kn.rotation.x = p.lkx;
+  h.RL.hp.rotation.x = -p.rhx; h.RL.hp.rotation.z = -p.rhz; h.RL.kn.rotation.x = p.rkx;
+}
+// Faces: brows lift with fear, knit with anger, tilt up in the middle with sadness; the mouth
+// corners follow mood; eyes blink on their own and close in sleep.
+function setFace(h, e, dt) {
+  const F = h.face, k = Math.min(1, dt * 5);
+  for (const key of ['brow', 'knit', 'sad', 'smile', 'open', 'shut']) F[key] += ((e[key] || 0) - F[key]) * k;
+  h.blink -= dt;
+  let lid = F.shut;
+  if (h.blink < 0) { lid = 1; if (h.blink < -.14) h.blink = (e.nervous ? .7 : 2.2) + Math.random() * 3; }
+  if (!h.fc) return;
+  const st = { brow: F.brow, knit: F.knit, sad: F.sad, smile: F.smile, open: Math.max(F.open, h.pose.mo * .8), shut: lid, gaze: F.gaze, blush: e.blush || 0, tears: e.tears || 0, tired: e.tired || 0, pale: e.pale || 0, dirt: h.dirt, beard: h.beardAmt };
+  const q = v => Math.round(v * 8);
+  const key = Object.values(st).map(q).join(',');
+  const now = performance.now();
+  if (key !== h.fc.key && now - h.fc.t > 70) { h.fc.key = key; h.fc.t = now; paintFace(h, st); }
+}
+// what his body shows of his state of mind
+const faceFrom = (s, asleep, x = {}) => ({ brow: clamp(s.fear * .9 - .25 + (s.surprise || 0) * .6), knit: clamp(s.anger * 1.2), sad: clamp(Math.max(s.grief || 0, (1 - s.hope) * .7, s.loneliness * .6, s.heartbreak || 0) - .15),
+  smile: clamp((s.hope - .45) * .8 + (s.joy || 0) * .5 + (s.love || 0) * .2 - (s.grief || 0) * .6 - s.fear * .3, -1, 1), open: s.fear > .75 ? .25 : 0, shut: asleep ? 1 : 0, nervous: s.fear > .55,
+  blush: clamp((s.attraction || 0) * (x.crushNear ? 1 : .2) + (s.lust || 0) * .3 + (s.shame || 0) * .3), tears: clamp(((s.grief || 0) + (1 - s.hope) * .5 + (s.heartbreak || 0)) - .9), tired: clamp((s.sleep || 0) - .3), pale: clamp(1 - (s.health == null ? 1 : s.health) - .2) });
