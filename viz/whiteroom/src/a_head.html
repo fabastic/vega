@@ -294,3 +294,98 @@ button:disabled{opacity:.4;cursor:default}
       </div>
     </div>
   </section>
+
+  <aside class="panel" id="panel">
+    <div id="setupPanel">
+      <section><h3>How it works</h3>
+        <p>Choose a preset or set everything by hand. Then press <b>Begin</b>.</p>
+        <p class="dim">Use the speed buttons and the skip buttons to move through long stretches. In the chamber and afterwards, switch between <b>His mind</b> (what he sees, hallucinations included) and <b>Reality</b> (what a camera would record).</p>
+      </section>
+    </div>
+
+    <div id="lifePanel" hidden>
+      <section>
+        <p class="lbl dim" id="selEyebrow">CivSYS · selected citizen</p>
+        <h2 id="selName"></h2>
+        <p class="dim" id="selLife"></p>
+        <p id="selDoing"></p>
+        <p class="thought" id="selThought"></p>
+      </section>
+      <section>
+        <h3>Normal life</h3>
+        <div class="meters" id="lifeMeter"></div>
+        <p id="lifeText" class="dim"></p>
+        <div class="row"><button type="button" id="skipLife">Skip to the night he is taken</button></div>
+      </section>
+      <section><h3>Needs</h3><div class="meters" id="selNeeds"></div></section>
+      <section><h3>Wants</h3><div class="meters" id="selWants"></div></section>
+      <section><h3>Feelings</h3><div class="feel" id="selFeel"></div><button type="button" class="linkbtn" data-atlas="life">All 681 feelings</button></section>
+      <section><h3>Heart</h3><div id="selHeart"></div></section>
+      <section><h3>Personality</h3><div class="chips" id="selTraits"></div></section>
+      <section><h3>Closest to</h3><div class="rel" id="selRel"></div></section>
+      <section><h3>Citizens</h3><ul id="citList"></ul></section>
+    </div>
+
+    <div id="roomPanel" hidden>
+      <section>
+        <p class="lbl dim" id="rEyebrow"></p>
+        <h2 id="rDoing">Waking up</h2>
+        <p class="thought" id="rThought"></p>
+      </section>
+      <section><h3>What his mind is showing him</h3><ul class="perceive" id="rPerceive"></ul></section>
+      <section><h3>Body</h3><div class="meters" id="rBody"></div></section>
+      <section><h3>Feelings</h3><div class="feel" id="rFeel"></div><div class="meters" id="rMind"></div><button type="button" class="linkbtn" data-atlas="me">All 681 feelings</button></section>
+      <section><h3>Mind</h3><div id="rDepth"></div></section>
+      <section><h3>Yesterday</h3><div id="rDay"></div></section>
+      <section><h3>Wants, strongest first</h3><div class="meters" id="rWants"></div></section>
+      <section><h3>The door</h3><div class="rel" id="rEscape"></div></section>
+      <section>
+        <h3>Observer controls</h3>
+        <div class="iv">
+          <button type="button" id="ivLights" aria-pressed="false">Lights off</button>
+          <button type="button" id="ivNoise" aria-pressed="false">Play static</button>
+          <button type="button" id="ivVoice">Speak to him</button>
+          <button type="button" id="ivFood">Slide food in</button>
+          <button type="button" id="skipRoom">Skip to the end</button>
+          <button type="button" id="ivCam">Free camera</button>
+        </div>
+        <div class="legend" style="display:none"></div><h3 style="margin-top:8px">Play God</h3><div id="rGod"></div>
+        <div class="legend"><span><i style="background:var(--ink)"></i>grip on reality</span><span><i style="background:var(--calm)"></i>hope</span><span><i style="background:var(--alarm)"></i>health</span><span><i style="background:var(--civ)"></i>fear</span></div>
+      </section>
+      <section>
+        <h3>Meanwhile outside (he can't know)</h3>
+        <dl class="kv" id="outKv"></dl>
+        <ol class="feed" id="outFeed"></ol>
+      </section>
+    </div>
+
+    <div id="afterPanel" hidden>
+      <section>
+        <p class="lbl dim" id="aEyebrow"></p>
+        <h2 id="aDoing">Walking out</h2>
+        <p class="thought" id="aThought"></p>
+      </section>
+      <section>
+        <h3>Direct him</h3>
+        <div class="dirs" id="dirs"></div>
+        <p class="dim" style="font-size:12px" id="dirHint">He decides for himself. A direction makes him lean toward it, but hunger, thirst and cold still come first.</p>
+      </section>
+      <section><h3>What his mind is showing him</h3><ul class="perceive" id="aPerceive"></ul></section>
+      <section><h3>Body</h3><div class="meters" id="aBody"></div></section>
+      <section><h3>Feelings</h3><div class="feel" id="aFeel"></div><div class="meters" id="aMind"></div><button type="button" class="linkbtn" data-atlas="me">All 681 feelings</button></section>
+      <section><h3>Mind</h3><div id="aDepth"></div></section>
+      <section><h3>What the room left</h3><div id="aPtsd"></div></section>
+      <section><h3>Yesterday</h3><div id="aDay"></div></section>
+      <section><h3>Danger</h3><div id="aThreat"></div></section>
+      <section><h3>Family</h3><div id="aFam"></div></section>
+      <section><h3>Play God</h3><div id="aGod"></div></section>
+      <section><h3>Wants, strongest first</h3><div class="meters" id="aWants"></div></section>
+      <section><h3>Supplies</h3><div class="inv" id="aInv"></div><dl class="kv" id="aSurv"></dl><div class="row"><button type="button" id="skipAfter">Skip ahead 10 days</button></div></section>
+      <section><h3>Research</h3><ul class="res" id="aRes"></ul></section>
+      <section><h3>Who is with him</h3><div class="rel" id="aComp"></div></section>
+      <section><h3>The people he knew</h3><ul class="dead" id="aDead"></ul></section>
+    </div>
+
+    <section id="feedSec" hidden><h3>Inner monologue</h3><ol class="feed" id="feedList"></ol></section>
+  </aside>
+</div>
