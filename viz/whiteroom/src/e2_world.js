@@ -1,3 +1,4 @@
+
 // =====================================================================
 // THE LIVING WORLD AFTER: weather, enemies, stores to strip, a family
 // =====================================================================
@@ -243,4 +244,84 @@ function birth(mom) {
   COMPANIONS.push(z); FAMILY.children.push(z); dayNote('births');
   S.hope = clamp(S.hope + .5); S.joy = clamp(S.joy + .6); S.tenderness = clamp(S.tenderness + .7); S.grief = clamp(S.grief - .25); S.loneliness = clamp(S.loneliness - .3); S.grip = clamp(S.grip + .1);
   say(dead.length && name === dead[0].name ? `A ${sex === 'f' ? 'girl' : 'boy'}. We named ${sex === 'f' ? 'her' : 'him'} ${name}, after ${name}.` : `A ${sex === 'f' ? 'girl' : 'boy'}. ${name}. Small and loud and alive.`, 'ev');
+}
+
+// ---------- his new options outside ----------
+Object.assign(ALABEL, { loot: 'Stripping a store', fight: 'Fighting', flee: 'Running', barricade: 'Boarding up the windows', meditate: 'Meditating', contemplate: 'Watching the stars by the fire', tally_out: 'Scratching a tally on his own wall',
+  court: 'Spending time with', intimate: 'Asleep beside', cradle: 'Holding', flashback: 'Back in the white room, in his head' });
+Object.assign(APOSE, { loot: 'forage', fight: 'swing', flee: 'run', barricade: 'hammer', meditate: 'meditate', contemplate: 'gaze_up', tally_out: 'tally', court: 'talk', intimate: 'lie', cradle: 'cradle', flashback: 'cower' });
+Object.assign(ALINES, {
+  loot: () => [`The ${A.beh.extra.s ? A.beh.extra.s.label.toLowerCase() : 'store'}. The door is jammed. I go in through the window.`, 'Aisle after aisle. The fresh food is black. The tins are fine.', 'I fill the bag. Nobody to pay.'],
+  fight: () => [A.beh.extra.t && A.beh.extra.t.type === 'risen' ? `${A.beh.extra.t.c.name}, stop. Please stop.` : 'Stand your ground. Stand your ground.', 'Breathe and swing.'],
+  flee: ['Run. Don\'t look back. Run.', 'Back to the house. Get the door shut.'],
+  barricade: ['Boards across the windows. I know how a sealed room feels. This one I sealed myself.', 'Nails, planks. Nobody gets in tonight.'],
+  meditate: () => [depthThought()], contemplate: () => [depthThought(), 'So many stars, now nobody lights a lamp.'],
+  tally_out: ['Another line on the wall of my own house. I can\'t stop.', 'Day count. I know I\'m out. I count anyway.'],
+  court: () => { const z = A.beh.extra.z; return z ? [`${z.c.name} laughed at something I said. I'd forgotten that sound.`, `I picked flowers for ${z.c.name}. Like a fool. ${z.c.name} kept them.`] : []; },
+  intimate: () => { const z = A.beh.extra.z; return z ? [`${z.c.name} fell asleep with a head on my chest. I didn't move for hours.`, 'Warm. Someone warm beside me in the dark.'] : []; },
+  cradle: () => { const z = A.beh.extra.z; return z ? [`${z.c.name} grabbed my finger and wouldn't let go.`, `I sang to ${z.c.name}. The songs from the market.`] : []; },
+});
+const AFTER_TOOL = { chop: 'axe', hunt: 'spear', fish: 'rod', bury: 'shovel', collect: 'shovel', plant: 'shovel', tend: 'shovel', quarry: 'crowbar', build: 'hammer', barricade: 'hammer', research: 'book', journal: 'journal',
+  forage: 'basket', berries: 'basket', drink: 'bucket', wash: 'bucket', eat: 'bread', cook: 'meat', revive: 'syringe', regenerate: 'syringe', study: 'knife', loot: 'basket', put_down: 'spear', tally_out: 'nail', scavenge: 'crowbar' };
+const romanceCand = () => COMPANIONS.filter(z => z.kind !== 'zombie' && !childOf(z) && attractedTo(vegaC, z.c) && (z.att || 0) > .3).sort((a, b) => (b.att || 0) - (a.att || 0))[0];
+function extendAfterU(U, o) {
+  const thr = nearestThreat(25), hour = sim.hours % 24, store = bestStore();
+  const kids = FAMILY.children, partner = partnerOf(), cand = romanceCand();
+  U.loot = store && !o.night ? (S.hunger * .8 + (A.inv.food + A.inv.cans < 10 ? .6 : .1) + (A.sickLeft > 0 && store.stock.medicine ? .8 : 0) + (!armed() && store.stock.tools ? .5 : 0)) * (S.health > .3 ? 1 : .4) : 0;
+  U.fight = thr ? ((armed() ? .9 : .35) + S.anger * .5 + (COMPANIONS.some(z => z.kind !== 'zombie' && z.pos.distanceTo(thr.pos) < 12) ? .8 : 0) + (A.hurtBy === thr ? .3 : 0)) * (S.health > .35 ? 1 : .3) * derived().strength * 1.6 : 0;
+  U.flee = thr ? S.fear * 1.2 + (1 - S.health) * .8 + (armed() ? 0 : .4) + (thr.type === 'raider' && thr.h ? .3 : 0) : 0;
+  U.barricade = !A.barricade && A.inv.wood >= 4 && (sim.hours - (A.lastHurt || -1e9) < 72 || HOSTILES.some(z => z.alive)) ? .5 + S.fear * .4 : 0;
+  U.meditate = S.depth > .15 ? (S.depth * .7 + equanimity() * .3 + S.ptsd * .3) * (o.night ? .6 : 1) : 0;
+  U.contemplate = o.night && o.fire && S.depth > .25 ? S.depth * .8 : 0;
+  U.tally_out = S.ptsd > .5 && hour > 6 && hour < 10 && A.talliedDay !== Math.floor(sim.hours / 24) ? .6 + S.ptsd * .4 : 0;
+  U.court = cand && !partner && !o.night ? .25 + (cand.att || 0) * .9 + S.loneliness * .3 : 0;
+  U.intimate = partner && o.night && S.lust > .3 && S.health > .4 && partner.pos.distanceTo(A.pos) < 60 ? S.lust * 1.6 + S.love * .4 : 0;
+  U.cradle = kids.length ? S.tenderness * .7 + .25 : 0;
+  if (S.ptsd > .45) U.sleep *= 1.1;   // nightmares make him go to bed early and wake often
+}
+function bestStore() {
+  let best = null, bv = 0;
+  for (const s of STORES) { const v = lootValue(s) / (1 + s.door.distanceTo(A.pos) / 80); if (v > bv) { bv = v; best = s; } }
+  return bv > 1.5 ? best : null;
+}
+function startAfterExtra(kind, extra) {
+  switch (kind) {
+    case 'loot': { const s = bestStore(); extra.s = s; extra.house = s; return { target: s.door.clone(), dur: 1.5 }; }
+    case 'fight': { const t = nearestThreat(25); extra.t = t; return { target: t.pos.clone(), dur: 1.2 }; }
+    case 'flee': { const t = nearestThreat(30), away = A.pos.clone().sub(t ? t.pos : A.pos).setY(0).normalize().multiplyScalar(26); const home = A.barricade && A.pos.distanceTo(A.base) < 60; return { target: home ? A.base.clone() : P(A.pos.x + away.x, A.pos.z + away.z), dur: .4 }; }
+    case 'barricade': return { target: vegaC.home.door.clone(), dur: 3 };
+    case 'meditate': return { target: A.pos.distanceTo(A.base) < 30 ? A.base.clone().add(new THREE.Vector3(rnd(-2, 2), 0, rnd(-2, 2))) : A.pos.clone(), dur: rnd(1, 2.5) };
+    case 'contemplate': return { target: structPos('campfire').add(new THREE.Vector3(-1.3, 0, -.8)), dur: rnd(1, 2) };
+    case 'tally_out': A.talliedDay = Math.floor(sim.hours / 24); return { target: vegaC.home.door.clone(), dur: .3 };
+    case 'court': { const z = romanceCand(); extra.z = z; return { target: z.pos.clone().add(new THREE.Vector3(1, 0, .4)), dur: rnd(1, 2.5) }; }
+    case 'intimate': { const z = partnerOf(); extra.z = z; const bed = vegaC.home.rec && S.ptsd < .35 ? vegaC.home.rec.bedWorld() : (A.built.campfire ? structPos('campfire').add(new THREE.Vector3(-1.4, 0, .6)) : A.base.clone()); A.sleepIndoors = S.ptsd < .35; return { target: bed, dur: 7 }; }
+    case 'cradle': { const z = pick(FAMILY.children); extra.z = z; return { target: z.pos.clone().add(new THREE.Vector3(.8, 0, .3)), dur: rnd(.8, 1.8) }; }
+  }
+  return null;
+}
+function tickExtra(b, dtH) {
+  const k = b.kind;
+  if (k === 'fight') { const t = b.extra.t; if (!t || !t.alive) { b.t = b.dur; b.won = true; return; } if (t.pos.distanceTo(A.pos) > (A.weapon === 'rifle' ? 13 : 2)) { b.arrived = false; return; } strikeThreat(t, dtH); S.fear = clamp(S.fear - .05 * dtH); S.anger = clamp(S.anger + .05 * dtH); }
+  if (k === 'flee') S.fear = clamp(S.fear - .15 * dtH);
+  if (k === 'meditate' || k === 'contemplate') { S.fear = clamp(S.fear - .1 * dtH * (.4 + S.depth)); S.grip = clamp(S.grip + .004 * dtH); S.ptsd = clamp((S.ptsd || 0) - .002 * dtH); S.awe = clamp(S.awe + (k === 'contemplate' ? .05 : .01) * dtH); }
+  if (k === 'court' && b.extra.z) { const z = b.extra.z; z.att = clamp((z.att || 0) + .03 * dtH); z.attBack = clamp((z.attBack || 0) + .025 * dtH * (attractedTo(z.c, vegaC) ? 1 : 0)); S.loneliness = clamp(S.loneliness - .1 * dtH); S.joy = clamp(S.joy + .03 * dtH); S.attraction = clamp(Math.max(S.attraction, z.att)); if (R() < dtH * .8) A.bubble = { text: pick(['Walk with me?', 'I like it when you\'re here.', 'Tell me about before.', 'You saved me, you know.']), cls: 'bub', until: performance.now() + 2600 }; }
+  if (k === 'intimate') { S.sleep = clamp(S.sleep - .17 * dtH); S.energy = clamp(S.energy + .13 * dtH); S.lust = clamp(S.lust - .2 * dtH); S.love = clamp(S.love + .01 * dtH); S.loneliness = clamp(S.loneliness - .1 * dtH); S.grip = clamp(S.grip + .005 * dtH); S.warmth = clamp(S.warmth + .2 * dtH); }
+  if (k === 'cradle') { S.tenderness = clamp(S.tenderness + .1 * dtH); S.joy = clamp(S.joy + .05 * dtH); S.loneliness = clamp(S.loneliness - .08 * dtH); S.hope = clamp(S.hope + .01 * dtH); }
+  if (k === 'flashback') { S.fear = clamp(S.fear - .05 * dtH); if (!PTSD.flash) b.t = b.dur; }
+}
+function finishExtra(b) {
+  const k = b.kind;
+  if (k === 'barricade' && A.inv.wood >= 4) { A.inv.wood -= 4; A.barricade = 1; for (const gl of vegaC.home.rec.glass) { gl.boarded = true; gl.boards.visible = true; } S.fear = clamp(S.fear - .1); S.pride = clamp(S.pride + .1); say('Every window boarded. It feels safe. It feels like the room. Both.', 'ev'); }
+  if (k === 'intimate' && b.extra.z) tryConceive(b.extra.z);
+  if (k === 'tally_out') { A.tallies = (A.tallies || 0) + 1; S.fear = clamp(S.fear - .05); }
+}
+function lootStore(s) {
+  const cap = A.backpack ? 30 : 14; let n = 0;
+  const take = (k, into) => { while (s.stock[k] > 0 && n < cap) { s.stock[k]--; n++; if (into === 'weapon') { A.weapon = A.weapon || 'axe'; A.tools = true; } else A.inv[into] = (A.inv[into] || 0) + 1; } };
+  if (!A.backpack && n === 0) { A.backpack = true; vegaC.h.pack.visible = true; say('A hiking pack, still on its hook by the till. I take it.', 'ev'); }
+  if (s.stock.rifle) { s.stock.rifle = 0; A.weapon = 'rifle'; say('A rifle, wrapped in oilcloth. Loaded.', 'ev'); spike('relief', .3); }
+  take('cans', 'cans'); take('medicine', 'medicine'); take('food', 'food'); take('tools', 'weapon'); take('seeds', 'seeds'); take('books', 'books'); take('wood', 'wood');
+  s.trips++; if (lootValue(s) < 1) s.searched = true;
+  S.hope = clamp(S.hope + .03); spike('relief', .3);
+  if (s.trips === 1) { say(`The ${s.label.toLowerCase()}. ${s.store === 'supermarket' ? 'Trolleys in the car park. Nobody pushing them.' : 'The bell over the door still rings.'} I filled the bag with ${n} things.`, 'ev'); S.awe = clamp(S.awe + .1); }
 }
