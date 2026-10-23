@@ -1,3 +1,4 @@
+
 // =====================================================================
 // FEELINGS: a lexicon of human emotions, each driven by the state of the body and mind
 // =====================================================================
@@ -199,4 +200,71 @@ function topFeelings(words, n = 12) {
   const seen = new Set(), out = [];
   for (const e of words.slice().sort((a, b) => b.v - a.v)) { if (e.v < .1) break; const k = e.fam === 'special' ? e.w : e.fam; if (seen.has(k)) continue; seen.add(k); out.push(e); if (out.length >= n) break; }
   return out;
+}
+
+// ---------- romance ----------
+// Attraction follows orientation and a spark that is there or isn't; time together grows it. A crush
+// held long enough, and returned, becomes a couple. Partners go on walks in the evening and sleep under
+// one roof; others notice, and some of them hurt.
+const attractedTo = (a, b) => a !== b && a.sex && b.sex && (a.orient === 'both' || a.orient === b.sex);
+function seedRomance(list) {
+  for (const a of list) {
+    a.att = new Map(); a.spark = new Map(); a.crush = null; a.partner = null;
+    a.emo = { joy: .4, love: 0, lust: rnd(.05, .25), jealousy: 0, heartbreak: 0, excite: .1, affection: .2 };
+  }
+  for (const a of list) for (const b of list) {
+    if (!attractedTo(a, b)) continue;
+    const sp = Math.pow(R(), 2.6) * (1 - Math.abs(a.p.openness - b.p.openness) * .3);
+    a.spark.set(b, sp); a.att.set(b, sp * .45);
+  }
+}
+function romanceStep(c, dtH) {
+  if (!c.att) return;
+  const e = c.emo;
+  // desire settles toward a level set by who they want, not upward forever
+  const want = c.crush && c.att ? c.att.get(c.crush) || 0 : 0;
+  e.lust = clamp(e.lust + ((.12 + want * .45 + (c.partner ? .15 : 0) - (c.sick ? .2 : 0) - c.needs.hunger * .2) - e.lust) * .03 * dtH);
+  e.jealousy = clamp(e.jealousy - .05 * dtH * e.jealousy); e.heartbreak = clamp(e.heartbreak - .004 * dtH); e.excite = clamp(e.excite - .1 * dtH * e.excite);
+  e.joy = clamp(e.joy + ((c.partner ? .6 : .35) + (c.needs.health - 1) * .5 - (c.sick ? .3 : 0) - e.heartbreak * .4 - e.joy) * .05 * dtH);
+  // the crush is whoever he or she is most drawn to, once it is strong enough to notice
+  let best = null, bv = .34;
+  for (const [o, v] of c.att) if (v > bv && (o.alive || o.companion)) { bv = v; best = o; }
+  if (best !== c.crush) {
+    c.crush = best;
+    if (best && (c.isVega || best.isVega || (vegaC && (vegaC.rel.get(c) || 0) > .3)) && sim.phase === 'life') OUT.push({ h: sim.hours, text: `${c.name} can't stop thinking about ${best.name}.`, heart: true });
+  }
+  if (c.partner) { e.love = clamp(e.love + .01 * dtH * (1 - e.love)); if (!c.partner.alive && !c.partner.companion) { e.heartbreak = clamp(e.heartbreak + .6); c.widowed = c.partner; c.partner = null; } }
+  else e.love = clamp(e.love + ((c.crush ? (c.att.get(c.crush) || 0) * .6 : 0) - e.love) * .02 * dtH);
+  // a crush returned, with enough friendship under it, becomes a couple
+  const o = c.crush;
+  if (o && !c.partner && !o.partner && o.crush === c && (c.rel.get(o) || 0) > .28 && (o.rel.get(c) || 0) > .25 && R() < dtH * .15) {
+    c.partner = o; o.partner = c; c.emo.excite = o.emo.excite = .9; c.emo.joy = clamp(c.emo.joy + .3); o.emo.joy = clamp(o.emo.joy + .3); c.newLoveAt = o.newLoveAt = sim.hours;
+    const vg = c.isVega || o.isVega;
+    OUT.push({ h: sim.hours, text: vg ? `${vegaC.name} and ${(c.isVega ? o : c).name} are together now.` : `${c.name} and ${o.name} are together now.`, heart: true });
+    if (vg && sim.phase === 'life') { const other = c.isVega ? o : c; c.chatLine = { text: pick(['I like you. I have for a while.', 'Walk with me tonight?', `I was hoping you'd say that, ${other.name}.`]), until: performance.now() + 3500 }; }
+  }
+  // a crush who is with someone else
+  if (o && o.partner && o.partner !== c) { e.heartbreak = clamp(e.heartbreak + .01 * dtH * (c.att.get(o) || 0)); c.att.set(o, (c.att.get(o) || 0) * (1 - .01 * dtH)); }
+}
+// when two people are near each other and talking
+function romanceNear(c, o, dtH, kind) {
+  if (!c.att || !c.spark.has(o)) return;
+  const sp = c.spark.get(o), a = c.att.get(o) || 0;
+  c.att.set(o, clamp(a + (sp * .07 + (c.rel.get(o) || 0) * .02) * dtH * (kind === 'date' ? 2.5 : kind === 'work' ? .4 : 1) * (1 - a)));
+  if (c.crush === o || c.partner === o) { c.emo.excite = clamp(c.emo.excite + .15 * dtH); c.emo.joy = clamp(c.emo.joy + .04 * dtH); }
+  if (c.partner === o && kind === 'date') { c.emo.affection = clamp(c.emo.affection + .05 * dtH); c.emo.lust = clamp(c.emo.lust + .03 * dtH); }
+  // the one you want, laughing with someone they want
+  const mine = c.partner || c.crush;
+  if (mine && mine !== o && o.chatPartner === mine && (mine.att && (mine.att.get(o) || 0) > .3)) c.emo.jealousy = clamp(c.emo.jealousy + .2 * dtH);
+}
+// a villager's state, in the same terms as his, so the lexicon can read anyone
+function lifeState(c) {
+  const n = c.needs, w = c.w, e = c.emo || {}, wantGap = k => w[k].w * (1 - w[k].l);
+  const lonely = clamp(wantGap('social') * 1.3), bored = clamp((wantGap('know') + wantGap('free')) * .7);
+  const crushV = c.crush && c.att ? c.att.get(c.crush) || 0 : 0;
+  return { hunger: n.hunger, thirst: n.thirst, sleep: n.sleep, energy: n.energy, health: n.health, warmth: 1, hygiene: .9, pain: c.sick ? .3 : 0,
+    fear: clamp((c.sick ? .4 : .08) + (WORLD.blight ? .3 : 0) + (1 - c.p.emotional_stability) * .15), anger: clamp(e.jealousy * .4 + (c.money < 3 ? .15 : 0)), hope: clamp(.75 - (WORLD.blight ? .35 : 0) - (c.sick ? .3 : 0) - e.heartbreak * .3),
+    loneliness: lonely, boredom: bored, grief: OUT.length && WORLD.blight ? .2 : 0, guilt: 0, shame: 0, pride: clamp(wantGap('achieve') < .1 ? .4 : .1), awe: 0, curiosity: c.p.curiosity * .6, dread: WORLD.blight ? .4 : .05,
+    nostalgia: 0, grip: 1, joy: e.joy, love: e.love, attraction: crushV, lust: e.lust * (c.partner || c.crush ? 1 : .5), jealousy: e.jealousy, heartbreak: e.heartbreak, longing: c.crush && !c.partner ? crushV * .6 : 0,
+    affection: clamp(e.affection + (topFriend(c) ? .25 : 0)), excite: e.excite, trust: .6 + c.p.agreeableness * .3, surprise: 0, relief: 0, gratitude: .2, depth: c.p.openness * .2, tenderness: wantGap('family') * .3, envy: 0 };
 }
