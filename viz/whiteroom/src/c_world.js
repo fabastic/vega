@@ -403,3 +403,10 @@ function buildWorld() {
   WORLD.season = seasonAt(sim.hours);
   recolorTerrain(0, 0); seasonalFoliage(WORLD.season, 0);
 }
+
+// ---------- seasons ----------
+const YEAR = 120;   // days in a sim year: thirty a season keeps winters coming
+const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+const seasonAt = h => SEASONS[Math.floor(((h / 24 + (cfg ? SEASONS.indexOf(cfg.world.season) * 30 : 0)) % YEAR) / 30)];
+const winterAmt = h => { const d = ((h / 24 + SEASONS.indexOf(cfg.world.season) * 30) % YEAR); return d >= 88 && d < 120 ? clamp(Math.min(d - 88, 120 - d) / 6) : 0; };
+const tempAt = h => { const s = seasonAt(h), hour = h % 24, base = { spring: 12, summer: 22, autumn: 11, winter: -4 }[s]; return base + Math.sin((hour - 9) / 24 * TAU) * 6; };
