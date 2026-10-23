@@ -410,3 +410,27 @@ const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const seasonAt = h => SEASONS[Math.floor(((h / 24 + (cfg ? SEASONS.indexOf(cfg.world.season) * 30 : 0)) % YEAR) / 30)];
 const winterAmt = h => { const d = ((h / 24 + SEASONS.indexOf(cfg.world.season) * 30) % YEAR); return d >= 88 && d < 120 ? clamp(Math.min(d - 88, 120 - d) / 6) : 0; };
 const tempAt = h => { const s = seasonAt(h), hour = h % 24, base = { spring: 12, summer: 22, autumn: 11, winter: -4 }[s]; return base + Math.sin((hour - 9) / 24 * TAU) * 6; };
+
+// ---------- light ----------
+const SKY = { dayTop: new THREE.Color(0x7ea7d4), dayBot: new THREE.Color(0xdfe5e0), duskTop: new THREE.Color(0x3c4a78), duskBot: new THREE.Color(0xe7a774), nightTop: new THREE.Color(0x070b18), nightBot: new THREE.Color(0x1b2233), grey: new THREE.Color(0x9ea39b), t1: new THREE.Color(), t2: new THREE.Color() };
+function lightWorld(focus, rot, winter) {
+  const h24 = sim.hours % 24, sunA = (h24 - 6) / 12 * Math.PI;
+  const day = clamp(Math.sin(sunA) * 1.6 + .1), dusk = clamp(1 - Math.abs(Math.sin(sunA)) * 3) * (h24 > 4 && h24 < 21 ? 1 : 0);
+  const dir = new THREE.Vector3(Math.cos(sunA) * .8, Math.max(.12, Math.sin(sunA)), .45).normalize();
+  sun.target.position.copy(focus); sun.position.copy(focus).addScaledVector(dir, 160);
+  sun.intensity = (.05 + day * .95) * (1 - rot * .25) * (1 - winter * .2);
+  sun.color.set(0xfff1d8).lerp(new THREE.Color(0xffa860), dusk * .7);
+  moon.target.position.copy(focus); moon.position.copy(focus).add(new THREE.Vector3(-60, 90, -40)); moon.intensity = (1 - day) * .22;
+  hemi.intensity = (.22 + day * .42) * (1 - rot * .1);
+  const top = SKY.t1.copy(SKY.nightTop).lerp(SKY.duskTop, clamp(day * 2)).lerp(SKY.dayTop, clamp(day * 1.4 - .3)).lerp(SKY.grey, rot * .35 * day + winter * .3 * day);
+  const bot = SKY.t2.copy(SKY.nightBot).lerp(SKY.duskBot, clamp(day * 2.5) * (1 - clamp(day * 1.5 - .5))).lerp(SKY.dayBot, clamp(day * 1.6 - .4)).lerp(SKY.grey, rot * .35 * day + winter * .4 * day);
+  sky.material.uniforms.top.value.copy(top); sky.material.uniforms.bottom.value.copy(bot);
+  sky.position.copy(camera.position);
+  scene.fog.color.copy(bot); scene.fog.near = lerp(110, 45, rot * .7 + winter * .3); scene.fog.far = lerp(460, 260, rot * .6 + winter * .3);
+  if (camMode === 'map') { scene.fog.near = 500; scene.fog.far = 1400; }
+  renderer.toneMappingExposure = 1.05 + (1 - day) * .45;   // night stays readable
+  const lit = sim.phase === 'life' || sim.phase === 'setup' ? (1 - day) : 0;
+  WIN_MAT.emissiveIntensity = lit * .9;
+  facWin.emissiveIntensity = FAC.lit ? (1 - day) * 1.2 + .2 : 0;
+  return day;
+}
