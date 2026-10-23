@@ -1,3 +1,4 @@
+
 // ---------- what God does to the room ----------
 // Every hazard is just pressure on his body and mind; what he does about it is still his choice.
 function chamberHazards(dtH, sleeping) {
@@ -31,4 +32,17 @@ function hazardVisuals(now) {
     if (d.length() > .05) { d.normalize(); r.pos.addScaledVector(d, .02 * Math.min(Math.max(speed, 1), 3)); r.mesh.rotation.y = Math.atan2(d.x, d.z); animateAnimal(r.a, 1.5, .016, false); } else animateAnimal(r.a, 0, .016, true);
     r.mesh.position.set(r.pos.x * roomGroup.scale.x, 0, r.pos.z * roomGroup.scale.z);
   }
+}
+// ---------- through his eyes ----------
+function povCamera(dtR, h) {
+  const pov = camMode === 'pov';
+  if (h.headMesh) h.headMesh.visible = !pov; for (const m of h.hairMeshes) m.visible = !pov;
+  if (!pov) return;
+  h.head.updateWorldMatrix(true, false);
+  h.head.getWorldPosition(_hp); h.head.getWorldQuaternion(_q);
+  _fw.set(0, 0, 1).applyQuaternion(_q);
+  camera.position.copy(_hp).addScaledVector(_fw, .09); camera.position.y += .1;
+  camera.fov = 78 + (S.fear > .6 ? (S.fear - .6) * 20 : 0); camera.updateProjectionMatrix();
+  controls.target.copy(camera.position).addScaledVector(_fw, 2);
+  camera.lookAt(controls.target);
 }
