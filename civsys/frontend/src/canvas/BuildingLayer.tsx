@@ -1,0 +1,1 @@
+// BuildingLayer component scaffold placeholder

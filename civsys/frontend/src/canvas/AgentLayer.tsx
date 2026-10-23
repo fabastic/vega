@@ -1,0 +1,1 @@
+// AgentLayer component scaffold placeholder

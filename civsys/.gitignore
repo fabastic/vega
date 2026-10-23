@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+*.log
+coverage/
+.coverage
+
+# Node
+node_modules/
+dist/
+build/
+.npm/
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Environment / Secrets
+.env
+.env.local
+.env.*.local
+*.pem

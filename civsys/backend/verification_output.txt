@@ -1,0 +1,68 @@
+
+================================================================================
+EXPERIMENT: Drought
+QUERY: What if there is a drought?
+VALID: True
+INTERVENTIONS: [Intervention(target='drought', operation='trigger', value=0.8, start_tick=0, end_tick=300, scope=InterventionScope(scope_type='GLOBAL', target_id=None))]
+CONTROL FINAL FOOD: 107.24986700194076
+TREATMENT FINAL FOOD: 42.19915579067966
+DIVERGENCE: {'food_price_delta': 516.32, 'peak_food_delta': 516.32, 'peak_food_tick': 24.0, 'final_food_delta': 516.32, 'post_int_food_delta': 516.32, 'recovery_time': -1.0, 'migrated_delta': 82.0, 'hunger_delta': 0.05, 'stress_delta': -0.01}
+STATUS: DIVERGED (SUCCESS)
+
+================================================================================
+EXPERIMENT: Famine
+QUERY: What if a famine occurs?
+VALID: True
+INTERVENTIONS: [Intervention(target='crop_yield_multiplier', operation='set', value=0.1, start_tick=0, end_tick=500, scope=InterventionScope(scope_type='GLOBAL', target_id=None))]
+CONTROL FINAL FOOD: 107.24986700194076
+TREATMENT FINAL FOOD: 33.399930321648746
+DIVERGENCE: {'food_price_delta': 1862.6, 'peak_food_delta': 1862.6, 'peak_food_tick': 24.0, 'final_food_delta': 1862.6, 'post_int_food_delta': 1862.6, 'recovery_time': -1.0, 'migrated_delta': 85.0, 'hunger_delta': 0.07, 'stress_delta': 0.01}
+STATUS: DIVERGED (SUCCESS)
+
+================================================================================
+EXPERIMENT: Flood in one region
+QUERY: What if a flood hits the northern forest?
+VALID: True
+INTERVENTIONS: [Intervention(target='flood', operation='trigger', value=0.8, start_tick=0, end_tick=300, scope=InterventionScope(scope_type='REGION', target_id='north_forest'))]
+CONTROL FINAL FOOD: 107.24986700194076
+TREATMENT FINAL FOOD: 42.19915579067966
+DIVERGENCE: {'food_price_delta': 516.32, 'peak_food_delta': 516.32, 'peak_food_tick': 24.0, 'final_food_delta': 516.32, 'post_int_food_delta': 516.32, 'recovery_time': -1.0, 'migrated_delta': 82.0, 'hunger_delta': 0.05, 'stress_delta': -0.01}
+STATUS: DIVERGED (SUCCESS)
+
+================================================================================
+EXPERIMENT: Earthquake in one region
+QUERY: What if an earthquake hits the eastern crags?
+VALID: False
+ERROR: UNSUPPORTED: No recognized ontology entities found in query.
+
+================================================================================
+EXPERIMENT: Resource discovery
+QUERY: What if we discover a new metal mine?
+VALID: False
+ERROR: UNSUPPORTED: No recognized ontology entities found in query.
+
+================================================================================
+EXPERIMENT: Electricity delayed 200 years
+QUERY: What if electricity is discovered 200 years later?
+VALID: True
+INTERVENTIONS: [Intervention(target='electricity', operation='delay_unlock', value=True, start_tick=20000, end_tick=20500, scope=InterventionScope(scope_type='GLOBAL', target_id=None))]
+CONTROL FINAL FOOD: 107.24986700194076
+TREATMENT FINAL FOOD: 107.24986700194076
+DIVERGENCE: {'food_price_delta': 0.0, 'peak_food_delta': 0.0, 'peak_food_tick': 0.0, 'final_food_delta': 0.0, 'post_int_food_delta': 0.0, 'recovery_time': -1.0, 'migrated_delta': 0.0, 'hunger_delta': 0.0, 'stress_delta': 0.0}
+STATUS: IDENTICAL (FAILURE - INTERVENTION DID NOT AFFECT FOOD SUPPLY)
+
+================================================================================
+EXPERIMENT: Unsupported concept
+QUERY: What if aliens invade?
+VALID: False
+ERROR: UNSUPPORTED: capability/concept 'aliens' is not registered in the simulation ontology.
+
+================================================================================
+EXPERIMENT: Social/behavioral hypothesis
+QUERY: What if we erase all authoritarian behaviour?
+VALID: True
+INTERVENTIONS: [Intervention(target='authoritarianism', operation='set', value=0.0, start_tick=0, end_tick=500, scope=InterventionScope(scope_type='GLOBAL', target_id=None))]
+CONTROL FINAL FOOD: 107.24986700194076
+TREATMENT FINAL FOOD: 107.24986700194076
+DIVERGENCE: {'food_price_delta': 0.0, 'peak_food_delta': 0.0, 'peak_food_tick': 0.0, 'final_food_delta': 0.0, 'post_int_food_delta': 0.0, 'recovery_time': -1.0, 'migrated_delta': 0.0, 'hunger_delta': 0.0, 'stress_delta': 0.0}
+STATUS: IDENTICAL (FAILURE - INTERVENTION DID NOT AFFECT FOOD SUPPLY)

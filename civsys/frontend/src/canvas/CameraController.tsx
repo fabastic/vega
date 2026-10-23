@@ -1,0 +1,1 @@
+// CameraController component scaffold placeholder
