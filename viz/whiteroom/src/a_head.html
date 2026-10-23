@@ -230,3 +230,67 @@ button:disabled{opacity:.4;cursor:default}
 @media (max-width:520px){.brand span{display:none}.phases li{padding:4px 7px}.iv,.dirs{grid-template-columns:1fr 1fr}#citList,.dead{grid-template-columns:1fr}.speed button{min-width:40px;padding:7px 6px}.inv{grid-template-columns:1fr 1fr}}
 @media (prefers-reduced-motion:reduce){.rec{animation:none}#fade{transition:none}}
 </style>
+
+<header class="top">
+  <div class="brand"><b id="brandName">VEGA</b><span>White Room</span></div>
+  <ol class="phases" aria-label="Stage of his life">
+    <li id="ph1">Life</li><li id="ph2">Chamber</li><li id="ph3">Return</li><li id="ph4">After</li>
+  </ol>
+  <div class="clock"><span id="clkReal">Setup</span><span id="clkSub"></span></div>
+  <div class="speed" role="group" aria-label="Simulation speed">
+    <button type="button" data-s="0">Pause</button><button type="button" data-s="1" aria-pressed="true">1×</button><button type="button" data-s="10">10×</button><button type="button" data-s="60">60×</button><button type="button" data-s="300">300×</button><button type="button" data-s="1500">1500×</button>
+  </div>
+  <button type="button" id="snd" aria-pressed="false">Sound</button>
+</header>
+
+<div class="app">
+  <section class="stage" id="stage" aria-label="Simulation view">
+    <div class="cam lbl" id="camTL"></div>
+    <div class="cam tr lbl" id="camTR"></div>
+    <div id="labels"></div>
+    <div id="tint"></div>
+    <div id="vig"></div>
+    <canvas id="grain" width="320" height="200"></canvas>
+    <div id="lidT" class="lid t"></div><div id="lidB" class="lid b"></div><div id="flash"></div>
+    <div id="moodles" aria-label="His condition"></div>
+    <p id="placeHint" class="placehint" hidden></p>
+    <div id="tlWrap" hidden><canvas id="tl"></canvas></div>
+    <div class="viewbtns" id="viewbtns">
+      <button type="button" id="vMind" aria-pressed="true" hidden>His mind</button>
+      <button type="button" id="vReal" aria-pressed="false" hidden>Reality</button>
+      <button type="button" id="vPov" hidden>His eyes</button>
+      <button type="button" id="vIso" hidden>Isometric</button>
+      <button type="button" id="vFollow" hidden>Follow</button>
+      <button type="button" id="vMap" hidden>Map</button>
+      <button type="button" id="viewReset">Reset view</button>
+    </div>
+    <div id="fade"><p id="fadeTxt"></p></div>
+    <div class="over" id="ending" hidden>
+      <div class="box">
+        <p class="lbl dim" id="endEyebrow">Outcome</p>
+        <h2 id="endTitle"></h2>
+        <p id="endText"></p>
+        <dl id="endStats"></dl>
+        <div class="row"><button type="button" class="primary" id="endRestart">Set up a new life</button><button type="button" id="endWatch">Keep watching</button></div>
+      </div>
+    </div>
+    <div class="over" id="atlas" hidden>
+      <div class="box atlasbox">
+        <div class="row" style="justify-content:space-between"><h2 style="font-size:26px">Every feeling</h2><button type="button" id="atlasClose">Close</button></div>
+        <div class="row"><input type="search" id="atlasQ" placeholder="Search a feeling or family" aria-label="Search feelings"><label class="dim" style="font-size:12.5px"><input type="checkbox" id="atlasNow" checked> Only what is felt now</label></div>
+        <p class="dim" style="font-size:12.5px"><span id="atlasWho"></span> · <span id="atlasCount"></span>. Each is computed from the body, the mind and the situation; hover for meanings.</p>
+        <div class="atlas" id="atlasList"></div>
+      </div>
+    </div>
+    <div class="over" id="setup">
+      <div class="wrap">
+        <p class="lbl dim">CivSYS · experiment setup</p>
+        <h2>Design the life, the chamber and what comes after</h2>
+        <p class="lede">Your subject lives a normal life among several villages. One night he is sealed in a white chamber while the world outside falls apart. When the door finally opens he walks into what is left. Every part of that is yours to set. Start from a preset, then change anything.</p>
+        <div class="presets" id="presets"></div>
+        <div class="tabs" role="tablist" id="tabs"></div>
+        <div id="tabpanels"></div>
+        <div class="go"><button type="button" class="primary" id="begin">Begin his life</button><span class="dim" id="goSummary" style="font-size:12.5px"></span></div>
+      </div>
+    </div>
+  </section>
