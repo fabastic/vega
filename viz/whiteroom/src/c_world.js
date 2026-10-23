@@ -434,3 +434,300 @@ function lightWorld(focus, rot, winter) {
   facWin.emissiveIntensity = FAC.lit ? (1 - day) * 1.2 + .2 : 0;
   return day;
 }
+
+// ---------- the people ----------
+const NAMES = ['Mira', 'Tomas', 'Anaya', 'Kofi', 'Lena', 'Ravi', 'Ines', 'Jun', 'Sana', 'Ola', 'Pavel', 'Noor', 'Dario', 'Hana', 'Felix', 'Amara', 'Yusuf', 'Elif', 'Bram', 'Keiko', 'Luca', 'Zara', 'Ade', 'Rhea', 'Mateo', 'Ivy', 'Omar', 'Tess', 'Nils', 'Priya', 'Sol', 'Edda', 'Kasim', 'Lio', 'Maren', 'Theo', 'Uma', 'Bea', 'Joon', 'Farah', 'Aksel', 'Nia', 'Oren', 'Saoirse', 'Tobi', 'Wren', 'Yara', 'Cyrus', 'Dalia', 'Emil', 'Gita', 'Hugo', 'Ilse', 'Kian', 'Lucia', 'Milo', 'Nadia', 'Otto', 'Paz', 'Rune', 'Selin', 'Tarek', 'Vida'];
+const FEMALE = new Set(['Mira', 'Anaya', 'Lena', 'Ines', 'Sana', 'Ola', 'Noor', 'Hana', 'Amara', 'Elif', 'Keiko', 'Zara', 'Rhea', 'Ivy', 'Tess', 'Priya', 'Edda', 'Maren', 'Uma', 'Bea', 'Farah', 'Nia', 'Saoirse', 'Wren', 'Yara', 'Dalia', 'Gita', 'Ilse', 'Lucia', 'Nadia', 'Paz', 'Selin', 'Vida']);
+const sexOf = name => FEMALE.has(name) ? 'f' : 'm';
+function roster(c) {
+  const n = c.world.villages, per = c.world.perVillage, home = Math.min(c.vega.home, n - 1);
+  const order = [home, ...[...Array(n).keys()].filter(v => v !== home)];
+  const list = []; let ni = 0;
+  for (const v of order) for (let k = 0; k < per; k++) {
+    if (v === home && k === 0) list.push({ name: c.vega.name || 'Vega', village: v, vega: true, sex: 'm' });
+    else { let nm = NAMES[ni++ % NAMES.length]; if (nm === c.vega.name) nm = NAMES[ni++ % NAMES.length]; list.push({ name: nm, village: v, sex: sexOf(nm) }); }
+  }
+  return list;
+}
+const SKINS = [0x8d5524, 0xc68642, 0xe0ac69, 0xf1c27d, 0xffdbac, 0x5c3a21, 0xa66a3f];
+const HAIRS = [0x1d1a17, 0x3b2a1e, 0x6a4a2c, 0xb08a52, 0x2a2a2a, 0x8c8c86, 0x7a3b1e];
+const TRAIT_NAMES = { openness: 'open', conscientiousness: 'careful', extraversion: 'outgoing', agreeableness: 'kind', emotional_stability: 'steady', curiosity: 'curious', ambition: 'ambitious', independence: 'independent', persistence: 'stubborn', impulsiveness: 'impulsive' };
+const TRAIT_LOW = { openness: 'set in their ways', conscientiousness: 'scattered', extraversion: 'quiet', agreeableness: 'prickly', emotional_stability: 'anxious', curiosity: 'incurious', ambition: 'content', independence: 'dependent', persistence: 'gives up easily', impulsiveness: 'deliberate' };
+const LIFE_WANTS = { family: 'Wants a family of their own', freedom: 'Wants to leave and see the coast', wealth: 'Wants to own a market stall', knowledge: 'Wants to read every book in the library', status: 'Wants to be someone people listen to', community: 'Wants to belong somewhere' };
+const WANT_LABEL = { social: 'Company', achieve: 'To achieve', know: 'To learn', free: 'Freedom', family: 'Family' };
+const OCC = { farmer: 'farmer', crafter: 'crafter', hunter: 'hunter', scholar: 'scholar', healer: 'healer' };
+
+const citizens = [];
+let vegaC = null;
+function makeCitizen(entry, idx) {
+  const isVega = !!entry.vega, V = cfg.vega;
+  const p = {}; for (const k of Object.keys(TRAIT_NAMES)) p[k] = wide();
+  const v = { family: wide(), freedom: wide(), wealth: wide(), knowledge: wide(), status: wide(), community: wide() };
+  if (isVega) {
+    Object.assign(p, { openness: V.openness, conscientiousness: V.conscientiousness, extraversion: V.extraversion, agreeableness: V.agreeableness, emotional_stability: V.stability, curiosity: V.curiosity, ambition: V.ambition, independence: V.independence, persistence: V.persistence, impulsiveness: V.impulsiveness });
+    Object.assign(v, { family: V.family, freedom: V.freedom, wealth: V.wealth, knowledge: V.knowledge, status: V.status, community: V.community });
+  }
+  const w = {
+    social: { w: .2 + .8 * (p.extraversion * .6 + v.community * .4), l: rnd(.4, .8) },
+    achieve: { w: .2 + .8 * (p.ambition * .5 + v.wealth * .5), l: rnd(.4, .8) },
+    know: { w: .2 + .8 * (p.curiosity * .6 + v.knowledge * .4), l: rnd(.4, .8) },
+    free: { w: .2 + .8 * (p.independence * .5 + v.freedom * .5), l: rnd(.4, .8) },
+    family: { w: .1 + .8 * v.family, l: rnd(.4, .8) },
+  };
+  const topVal = Object.entries(v).sort((a, b) => b[1] - a[1])[0][0];
+  const shirt = isVega ? new THREE.Color(V.shirt).getHex() : new THREE.Color().setHSL(rnd(0, 1), rnd(.25, .55), rnd(.32, .58)).getHex();
+  const sex = entry.sex || 'm', fem = sex === 'f';
+  const wear = wardrobe(sex, isVega, shirt);
+  const look = Object.assign({ sex, skin: isVega ? SKINS[V.skin % SKINS.length] : pick(SKINS), shirt, hair: isVega ? HAIRS[V.hair % HAIRS.length] : fem ? pick([0x9a4a2a, 0x9a4a2a, 0x7a3b1e, 0x3b2a1e, 0xb08a52, 0x1d1a17]) : pick(HAIRS),
+    height: isVega ? V.height : (fem ? rnd(1.6, 1.8) : rnd(1.68, 1.94)), hairStyle: isVega ? 0 : fem ? pick([4, 4, 4, 3, 1]) : pick([0, 0, 2, 5, 0]), build: isVega ? V.build : fem ? rnd(.92, 1.02) : rnd(.95, 1.1),
+    jacket: !isVega && !fem && R() < .2 ? pick([0x3d5a7a, 0x5a3f2c, 0x55603f, 0x2e3a4a]) : null, boots: pick([0x3a2c22, 0x2a2622, 0x5a4632]) }, wear);
+  const h = makeHuman(look);
+  const vil = VILL[entry.village];
+  const homes = vil.houses.filter(x => !x.library);
+  const home = homes[Math.floor(idx / 1) % homes.length];
+  home.owners = home.owners || []; home.owners.push(entry.name);
+  const c = {
+    i: idx, name: entry.name, isVega, sex, orient: isVega ? (cfg.vega.orient || 'f') : (() => { const r = R(); return r < .86 ? (sex === 'f' ? 'm' : 'f') : r < .93 ? sex : 'both'; })(), p, v, w, h, look, home, shirt, village: entry.village, homeVillage: entry.village,
+    occupation: isVega ? V.occupation : pick(Object.keys(OCC)),
+    life: isVega ? V.life : LIFE_WANTS[topVal],
+    rates: isVega ? { hunger: .035 * V.appetite, thirst: .06 * V.thirst, sleep: .045 * V.sleepNeed } : { hunger: .035 * rnd(.7, 1.4), thirst: .06 * rnd(.75, 1.3), sleep: .045 * rnd(.8, 1.25) },
+    chrono: isVega ? V.bedtime : 21.5 + rnd(-2, 2.5),
+    needs: { hunger: rnd(.1, .4), thirst: rnd(.1, .4), sleep: rnd(0, .2), energy: rnd(.7, 1), health: 1 },
+    money: rnd(5, 25), rel: new Map(), act: null, thought: '', pos: home.door.clone().add(new THREE.Vector3(rnd(-1, 1), 0, rnd(-1, 1))), yaw: rnd(0, TAU), chatLine: null,
+    alive: true, sick: false, sickAt: Infinity, deathAt: Infinity, cause: '', deathPos: null, found: false, buried: false, remains: null, grave: null,
+    survivor: false, relocated: false, met: false, revived: null,
+  };
+  onGround(c.pos);
+  h.root.position.copy(c.pos);
+  h.root.traverse(o => { o.userData.cit = c; });
+  scene.add(h.root);
+  return c;
+}
+function buildPeople() {
+  const list = roster(cfg);
+  list.forEach((e, idx) => citizens.push(makeCitizen(e, idx)));
+  vegaC = citizens[0];
+  // everyone knows a few neighbours already
+  for (const c of citizens) for (const o of citizens) if (o !== c && o.village === c.village && R() < .3) c.rel.set(o, rnd(.04, .2));
+  for (const name of cfg.vega.friends) {
+    const f = citizens.find(c => c.name === name && !c.isVega); if (!f) continue;
+    vegaC.rel.set(f, .55); f.rel.set(vegaC, .5);
+  }
+  seedRomance(citizens);
+  const crush = cfg.vega.crush && citizens.find(c => c.name === cfg.vega.crush && !c.isVega);
+  if (crush && attractedTo(vegaC, crush)) { vegaC.spark.set(crush, .95); vegaC.att.set(crush, .5); }
+  for (const name of cfg.outside.survivors) { const s = citizens.find(c => c.name === name && !c.isVega); if (s && cfg.outside.ending === 'survivors') s.survivor = true; }
+}
+
+const isNight = (h, c) => { const hh = h % 24, s = c.chrono % 24, e = (c.chrono + 8.5) % 24; return s < e ? hh >= s && hh < e : hh >= s || hh < e; };
+function nearPlace(v, k, rr) { const pl = VILL[v].places[k], a = rnd(0, TAU), r = Math.sqrt(R()) * (rr ?? pl.r); return P(pl.pos.x + Math.cos(a) * r, pl.pos.z + Math.sin(a) * r); }
+function topFriend(c, n = 1) { const arr = [...c.rel.entries()].filter(([o]) => o !== c).sort((a, b) => b[1] - a[1]); return n === 1 ? (arr[0] && arr[0][1] > .15 ? arr[0][0] : null) : arr.slice(0, n); }
+const inTown = c => c.alive && (!c.isVega || sim.phase === 'life' || sim.phase === 'setup');
+
+const CIV_THOUGHTS = {
+  eat: c => c.needs.hunger > .7 ? 'Starving. Market, now.' : (WORLD.food < .5 ? 'The stalls are half empty again.' : pick(['Something to eat first.', 'Bread, then the rest of the day.'])),
+  forage: c => WORLD.food < .5 ? 'Digging for anything the blight left.' : pick(['No coins. The fields will have to do.', 'Picking whatever grows.']),
+  drink: c => c.needs.thirst > .7 ? 'Mouth like sand. The well.' : 'A drink at the well.',
+  sleep: c => c.sick ? 'Burning up. Can\'t get out of bed.' : (c.needs.sleep > .7 ? 'Can barely keep my eyes open.' : 'Home, and bed.'),
+  work: c => c.money < 8 ? 'Need coin before the market closes.' : pick(['Back to the bench.', `Every job gets me closer. ${c.life.replace('Wants', 'I want').replace('their own', 'my own')}.`]),
+  learn: c => pick(['There was a book I didn\'t finish.', 'The library is quiet this time of day.']),
+  social: c => { const f = topFriend(c); if (!c.isVega && vegaC && (vegaC.rel.get(c) || 0) > .3 && sim.phase !== 'life') return `Nobody has seen ${vegaC.name} in weeks.`; return f ? `Maybe ${f.name} is at the plaza.` : 'I could use some company.'; },
+  wander: c => c.p.independence > .6 ? 'Walking the edge of town. Thinking about leaving.' : 'Just walking.',
+  visit: c => `Walking to ${VILL[c.act.visitV].name}. ${pick(['Trading.', 'Seeing family there.', 'News travels slowly otherwise.'])}`,
+  family: c => pick(['Supper at home tonight. Everyone at the table.', 'Home early. They\'ll be waiting.']),
+  shop: c => c.crush && !c.partner && !c.gift ? `Something small for ${c.crush.name}. Is that too much?` : pick(['Payday. The store.', 'A new book, maybe.', 'Tins for the cupboard. You never know.']),
+  date: c => c.partner ? pick([`Meeting ${c.partner.name} by the well tonight.`, `${c.partner.name}. I've been thinking about ${c.partner.name} all day.`, `A walk with ${c.partner.name} before dark.`]) : 'Walking.',
+  court: c => c.crush ? pick([`If ${c.crush.name} is at the plaza, I'll say something this time.`, `I keep finding reasons to walk past ${c.crush.name}'s door.`, `What do I even say to ${c.crush.name}?`]) : 'Walking.',
+};
+function civDecide(c, hour) {
+  const n = c.needs, W = c.w, noise = () => R() * .25 * (.5 + c.p.impulsiveness);
+  const want = k => W[k].w * Math.pow(1 - W[k].l, 1.3) * 1.25;
+  const night = isNight(hour, c), day = hour % 24 > 7 && hour % 24 < 19, vi = c.village;
+  const U = {
+    eat: c.money >= 4 && WORLD.food > .15 ? Math.pow(n.hunger, 1.4) * 2.4 : 0,
+    forage: c.money < 4 || WORLD.food <= .15 ? Math.pow(n.hunger, 1.4) * 2 : 0,
+    drink: Math.pow(n.thirst, 1.4) * 2.4,
+    sleep: Math.pow(n.sleep, 1.5) * 2 + (night ? (n.sleep > .3 ? 1 : .35) : 0) + (n.energy < .15 ? 1 : 0) + (c.sick ? 4 : 0),
+    work: day ? want('achieve') + (c.money < 10 ? .35 : 0) : 0,
+    learn: want('know') * (night ? .4 : 1),
+    social: want('social') * (night ? .45 : 1),
+    wander: want('free') * (night ? .3 : 1) * .8,
+    visit: VILL.length > 1 && day && !c.sick && WORLD.food > .3 ? want('free') * .35 + c.p.extraversion * .1 : 0,
+    family: hour % 24 > 17 && hour % 24 < 21 ? want('family') * .9 : 0,
+    shop: c.money > 14 && day && VILL[vi].places.store ? (.12 + want('achieve') * .15 + want('know') * .1 + (c.crush && !c.partner && !c.gift ? .35 : 0) + (WORLD.blight ? .3 : 0)) * Math.min(1.6, c.money / 25) : 0,
+    date: c.partner && inTown(c.partner) && !c.partner.sick && hour % 24 > 17 && hour % 24 < 22 && !c.sick ? .55 + c.emo.love * .7 + c.emo.lust * .3 : 0,
+    court: c.crush && !c.partner && inTown(c.crush) && day && !c.sick ? (c.att.get(c.crush) || 0) * (.35 + c.p.extraversion * .5) : 0,
+  };
+  let best = 'wander', bv = -1;
+  for (const k in U) { const u = U[k] + noise(); if (u > bv) { bv = u; best = k; } }
+  let target, dur, yaw = null, visitV = null;
+  switch (best) {
+    case 'eat': target = nearPlace(vi, 'market', 2.4); dur = .8; c.money -= 4; break;
+    case 'forage': target = nearPlace(vi, 'fields'); dur = 1.5; break;
+    case 'drink': target = nearPlace(vi, 'well', 1.8); dur = .4; break;
+    case 'sleep': target = c.home.door.clone(); dur = c.sick ? 24 : 8; break;
+    case 'work': target = nearPlace(vi, 'workshop', 2.6); dur = rnd(2.5, 4.5); break;
+    case 'learn': target = nearPlace(vi, 'library', 2.2); dur = rnd(1.5, 3); break;
+    case 'social': target = nearPlace(vi, 'plaza'); dur = rnd(1.2, 2.8); break;
+    case 'family': target = c.home.door.clone().add(new THREE.Vector3(rnd(-1.5, 1.5), 0, rnd(-1.5, 1.5))); dur = rnd(1, 2); break;
+    case 'visit': { visitV = pick(VILL.filter(x => x.i !== vi)).i; target = nearPlace(visitV, 'plaza'); dur = rnd(2, 4); break; }
+    case 'date': { target = nearPlace(c.partner.village, pick(['well', 'plaza', 'fields']), 2.5); dur = rnd(1, 2.2); const o = c.partner; if (!o.act || !['sleep', 'eat', 'date'].includes(o.act.kind)) { o.act = { kind: 'date', target: target.clone().add(new THREE.Vector3(.9, 0, .4)), dur, t: 0, arrived: false }; o.thought = CIV_THOUGHTS.date(o); } break; }
+    case 'shop': target = VILL[vi].places.store.pos.clone().add(new THREE.Vector3(rnd(-1, 1), 0, rnd(-1, 1))); dur = rnd(.4, .9); break;
+    case 'court': { const o = c.crush; target = o.pos.clone().add(new THREE.Vector3(rnd(-1.4, 1.4), 0, rnd(-1.4, 1.4))); dur = rnd(.6, 1.4); break; }
+    case 'wander': { const a = rnd(0, TAU), r = rnd(26, 44), V = VILL[vi]; target = P(V.x + Math.cos(a) * r, V.z + Math.sin(a) * r); dur = rnd(.6, 1.6); break; }
+  }
+  onGround(target);
+  c.act = { kind: best, target, dur, t: 0, yaw, arrived: false, visitV };
+  c.thought = CIV_THOUGHTS[best](c);
+}
+const CIV_POSE = { shop: 'reach_wall', eat: 'eat_stand', forage: 'forage', drink: 'eat_stand', sleep: 'lie', work: 'hammer', learn: 'read', social: 'chat', wander: 'look', visit: 'chat', family: 'chat', date: 'chat', court: 'chat' };
+const CIV_TOOL = { eat: 'bread', forage: 'basket', drink: 'bucket', work: 'hammer', learn: 'book', date: 'flower', shop: 'basket' };
+const CHAT = c => {
+  const f = topFriend(c);
+  const lines = [c.life.replace('Wants', 'I want').replace('their own', 'my own') + '.', 'Did you hear the well rope snapped?', 'Market prices again.', 'Long day at the bench.', 'Rain tomorrow, maybe.'];
+  if (f) lines.push(`Have you seen ${f.name}?`);
+  if (c.act && c.act.kind === 'visit') lines.push(`How are things in ${VILL[c.homeVillage].name}?`, 'I walked all morning to get here.');
+  if (c.isVega) lines.push('I want to see the coast one day.', 'What do you think is in that grey building?');
+  if (WORLD.food < .7) lines.push('The fields are black.', 'My hands won\'t stop shaking.', 'Three more buried this week.');
+  if (c.survivor && WORLD.blight) lines.push('We should go somewhere the fever hasn\'t reached.');
+  const o = c.chatPartner;
+  if (o && c.partner === o) return pick([`I could stay out here all night with you, ${o.name}.`, 'Your hand is cold. Here.', 'Do you ever think about leaving? Together?', 'Stay a bit longer.', 'I missed you today.']);
+  if (o && c.crush === o) return pick(['I... like your coat.', `Oh. Hi, ${o.name}.`, 'Are you going to the market tomorrow? I might be.', 'Sorry. I forgot what I was saying.']);
+  if (c.emo && c.emo.jealousy > .4 && (c.partner || c.crush)) return pick([`Who was ${(c.partner || c.crush).name} laughing with?`, 'Never mind. It\'s nothing.']);
+  return pick(lines);
+};
+
+function die(c) {
+  c.alive = false;
+  const asleep = c.act && c.act.kind === 'sleep' && c.act.arrived;
+  c.deathPos = asleep && c.home.rec && c.home.rec.bedWorld ? c.home.rec.bedWorld() : onGround(c.pos.clone().add(new THREE.Vector3(rnd(-.6, .6), 0, rnd(-.6, .6))));
+  c.h.root.visible = false;
+  const friend = vegaC && (vegaC.rel.get(c) || 0) > .25;
+  OUT.push({ h: sim.hours, text: `${c.name} died of ${c.cause}${asleep ? ' at home' : ''} in ${VILL[c.village].name}.`, friend });
+  if (sim.phase === 'after') { makeRemains(c); }
+  const left = citizens.filter(o => o.alive && !o.isVega && !o.survivor).length;
+  if (left === 0 && !OUT.noneLeft) { OUT.noneLeft = true; OUT.push({ h: sim.hours, text: citizens.some(o => o.survivor) ? 'Only the few who fled are left.' : 'Nobody is left.' }); }
+}
+
+function civStep(dtH, dtR) {
+  const hour = sim.hours;
+  if (hour >= sim.collapseAt) {
+    if (!WORLD.blight) {
+      WORLD.blight = true;
+      OUT.push({ h: hour, text: { fever: 'A fever starts in the market and spreads house to house.', famine: 'A black rot spreads through every field.', both: 'A black rot takes the fields. Then a fever comes.' }[cfg.outside.cause] });
+    }
+    if (cfg.outside.cause !== 'fever') WORLD.food = clamp(WORLD.food - dtH / (24 * 22), .08, 1);
+    else WORLD.food = clamp(WORLD.food - dtH / (24 * 60), .45, 1);
+  }
+  storesDuringCollapse(dtH);
+  for (const c of citizens) {
+    if (!inTown(c) || c.companion) continue;
+    const n = c.needs;
+    if (c.survivor && WORLD.blight && !c.relocated && hour >= sim.collapseAt + 48) relocate(c);
+    if (!c.sick && hour >= c.sickAt) { c.sick = true; c.act = null; if (R() < .25) OUT.push({ h: hour, text: `${c.name} has the fever.` }); }
+    if (hour >= c.deathAt) { die(c); continue; }
+    const a = c.act, sleeping = a && a.kind === 'sleep' && a.arrived;
+    n.hunger = clamp(n.hunger + c.rates.hunger * dtH * (sleeping ? .5 : 1));
+    n.thirst = clamp(n.thirst + c.rates.thirst * dtH * (sleeping ? .4 : 1));
+    if (c.survivor) n.hunger = Math.min(n.hunger, .7);   // they ration; that is how they lasted
+    if (!sleeping) { n.sleep = clamp(n.sleep + c.rates.sleep * dtH); n.energy = clamp(n.energy - .03 * dtH); }
+    if (c.sick) n.health = clamp(n.health - .01 * dtH);
+    else if (n.hunger > .85 || n.thirst > .92) n.health = clamp(n.health - .02 * dtH); else n.health = clamp(n.health + .01 * dtH);
+    for (const k in c.w) c.w[k].l = clamp(c.w[k].l - c.w[k].w * .014 * dtH);   // wants drain slowly enough that a day of living can keep up
+    romanceStep(c, dtH);
+    if (c.gift && c.crush && c.chatPartner === c.crush && c.act && c.act.arrived) { c.gift = false; const o = c.crush; if (o.att && o.spark.has(c)) { o.att.set(c, clamp((o.att.get(c) || 0) + .18)); o.emo.joy = clamp(o.emo.joy + .2); } c.chatLine = { text: pick(['I saw this and thought of you.', 'It\'s nothing. It\'s a bird. Here.']), until: performance.now() + 3200 }; }
+    if (c.partner && c.partner.village === c.village && c.partner.home !== c.home && c.emo.love > .45 && c.i < c.partner.i) { c.partner.home = c.home; if (c.isVega || c.partner.isVega) OUT.push({ h: hour, text: `${vegaC.name} and ${(c.isVega ? c.partner : c).name} move in together.`, heart: true }); }
+    if (!c.act || c.act.t >= c.act.dur || (!c.sick && n.hunger > .85 && c.act.kind !== 'eat' && c.act.kind !== 'forage') || (!c.sick && n.thirst > .9 && c.act.kind !== 'drink')) {
+      c.h.root.visible = true;
+      civDecide(c, hour);
+    }
+    const act = c.act;
+    const dx = act.target.x - c.pos.x, dz = act.target.z - c.pos.z, dist = Math.hypot(dx, dz);
+    if (!act.arrived) {
+      const step = Math.min(dist, WALK * dtH * (.6 + .4 * n.energy) * (c.sick ? .4 : 1));
+      if (dist > .15) { c.pos.x += dx / dist * step; c.pos.z += dz / dist * step; onGround(c.pos); if (dtR) c.yaw += angDiff(c.yaw, Math.atan2(dx, dz)) * Math.min(1, dtR * 8); c.h.phase += step * 4.4; }
+      else act.arrived = true;
+    } else {
+      act.t += dtH;
+      const k = act.kind;
+      if (k === 'eat') n.hunger = clamp(n.hunger - .65 * WORLD.food * dtH);
+      if (k === 'forage') n.hunger = clamp(n.hunger - .22 * Math.max(.3, WORLD.food) * dtH);
+      if (k === 'drink') { n.thirst = clamp(n.thirst - 1.6 * dtH); if (n.thirst < .03) act.t = act.dur; }
+      if (k === 'sleep') { n.sleep = clamp(n.sleep - .17 * dtH); n.energy = clamp(n.energy + .13 * dtH); c.h.root.visible = false; if (!c.sick && n.sleep < .03 && !isNight(hour, c)) act.t = act.dur; }
+      if (k === 'work') { c.money += 6 * dtH; n.energy = clamp(n.energy - .03 * dtH); c.w.achieve.l = clamp(c.w.achieve.l + .13 * dtH); }
+      if (k === 'learn') c.w.know.l = clamp(c.w.know.l + .16 * dtH);
+      if (k === 'wander' || k === 'visit') c.w.free.l = clamp(c.w.free.l + .2 * dtH);
+      if (k === 'family') c.w.family.l = clamp(c.w.family.l + .2 * dtH);
+      if (k === 'shop' && !act.bought) { act.bought = true; buy(c); }
+      if (k === 'date' || k === 'court') { c.w.social.l = clamp(c.w.social.l + .2 * dtH); if (k === 'date') { c.emo.affection = clamp(c.emo.affection + .04 * dtH); c.emo.lust = clamp(c.emo.lust - .02 * dtH); } }
+      if (k === 'social' || k === 'work' || k === 'visit' || k === 'date' || k === 'court') {
+        let best = null, bd = 3.6;
+        for (const o of citizens) {
+          if (o === c || !inTown(o) || !o.act || !o.act.arrived) continue;
+          const talky = x => x === 'social' || x === 'visit' || x === 'date' || x === 'court';
+          if (!(o.act.kind === k || (talky(k) && talky(o.act.kind)))) continue;
+          const dd = o.pos.distanceTo(c.pos); if (dd < bd && (k !== 'date' || o === c.partner || !best || best !== c.partner)) { bd = dd; best = o; }
+          if (dd < 3.6) { c.rel.set(o, clamp((c.rel.get(o) || 0) + (k === 'work' ? .025 : .09) * dtH * (.3 + (c.p.agreeableness + o.p.agreeableness) / 2))); romanceNear(c, o, dtH, k); }
+        }
+        if (k !== 'work') {
+          c.w.social.l = clamp(c.w.social.l + .17 * dtH * (best ? 1 + (c.rel.get(best) || 0) : .4));
+          c.chatPartner = best;
+          if (best && dtR) { const dd = best.pos.clone().sub(c.pos); c.yaw += angDiff(c.yaw, Math.atan2(dd.x, dd.z)) * Math.min(1, dtR * 4); }
+          if (best && R() < dtH * .6) c.chatLine = { text: CHAT(c), until: performance.now() + 2600 };
+        }
+      }
+    }
+  }
+}
+// what wages buy: a gift for someone, a book, a tool, tins for the cupboard, a new jumper. It is kept at
+// home, and some of it will still be there when he comes back.
+function buy(c) {
+  const st = STORES.find(s => s.v === c.village && s.store === 'grocery'), home = c.home.stock || (c.home.stock = {});
+  const opts = [];
+  if (c.crush && !c.partner && !c.gift) opts.push(['gift', 6, 3]);
+  opts.push(['cans', 4, 1 + (WORLD.blight ? 2 : 0)], ['book', 7, c.w.know.w], ['tool', 10, c.occupation === 'crafter' || c.occupation === 'hunter' ? 1 : .3], ['clothes', 9, c.v.status]);
+  let best = null, bv = -1; for (const o of opts) { const v = o[2] * (.6 + R() * .8); if (c.money >= o[1] && v > bv) { bv = v; best = o; } }
+  if (!best) return;
+  c.money -= best[1];
+  if (best[0] === 'gift') { c.gift = true; c.thought = `I bought ${c.crush.name} a little carved bird.`; }
+  if (best[0] === 'cans') { home.cans = (home.cans || 0) + 2; if (st) st.stock.cans = Math.max(0, st.stock.cans - 2); }
+  if (best[0] === 'book') home.books = (home.books || 0) + 1;
+  if (best[0] === 'tool') home.tools = (home.tools || 0) + 1;
+  if (best[0] === 'clothes') { c.w.achieve.l = clamp(c.w.achieve.l + .1); c.emo.joy = clamp(c.emo.joy + .1); }
+  c.purchases = (c.purchases || 0) + 1;
+}
+function relocate(c) {
+  c.relocated = true;
+  const ref = refugeVillage();
+  c.village = ref;
+  const hs = VILL[ref].houses.filter(x => !x.library);
+  c.home = hs[Math.floor(R() * hs.length)];
+  c.act = null;
+  OUT.push({ h: sim.hours, text: `${c.name} packs what they can carry and leaves for ${VILL[ref].name}.`, friend: (vegaC.rel.get(c) || 0) > .25 });
+}
+function refugeVillage() {
+  if (cfg.outside.refuge !== 'far' && +cfg.outside.refuge < VILL.length) return +cfg.outside.refuge;
+  const home = VILL[vegaC.homeVillage];
+  return VILL.slice().sort((a, b) => Math.hypot(b.x - home.x, b.z - home.z) - Math.hypot(a.x - home.x, a.z - home.z))[0].i;
+}
+
+const _lookP = new THREE.Vector3();
+function renderPeople(dtR, now, filter) {
+  for (const c of citizens) {
+    if (!filter(c)) continue;
+    const a = c.act, h = c.h;
+    h.root.position.copy(c.pos); h.root.rotation.y = c.yaw;
+    let kind = 'stand';
+    if (a) kind = a.arrived ? CIV_POSE[a.kind] : 'walk';
+    h.phase += (a && a.arrived ? dtR * 3 : 0);
+    applyPose(h, pose(kind, h.phase, { slump: c.sick ? .6 : 0, tremor: c.sick ? .05 : 0 }), 1 - Math.exp(-dtR * 9));
+    holdTool(h, a && a.arrived ? CIV_TOOL[a.kind] || null : (a && a.kind === 'date' ? 'flower' : null));
+    if (dtR && camera.position.distanceTo(c.pos) < 30) {
+      const st = lifeState(c);
+      setFace(h, faceFrom(st, a && a.kind === 'sleep' && a.arrived), dtR);
+      const o = c.chatPartner && a && a.arrived ? c.chatPartner : (c.crush && c.crush.pos.distanceTo(c.pos) < 9 && inTown(c.crush) ? c.crush : null);
+      lookAtPoint(h, o ? _lookP.set(o.pos.x, o.pos.y + 1.55, o.pos.z) : null, dtR, o ? 1 : 0);
+    }
+    if (c.chatLine && now < c.chatLine.until && h.root.visible && camera.position.distanceTo(c.pos) < 70) tag('chat' + c.i, c.chatLine.text, new THREE.Vector3(c.pos.x, c.pos.y + 2.3, c.pos.z), 'bub');
+  }
+}
