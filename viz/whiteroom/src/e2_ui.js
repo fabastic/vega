@@ -1,3 +1,4 @@
+
 // =====================================================================
 // PLAYING GOD: things you can put into his world, and what you can do to it
 // =====================================================================
@@ -130,4 +131,118 @@ function earthquake() {
 function godTick() {
   for (const b of BUILDS) if (b.fire && sim.hours > b.fireUntil) { b.g.remove(b.fire); b.g.remove(b.fireLight); b.fire = null; }
   for (const b of BUILDS) if (b.fire) for (const f of b.fire.children) f.scale.y = .7 + Math.random() * .6;
+}
+
+// ---------- the panels for all of this ----------
+GOD.armed = null;
+function buildGodPanel(el, groups) {
+  el.innerHTML = groups.map(([g, tools]) => `<div class="godg"><span class="lbl dim">${g}</span><div class="god">${tools.map(([id, label, , place]) => `<button type="button" data-g="${id}"${place ? ' data-place="1"' : ''}>${label}</button>`).join('')}</div></div>`).join('') + `<p class="dim godhint" id="${el.id}Hint">${groups === GOD_WORLD ? 'Tools marked with a dot are placed: press one, then click the ground. Press it again to drop it near him.' : 'Everything you do here changes his world, not his choices.'}</p>`;
+  el.onclick = e => {
+    const b = e.target.closest('button[data-g]'); if (!b) return;
+    const tool = groups.flatMap(([, t]) => t).find(t => t[0] === b.dataset.g); if (!tool) return;
+    if (tool[3]) {
+      if (GOD.armed && GOD.armed[0] === tool[0]) { const a = rnd(0, TAU), r = rnd(14, 26); tool[2](P(A.pos.x + Math.cos(a) * r, A.pos.z + Math.sin(a) * r)); GOD.armed = null; }
+      else GOD.armed = tool;
+      el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', GOD.armed && x.dataset.g === GOD.armed[0]));
+      $('#placeHint').hidden = !GOD.armed; if (GOD.armed) $('#placeHint').textContent = `Click the ground to place: ${GOD.armed[1].toLowerCase()}. Press Esc to cancel.`;
+      return;
+    }
+    tool[2]();
+  };
+}
+addEventListener('keydown', e => { if (e.key === 'Escape' && GOD.armed) { GOD.armed = null; $('#placeHint').hidden = true; document.querySelectorAll('.god button').forEach(x => x.setAttribute('aria-pressed', 'false')); } if (e.key === 'Escape') $('#atlas').hidden = true; });
+function godPlace(e) {
+  if (!GOD.armed || sim.phase !== 'after' || !TERRAIN.mesh) return false;
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObject(TERRAIN.mesh)[0]; if (!hit) return false;
+  GOD.armed[2](hit.point.clone()); GOD.armed = null; $('#placeHint').hidden = true; document.querySelectorAll('.god button').forEach(x => x.setAttribute('aria-pressed', 'false'));
+  return true;
+}
+
+// status icons, in the manner of Project Zomboid's moodles: they appear only when something is wrong
+// (or right), and darken with severity
+const MOODLE_SVG = {
+  hunger: '<path d="M8 4v8M6 4v4a2 2 0 0 0 4 0V4M16 4c-2 2-2 6 0 8v8M8 12v8"/>', thirst: '<path d="M12 3c4 6 6 9 6 12a6 6 0 0 1-12 0c0-3 2-6 6-12z"/>', tired: '<path d="M15 4a8 8 0 1 0 5 13A7 7 0 0 1 15 4z"/>',
+  cold: '<path d="M12 3v18M4 7.5l16 9M4 16.5l16-9"/>', pain: '<path d="M13 3L6 13h5l-1 8 8-11h-5z"/>', sick: '<path d="M10 4h4v10a4 4 0 1 1-4 0z"/>', panic: '<path d="M12 4v10M12 18v1"/>',
+  sad: '<circle cx="12" cy="12" r="8"/><path d="M8.5 16.5c2-2 5-2 7 0M9 10h.01M15 10h.01"/>', bored: '<circle cx="12" cy="12" r="8"/><path d="M8.5 15.5h7M9 10h.01M15 10h.01"/>', lonely: '<circle cx="12" cy="8" r="3"/><path d="M6 20c0-4 3-6 6-6s6 2 6 6"/>',
+  love: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z"/>', stress: '<path d="M3 12l3-5 3 10 3-10 3 10 3-10 3 5"/>', unreal: '<path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  wet: '<path d="M7 4l-2 5M12 4l-2 5M17 4l-2 5M9 13l-2 5M14 13l-2 5"/>', scar: '<rect x="5" y="5" width="14" height="14"/><path d="M9 9h6v6H9z"/>', peace: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16M12 12l-5.5 5.5M12 12l5.5 5.5"/>',
+};
+function moodles() {
+  const L = (v, a, b, c, d) => v > d ? 4 : v > c ? 3 : v > b ? 2 : v > a ? 1 : 0;
+  const after = sim.phase === 'after', out = [];
+  const add = (k, label, lvl, good) => { if (lvl > 0) out.push({ k, label, lvl, good }); };
+  add('hunger', 'Hungry', L(S.hunger, .45, .6, .75, .88)); add('thirst', 'Thirsty', L(S.thirst, .45, .6, .75, .88)); add('tired', 'Tired', L(S.sleep, .5, .65, .8, .9));
+  add('cold', 'Cold', L(1 - (S.warmth ?? 1), .35, .5, .7, .85)); add('pain', 'Pain', L(S.pain, .15, .35, .55, .75)); add('sick', 'Sick', after && A.sickLeft > 0 ? 3 : ITEMS.poison > 0 ? 3 : 0);
+  add('panic', 'Panic', L(S.fear, .5, .65, .8, .9)); add('stress', 'Stressed', L((S.dread || 0) * .6 + S.anger * .4, .35, .5, .65, .8)); add('sad', 'Unhappy', L(derived().despair, .35, .5, .65, .8));
+  add('bored', 'Bored', L(S.boredom, .45, .6, .75, .9)); add('lonely', 'Lonely', L(S.loneliness, .45, .6, .75, .9)); add('unreal', 'Hallucinating', L(1 - S.grip, .25, .45, .65, .82));
+  add('scar', 'The room', after ? L(S.ptsd || 0, .15, .3, .5, .7) : 0); add('wet', 'Wet', after && ['rain', 'storm'].includes(WEATHER.kind) ? 2 : 0);
+  add('love', 'In love', L(Math.max(S.love * (S.attraction || 0) * 1.6, S.tenderness || 0), .3, .45, .6, .8), true); add('peace', 'At peace', L(equanimity(), .2, .4, .6, .8), true);
+  return out;
+}
+function renderMoodles() {
+  const el = $('#moodles'), list = sim.phase === 'chamber' || sim.phase === 'after' ? moodles() : [];
+  const html = list.map(m => `<span class="moodle ${m.good ? 'good' : ''} l${m.lvl}" title="${m.label} (${m.lvl}/4)"><svg viewBox="0 0 24 24" aria-hidden="true">${MOODLE_SVG[m.k]}</svg><i>${'▲'.repeat(Math.ceil(m.lvl / 2))}</i></span>`).join('');
+  if (el._h !== html) { el._h = html; el.innerHTML = html; }
+}
+// feelings panel and the atlas of all of them
+function feelChips(words, n = 14) {
+  return topFeelings(words, n).map(e => `<span title="${escapeHtml(EMO_DEF[e.w] || e.fam)}" style="border-color:${famCol(e.fam)};background:color-mix(in srgb, ${famCol(e.fam)} ${Math.round(e.v * 30)}%, transparent);font-weight:${e.v > .6 ? 650 : 500}">${escapeHtml(e.w)} ${Math.round(e.v * 100)}</span>`).join('') || '<span class="dim" style="border:0">Quiet inside.</span>';
+}
+let atlasWords = null;
+function openAtlas(words, who) {
+  atlasWords = { words, who }; $('#atlas').hidden = false; $('#atlasWho').textContent = who; renderAtlas();
+}
+function renderAtlas() {
+  if (!atlasWords) return;
+  const q = ($('#atlasQ').value || '').toLowerCase(), only = $('#atlasNow').checked;
+  const list = atlasWords.words.filter(e => (!q || e.w.toLowerCase().includes(q) || e.fam.includes(q)) && (!only || e.v > .1));
+  const byL = {}; for (const e of list) (byL[e.w[0].toUpperCase()] = byL[e.w[0].toUpperCase()] || []).push(e);
+  $('#atlasCount').textContent = `${list.length} of ${atlasWords.words.length} feelings`;
+  $('#atlasList').innerHTML = Object.keys(byL).sort().map(L => `<section><h4>${L}</h4><ul>${byL[L].map(e => `<li title="${escapeHtml(EMO_DEF[e.w] || e.fam)}"><span class="w">${escapeHtml(e.w)}</span><span class="b"><i style="width:${(e.v * 100).toFixed(0)}%;background:${famCol(e.fam)}"></i></span>${EMO_DEF[e.w] ? `<small>${escapeHtml(EMO_DEF[e.w])}</small>` : ''}</li>`).join('')}</ul></section>`).join('');
+}
+function mindHTML() {
+  const hs = HALL.stage, motifs = Object.entries(HALL.w).filter(([k]) => k !== 'light' || equanimity() > .3).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => ({ geometry: 'geometry', faces: 'faces in the walls', voices: 'voices', ghosts: 'the people he misses', food: 'food that isn\'t there', door: 'doors that aren\'t there', eyes: 'eyes', village: 'his village', crush: ROOM.crush ? ROOM.crush.name : 'someone he wants', rats: 'rats', blood: 'blood', observer: 'the watcher', light: 'light' }[k]));
+  return `<div class="meters"><span class="k">Depth · ${depthStage()}</span><span class="bar"><i class="mind" style="width:${(S.depth * 100).toFixed(0)}%"></i></span><span class="v">${Math.round(S.depth * 100)}</span>`
+    + `<span class="k">Equanimity</span><span class="bar"><i class="good" style="width:${(equanimity() * 100).toFixed(0)}%"></i></span><span class="v">${Math.round(equanimity() * 100)}</span>`
+    + `<span class="k">Senses he suspects are watched</span><span class="bar"><i class="bad" style="width:${(watched() * 100).toFixed(0)}%"></i></span><span class="v">${Math.round(watched() * 100)}</span></div>`
+    + `<p class="q">“${escapeHtml(currentQuestion())}”</p>`
+    + `<p class="dim">Hallucinations: <b>${HALL_STAGES[hs]}</b>${hs >= 1 ? ` · drawn mostly from ${motifs.join(', ')}` : ''}${HALL.insight > .4 ? ' · he knows they are not real' : ''}</p>`;
+}
+function dayHTML() {
+  const p = DAY.prev; if (!p) return '<span class="dim">His first day here. Nothing to carry over yet.</span>';
+  const leans = Object.entries(p.bias).filter(([, m]) => m > 1.05).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => (ALABEL[k] || BEH_LABEL[k] || k).toLowerCase());
+  const avoids = Object.entries(p.bias).filter(([, m]) => m < .95).slice(0, 3).map(([k]) => (ALABEL[k] || BEH_LABEL[k] || k).toLowerCase());
+  return `<p>Day ${p.day - 1} was <b style="color:${p.valence > .15 ? 'var(--calm)' : p.valence < -.15 ? 'var(--alarm)' : 'var(--ink2)'}">${p.valence > .4 ? 'a good day' : p.valence > .15 ? 'a decent day' : p.valence > -.15 ? 'an ordinary day' : p.valence > -.4 ? 'a hard day' : 'a terrible day'}</b>.</p>`
+    + (p.notes.length ? `<ul class="perceive">${p.notes.slice(0, 3).map(n => `<li><span>${escapeHtml(n.t)}</span></li>`).join('')}</ul>` : '')
+    + (leans.length ? `<p class="dim">Today he leans toward ${leans.join(', ')}${avoids.length ? `, and away from ${avoids.join(', ')}` : ''}.</p>` : '');
+}
+function heartHTML(c) {
+  if (!c || !c.att) return '';
+  const crush = c.crush, partner = c.partner, admirers = citizens.filter(o => o.crush === c && o !== partner).map(o => o.name);
+  const orient = { f: 'women', m: 'men', both: 'women and men' }[c.orient];
+  return `<p>${partner ? `With <b>${escapeHtml(partner.name)}</b>${c.emo.love > .6 ? ', deeply in love' : ''}.` : crush ? `A crush on <b>${escapeHtml(crush.name)}</b> (${Math.round((c.att.get(crush) || 0) * 100)}).${crush.crush === c ? ' It is mutual.' : crush.partner ? ` ${escapeHtml(crush.name)} is with ${escapeHtml(crush.partner.name)}.` : ''}` : 'Nobody has caught their eye yet.'}</p>`
+    + `<p class="dim">Drawn to ${orient}.${admirers.length ? ` ${admirers.join(', ')} ${admirers.length > 1 ? 'have' : 'has'} a crush on ${c.isVega ? 'him' : 'them'}.` : ''}</p>`
+    + `<div class="meters">${[['Love', c.emo.love, 'civ'], ['Desire', c.emo.lust, 'civ'], ['Jealousy', c.emo.jealousy, 'bad'], ['Heartbreak', c.emo.heartbreak, 'bad']].filter(r => r[1] > .02).map(([k, v, cl]) => `<span class="k">${k}</span><span class="bar"><i class="${cl}" style="width:${(v * 100).toFixed(0)}%"></i></span><span class="v">${Math.round(v * 100)}</span>`).join('')}</div>`;
+}
+function ptsdHTML() {
+  if (!S.ptsd) return '<span class="dim">No sign of it.</span>';
+  return `<div class="meters"><span class="k">What the room left</span><span class="bar"><i class="bad" style="width:${(S.ptsd * 100).toFixed(0)}%"></i></span><span class="v">${Math.round(S.ptsd * 100)}</span></div>`
+    + (PTSD.flash ? `<p style="color:var(--alarm)">Flashback now: ${escapeHtml(CUE_LINE[PTSD.flash.cue] || '')}</p>` : PTSD.lastCue ? `<p class="dim">Near a trigger: ${PTSD.lastCue.replace('_', ' ')}.</p>` : '')
+    + (PTSD.symptoms.length ? `<ul class="perceive">${PTSD.symptoms.map(s => `<li><span>${s}</span></li>`).join('')}</ul>` : '');
+}
+function familyHTML() {
+  const p = partnerOf(), kids = FAMILY.children;
+  const cands = COMPANIONS.filter(z => z.kind !== 'zombie' && !childOf(z) && attractedTo(vegaC, z.c));
+  let h = p ? `<p>With <b>${escapeHtml(p.c.name)}</b> ♥</p>` : cands.length ? `<p class="dim">${cands.map(z => `${escapeHtml(z.c.name)}: he ${Math.round((z.att || 0) * 100)}, back ${Math.round((z.attBack || 0) * 100)}`).join(' · ')}</p>` : '<p class="dim">Nobody he could love is with him.</p>';
+  if (FAMILY.pregnant) h += `<p>${escapeHtml(FAMILY.pregnant.mother.c.name)} is expecting. ${Math.max(0, Math.ceil((FAMILY.pregnant.due - sim.hours) / 24))} days to go.</p>`;
+  if (kids.length) h += `<p>${kids.map(z => `<b>${escapeHtml(z.c.name)}</b> <span class="dim">${Math.floor(z.age)} days old</span>`).join(' · ')}</p>`;
+  return h;
+}
+function threatHTML() {
+  const list = [...HOSTILES.filter(z => z.alive).map(z => [z.type === 'risen' ? `${z.c.name}, risen` : 'Raider', z.pos.distanceTo(A.pos)]), ...ANIMALS.filter(a => a.alive && (a.aggro || a.state === 'stalk')).map(a => [a.type, a.pos.distanceTo(A.pos)])].sort((a, b) => a[1] - b[1]).slice(0, 6);
+  return `<p class="dim">Weather: ${WEATHER_LABEL[WEATHER.kind]}${A.barricade ? ' · his windows are boarded' : ''}${A.weapon ? ` · armed with ${A.weapon === 'rifle' ? 'a rifle' : 'an axe'}` : A.research.done.tools ? ' · armed with a spear' : ' · unarmed'}</p>`
+    + (list.length ? `<ul class="perceive">${list.map(([n, d]) => `<li class="${d < 25 ? 'unreal' : ''}"><span>${escapeHtml(n)} · ${Math.round(d)} m</span></li>`).join('')}</ul>` : '<span class="dim">Nothing hunting him that he knows of.</span>');
 }
