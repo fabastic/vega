@@ -1,3 +1,4 @@
+
 // =====================================================================
 // SETUP: every part of his life is configurable
 // =====================================================================
@@ -516,3 +517,110 @@ addEventListener('keydown', e => {
   if (e.key === ' ') { e.preventDefault(); setSpeed(speed ? 0 : 1); }
   const m = { '1': 1, '2': 10, '3': 60, '4': 300, '5': 1500 }[e.key]; if (m) setSpeed(m);
 });
+
+// ---------- main loop ----------
+renderSetup();
+resize();
+setPhase('setup');
+let last = performance.now(), panelT = 0;
+const roomCam = new THREE.PerspectiveCamera(70, 1, .05, 100);
+function dailyWorld() {
+  const day = Math.floor(sim.hours / 24);
+  if (day === sim.lastDay) return; sim.lastDay = day;
+  WORLD.season = seasonAt(sim.hours);
+  const w = winterAmt(sim.hours), rot = sim.collapseAt < Infinity && (sim.phase === 'after' || sim.phase === 'return') ? clamp((sim.hours - sim.collapseAt) / (24 * 90)) : (sim.phase === 'life' ? 0 : WORLD.rot);
+  if (Math.abs(rot - WORLD.lastRot) > .02) { applyDecay(rot); WORLD.lastRot = rot; }
+  if (Math.abs(w - WORLD.lastWinter) > .05 || WORLD.lastSeasonC !== WORLD.season || Math.abs(rot - (WORLD.lastRotC || 0)) > .04) { recolorTerrain(rot, w); seasonalFoliage(WORLD.season, w); WORLD.lastWinter = w; WORLD.lastSeasonC = WORLD.season; WORLD.lastRotC = rot; }
+}
+function frame(now) {
+  const dtR = Math.min(.05, (now - last) / 1000); last = now;
+  let dtH = dtR * H_PER_SEC * speed;
+  if (sim.skipTo != null) { dtH = Math.min(Math.max(0, sim.skipTo - sim.hours), 400 * dtR + 1); if (dtH <= 0) sim.skipTo = null; }
+  const ph = sim.phase, live = speed || sim.skipTo != null ? dtR : 0;
+  if (ph === 'life' || ph === 'taken') {
+    const n = Math.max(1, Math.ceil(dtH / .05));
+    for (let i = 0; i < n; i++) { sim.hours += dtH / n; civStep(dtH / n, dtR / n); animalStep(dtH / n, dtR / n); }
+    if (ph === 'life' && sim.hours >= sim.takeAt) { sim.skipTo = null; takeVega(); }
+    dailyWorld();
+    const focus = (camMode === 'follow' || camMode === 'iso') && selected ? selected.pos : controls.target;
+    if (camMode === 'follow' && selected) { controls.target.lerp(selected.pos, Math.min(1, dtR * 3)); }
+    if (camMode === 'iso' && selected) isoFollow(selected.pos, dtR);
+    cutaways(selected ? selected.pos : controls.target, (camMode === 'follow' || camMode === 'iso') && selected && selected.act && selected.act.kind === 'sleep' && selected.act.arrived);
+    lightWorld(focus, 0, winterAmt(sim.hours));
+    renderPeople(live, now, c => inTown(c));
+    renderAnimals(live);
+    labelsWorld();
+    if (selected && selected.h.root.visible) tag('sel', selected.name, new THREE.Vector3(selected.pos.x, selected.pos.y + 2.15, selected.pos.z), selected.isVega ? 'tag vega' : 'tag');
+    if (selected !== vegaC && vegaC.h.root.visible && camera.position.distanceTo(vegaC.pos) < 150) tag('vg', NAME(), new THREE.Vector3(vegaC.pos.x, vegaC.pos.y + 2.15, vegaC.pos.z), 'tag vega');
+    controls.update(); renderer.render(scene, camera);
+    $('#camTL').textContent = `CivSYS · ${citizens.length} people · ${VILL.length} village${VILL.length > 1 ? 's' : ''} · world ${cfg.world.seed}`;
+    $('#camTR').textContent = `${speed ? '' : 'Paused · '}${WORLD.season} · ${Math.round(tempAt(sim.hours))}°C`;
+    $('#clkReal').textContent = fmtClock(sim.hours);
+    $('#clkSub').textContent = `Normal life · day ${Math.floor(sim.hours / 24) + 1} of ${cfg.time.lifeDays}`;
+    if (now - panelT > 180) { panelT = now; renderLifePanel(false); renderCitList(); }
+  } else if (ph === 'chamber') {
+    const n = Math.max(1, Math.ceil(dtH / .04));
+    for (let i = 0; i < n; i++) { sim.hours += dtH / n; roomStep(dtH / n); }
+    const m = Math.max(1, Math.ceil(dtH / .1));
+    for (let i = 0; i < m; i++) civStep(dtH / m, 0);
+    recordHist(); dailyWorld();
+    controls.update();
+    roomRender(live, now);
+    if (!(HALL.freeze > now)) renderer.render(roomScene, camera);
+    $('#camTL').innerHTML = viewMode === 'mind' ? `His mind · ${S.grip > .75 ? 'clear' : S.grip > .4 ? 'slipping' : S.grip > .16 ? 'remembering' : 'dissolving'}` : `CAM 02 · chamber · ${ROOM.dark ? 'IR' : 'day lens'}`;
+    $('#camTR').innerHTML = `<span class="rec"></span> ${viewMode === 'mind' ? 'what he sees' : 'REC'} · ${fmtShort(sim.hours)}`;
+    $('#clkReal').textContent = fmtClock(sim.hours);
+    $('#clkSub').textContent = `Chamber day ${Math.min(cfg.time.chamberDays, Math.floor(ROOM.hours / 24) + 1)} of ${cfg.time.chamberDays} · he thinks day ${ROOM.sleeps + 1}`;
+    if (now - panelT > 180) { panelT = now; renderRoomPanel(); drawTimeline(); }
+  } else if (ph === 'after' || ph === 'return') {
+    if (ph === 'after') {
+      const n = Math.max(1, Math.ceil(dtH / .05));
+      for (let i = 0; i < n; i++) { sim.hours += dtH / n; afterStep(dtH / n); companionStep(dtH / n); animalStep(dtH / n, dtR / n); }
+      const m = Math.max(1, Math.ceil(dtH / .1));
+      for (let i = 0; i < m; i++) civStep(dtH / m, 0);
+      dailyWorld();
+    }
+    if (A.beh) {
+      if (camMode === 'follow') { const want = A.pos.clone().add(new THREE.Vector3(10, 13, 14)); camera.position.lerp(want, Math.min(1, dtR * 1.2)); controls.target.lerp(A.pos.clone().setY(A.pos.y + .8), Math.min(1, dtR * 2)); }
+      if (camMode === 'iso') isoFollow(A.pos, dtR);
+      lightWorld(camMode === 'map' ? controls.target : A.pos, WORLD.rot, winterAmt(sim.hours));
+      godTick();
+      afterRender(live, now);
+      renderPeople(live, now, c => c.alive && !c.isVega && !c.companion);
+      renderAnimals(live);
+      labelsWorld();
+    }
+    if (camMode !== 'pov') controls.update();
+    // a flashback cuts the white room into what he sees, in flickers
+    const cut = PTSD.flash && viewMode === 'mind' && (now % 1100) < 260;
+    $('#flash').style.opacity = PTSD.flash && viewMode === 'mind' ? (cut ? .15 : .35 + Math.sin(now * .01) * .1).toFixed(2) : '0';
+    if (cut) { roomCam.position.set(RS - .3, RH - .2, RS - .3); roomCam.lookAt(0, .8, 0); roomCam.aspect = camera.aspect; roomCam.updateProjectionMatrix(); roomScene.background = new THREE.Color(0xfafaf7); renderer.render(roomScene, roomCam); }
+    else renderer.render(scene, camera);
+    $('#camTL').textContent = viewMode === 'mind' ? `His eyes · ${S.grip > .6 ? 'clear' : S.grip > .35 ? 'haunted' : 'the town is full of ghosts'}` : 'Reality';
+    $('#camTR').textContent = `${speed ? '' : 'Paused · '}${fmtClock(sim.hours)}`;
+    $('#clkReal').textContent = fmtClock(sim.hours);
+    $('#clkSub').textContent = ph === 'return' ? 'Walking out' : A.ended ? `${NAME()} died on day ${Math.floor(aloneDays()) + 1} outside` : `After · day ${Math.floor(aloneDays()) + 1} · ${WORLD.season}`;
+    if (now - panelT > 200 && A.beh) { panelT = now; renderAfterPanel(); }
+  }
+  if (feedDirty) renderFeed();
+  if (now - (frame.mt || 0) > 250) { frame.mt = now; renderMoodles(); }
+  if (sim.phase === 'chamber' || sim.phase === 'after') { if (camMode !== 'pov') { $('#lidT').style.height = $('#lidB').style.height = '0'; } }
+  drawGrain(now);
+  sweepTags();
+  requestAnimationFrame(frame);
+}
+function labelsWorld() {
+  const map = camMode === 'map';
+  for (const v of VILL) {
+    const d = camera.position.distanceTo(v.places.plaza.pos);
+    if (map || d < 160) tag('vn' + v.i, v.name, v.places.plaza.pos.clone().setY(v.h + (map ? 4 : 9)), 'tag village');
+    if (!map && d < 60) for (const k of ['well', 'market', 'workshop', 'library', 'fields']) tag('pl' + v.i + k, VILL[v.i].places[k] && k[0].toUpperCase() + k.slice(1), v.places[k].pos.clone().setY(v.places[k].pos.y + (k === 'fields' ? .4 : 4.2)), 'tag place');
+  }
+  if (map || camera.position.distanceTo(FAC.door) < 160) tag('fac', 'Facility', new THREE.Vector3(FAC.x, FAC.h + 8, FAC.z), 'tag place');
+  if (map && sim.phase === 'after') tag('vmap', NAME(), A.pos.clone().setY(A.pos.y + 3), 'tag vega');
+  if (map && sim.phase === 'after') for (const z of COMPANIONS) tag('cpm' + z.c.i, z.c.name, z.pos.clone().setY(z.pos.y + 3), z.kind === 'zombie' ? 'tag zombie' : 'tag comp');
+  if (map && sim.phase === 'after') for (const c of citizens) if (c.alive && !c.isVega && !c.companion && c.met === false && false) tag('cm' + c.i, c.name, c.pos, 'tag');
+}
+requestAnimationFrame(frame);
+})();
+</script>
