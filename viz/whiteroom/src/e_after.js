@@ -186,3 +186,90 @@ function makeGrave(c) {
   g.position.copy(c.gravePos); g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
   scene.add(g); c.grave = g; GRAVES.push(c);
 }
+
+// ---------- companions: survivors, the revived, the restored ----------
+function addCompanion(c, kind) {
+  let h = c.h;
+  if (kind !== 'survivor') {
+    if (c.h.root.parent) c.h.root.parent.remove(c.h.root);
+    h = makeHuman(Object.assign({}, c.look, kind === 'zombie' ? { zombie: true, shirt: new THREE.Color(c.shirt).lerp(new THREE.Color(0x3d3a33), .5).getHex() } : {}));
+    h.root.traverse(o => { o.userData.cit = c; });
+    c.h = h;
+  }
+  scene.add(h.root); h.root.visible = true;
+  const z = { c, kind, h, pos: (kind === 'survivor' ? c.pos.clone() : labPos().add(new THREE.Vector3(1.5, 0, 1.5))), yaw: 0, act: null, attacks: 0, unstable: kind === 'zombie' && cfg.after.zombies === 'unstable', nextLine: rnd(2, 8) };
+  onGround(z.pos);
+  c.companion = true; c.alive = kind !== 'zombie' ? true : c.alive;
+  COMPANIONS.push(z);
+  return z;
+}
+const labPos = () => A.research.done.power ? FAC.door.clone() : (A.built.workbench ? structPos('workbench') : A.base.clone());
+function meet(c) {
+  c.met = true; A.met++;
+  const z = addCompanion(c, 'survivor');
+  const aff = vegaC.rel.get(c) || 0;
+  S.loneliness = clamp(S.loneliness - .55); S.hope = clamp(S.hope + .45); S.grip = clamp(S.grip + .06); S.love = clamp(S.love + aff * .5);
+  A.bubble = { text: `${c.name.toUpperCase()}!`, cls: 'bub shout', until: performance.now() + 3200 };
+  say(aff > .3 ? `${c.name}. ${c.name} is alive. I can't stop holding on.` : `Someone. A person. ${c.name}, from ${VILL[c.homeVillage].name}. Alive.`, 'ev');
+  setTimeout(() => say(`${c.name} told me how it went. The fever, then the hunger. They hid in ${VILL[c.village].name}.`, 'ev'), 1200);
+  S.grief = clamp(S.grief + .1); S.guilt = clamp(S.guilt + .1);
+}
+const ZLINES = ['...Ve...ga...', 'cold...', 'the well...', 'home...', 'hungry...', '...it hurts...', 'where... is everyone...'];
+const RLINES = ['I remember dying. I remember the fever.', 'How long was I gone?', 'You brought me back. Why me?', 'Everything is too bright.', 'Thank you. I think.'];
+const SLINES = () => [`We should plant before the frost.`, `I keep counting the houses. Nobody in them.`, `${vegaC.name}, eat something.`, `Do you think anyone made it to the coast?`, `I'll take the night watch.`];
+function companionStep(dtH) {
+  const night = (sim.hours % 24) < 6 || (sim.hours % 24) > 21;
+  for (const z of COMPANIONS) {
+    z.nextLine -= dtH;
+    const d = z.pos.distanceTo(A.pos);
+    if (childOf(z)) {   // a child keeps close to its parents and plays
+      const near = (partnerOf() && R() < .5 ? partnerOf().pos : A.pos).clone().add(new THREE.Vector3(Math.sin(sim.hours * .7) * 2, 0, Math.cos(sim.hours * .5) * 2));
+      const dd = near.sub(z.pos).setY(0), dist = dd.length(); z.moving = dist > 1; if (z.moving) { dd.normalize(); z.pos.addScaledVector(dd, Math.min(dist, WALK * .8 * dtH)); onGround(z.pos); z.yaw = Math.atan2(dd.x, dd.z); }
+      if (z.nextLine <= 0 && d < 10) { z.nextLine = rnd(3, 9); z.line = { text: pick(z.age < 20 ? ['...', 'Ba!', 'Da-da'] : ['Look!', 'Can we go to the lake?', 'Tell me about the market', 'Why is nobody else here?']), until: performance.now() + 2400 }; }
+      continue;
+    }
+    if (z.partner && A.beh && A.beh.kind === 'intimate') { z.act = { kind: 'sleep', target: A.beh.target.clone().add(new THREE.Vector3(.55, 0, 0)), t: 0, dur: 8, arrived: false }; }
+    if (z.kind === 'zombie') {
+      const want = A.pos.clone().add(new THREE.Vector3(Math.sin(z.c.i) * 5, 0, Math.cos(z.c.i) * 5));
+      if (!night && z.pos.distanceTo(want) > 2.5) { const dd = want.sub(z.pos).setY(0); const step = Math.min(dd.length(), WALK * .45 * dtH); dd.normalize(); z.pos.addScaledVector(dd, step); onGround(z.pos); z.moving = true; z.yaw = Math.atan2(dd.x, dd.z); } else z.moving = false;
+      if (z.unstable && d < 1.8 && R() < dtH * .08) {
+        z.attacks++; S.health = clamp(S.health - .05 * harm()); S.pain = clamp(S.pain + .25); S.fear = clamp(S.fear + .3); S.dread = clamp(S.dread + .2);
+        A.bubble = { text: `${z.c.name.toUpperCase()}, STOP!`, cls: 'bub shout', until: performance.now() + 2200 };
+        say(`${z.c.name} bit me. There was nothing in the eyes. Nothing at all.`, 'bad');
+      }
+      if (z.nextLine <= 0 && d < 12) { z.nextLine = rnd(3, 10); z.line = { text: pick(ZLINES), until: performance.now() + 2600 }; }
+      S.loneliness = clamp(S.loneliness - (d < 12 ? .004 : 0) * dtH); S.dread = clamp(S.dread + .002 * dtH); S.guilt = clamp(S.guilt + .0015 * dtH);
+      continue;
+    }
+    // survivors and the restored keep their own routine near home and help out
+    if (!z.act || z.act.t >= z.act.dur) {
+      const jobs = night ? ['sleep'] : ['forage', 'chop', 'farm', 'sit', 'talk', 'fish'];
+      const k = pick(jobs);
+      const tgt = k === 'sleep' ? A.base.clone().add(new THREE.Vector3(rnd(-3, 3), 0, rnd(-3, 3))) : k === 'talk' ? A.pos.clone().add(new THREE.Vector3(1.4, 0, .6)) : k === 'forage' ? nearPlace(nearestVillage(A.base), 'fields') : k === 'fish' && LAKE ? P(LAKE.x + LAKE.r + 2, LAKE.z) : A.base.clone().add(new THREE.Vector3(rnd(-8, 8), 0, rnd(-8, 8)));
+      z.act = { kind: k, target: onGround(tgt), t: 0, dur: k === 'sleep' ? 8 : rnd(1, 3), arrived: false };
+    }
+    const a = z.act, dd = a.target.clone().sub(z.pos).setY(0), dist = dd.length();
+    if (!a.arrived) { if (dist > .3) { const step = Math.min(dist, WALK * .9 * dtH); dd.normalize(); z.pos.addScaledVector(dd, step); onGround(z.pos); z.yaw = Math.atan2(dd.x, dd.z); z.moving = true; } else { a.arrived = true; z.moving = false; } }
+    else {
+      a.t += dtH; z.moving = false;
+      if (a.kind === 'forage') A.inv.food += .05 * dtH * (WORLD.season === 'winter' ? .3 : 1);
+      if (a.kind === 'fish' && A.research.done.tools) A.inv.meat += .04 * dtH;
+      if (a.kind === 'chop') A.inv.wood += .15 * dtH;
+      if (a.kind === 'farm' && A.garden) A.garden.growth = Math.min(1, A.garden.growth + dtH / (24 * 40));
+    }
+    if (d < 10) { S.loneliness = clamp(S.loneliness - .02 * dtH); S.grip = clamp(S.grip + .0005 * dtH); S.hope = clamp(S.hope + .0015 * dtH); }
+    if (z.nextLine <= 0 && d < 12) { z.nextLine = rnd(4, 12); z.line = { text: pick(z.kind === 'restored' ? RLINES : SLINES()), until: performance.now() + 3000 }; }
+  }
+}
+function renderCompanions(dtR, now) {
+  for (const z of COMPANIONS) {
+    const h = z.h; h.root.position.copy(z.pos); h.root.rotation.y = z.yaw;
+    let k = z.kind === 'zombie' ? (z.moving ? 'shamble' : 'stare') : childOf(z) ? (z.moving ? 'run' : pick(['jump', 'stand', 'sit_hug'])) : z.moving ? 'walk' : ({ forage: 'forage', chop: 'chop', farm: 'dig', sit: 'sit_wall', talk: 'talk', sleep: 'lie', fish: 'fish' }[z.act && z.act.kind] || 'stand');
+    if (childOf(z) && !z.moving) { z.idleK = z.idleK && Math.random() > .01 ? z.idleK : k; k = z.idleK; }
+    if (dtR && z.pos.distanceTo(camera.position) < 25) { setFace(h, { smile: z.kind === 'zombie' ? -.4 : .3 + (z.partner ? .3 : 0), open: z.kind === 'zombie' ? .4 : 0, shut: z.act && z.act.kind === 'sleep' && z.act.arrived ? 1 : 0, blush: z.partner && z.pos.distanceTo(A.pos) < 4 ? .5 : 0 }, dtR); lookAtPoint(h, z.pos.distanceTo(A.pos) < 8 ? _lookP.set(A.pos.x, A.pos.y + 1.55, A.pos.z) : null, dtR, 1); }
+    if (z.moving) h.phase += dtR * (z.kind === 'zombie' ? 3 : 6); else h.phase += dtR * 2;
+    applyPose(h, pose(k, h.phase, { slump: z.kind === 'zombie' ? .5 : 0, tremor: z.kind === 'zombie' ? .03 : 0, amp: z.kind === 'zombie' ? .5 : 1 }), 1 - Math.exp(-dtR * 8));
+    if (camMode !== 'map') tag('cp' + z.c.i, z.c.name + (z.partner ? ' ♥' : ''), new THREE.Vector3(z.pos.x, z.pos.y + (childOf(z) ? 1.5 : 2.15), z.pos.z), z.kind === 'zombie' ? 'tag zombie' : 'tag comp');
+    if (z.line && now < z.line.until) tag('cpl' + z.c.i, z.line.text, new THREE.Vector3(z.pos.x, z.pos.y + 2.6, z.pos.z), z.kind === 'zombie' ? 'bub zombie' : 'bub');
+  }
+}
