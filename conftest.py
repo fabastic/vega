@@ -1,4 +1,4 @@
-"""Test configuration: repository root, then the CivSYS backend from the civsys/ submodule, on sys.path."""
+"""Test configuration: repository root, then the CivSYS backend from civsys/, on sys.path."""
 import pathlib
 import sys
 

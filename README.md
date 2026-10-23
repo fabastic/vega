@@ -6,8 +6,9 @@ A sensory-deprivation experiment on a simulated agent.
 history. At tick T the agent is handed off to a separate simulation, the **white room**, which then studies what
 its internal state does when external input is reduced or removed.
 
-CivSYS is a **dependency** of this repository: a git submodule (`civsys/`) pinned to an exact upstream commit,
-used unmodified. Everything else here is vega's own code.
+CivSYS lives inside this repository in `civsys/`: a complete copy of `ashvyagni/CivSYS` at commit
+`70420010a01407b7f7bf400cc426f0597f6ad291` (the commit the experiments were run against), used unmodified.
+Everything else here is vega's own code.
 
 ## Pathway
 
@@ -30,7 +31,7 @@ Growth is bounded and decided by the harness. The mind can only *request* capaci
 
 | Path | What |
 |---|---|
-| `civsys/` | **CivSYS, git submodule**, pinned to `ashvyagni/CivSYS@70420010`; never modified |
+| `civsys/` | **CivSYS**, a full copy of `ashvyagni/CivSYS@70420010` (backend, frontend, assets, its committed virtualenv and builds); never modified |
 | `civsys_focal/` | flag-gated focal-agent add-on that subclasses CivSYS's engine and decision system. Default off; the golden-hash test shows defaults reproduce unmodified CivSYS exactly |
 | `mind/` | the agent's mind: rule-based v1 (`mind/rulebased`, `mind/affect`, `mind/reflection`) and learned v2 (`mind/learned`) |
 | `whiteroom/` | the white-room simulation (never imports CivSYS) |
@@ -45,6 +46,7 @@ Growth is bounded and decided by the harness. The mind can only *request* capaci
 | `RESULTS_ROUND2.md`, `MORNING_REPORT_ROUND2.md`, `DECISIONS_ROUND2.md`, `results_round2/` | round 2 (provisional: 1,054/1,320) |
 | `DECISIONS_ROUND3.md`, `results_round3/`, `civsys_focal/viability.py` | round 3 (in preparation): viable life, T = 720, non-saturating phantom metric, common self-model reference |
 | `STATUS.md` | where things stand |
+| `viz/`, `site/` | browser pages: the Vega White Room simulation and the Dream Brain page (see `viz/README.md`); `site/` is the Vercel deployment at https://vega-white-room.vercel.app |
 
 The design documents were written before this repository existed, when the add-on lived inside a CivSYS
 checkout. Their old paths map as follows:
@@ -61,14 +63,11 @@ checkout. Their old paths map as follows:
 Use Python 3.14. CivSYS relies on deferred annotations and does not import under 3.12.
 
 ```bash
-git clone --recurse-submodules https://github.com/fabastic/vega.git
+git clone https://github.com/fabastic/vega.git
 ```
 
-If you already cloned without submodules:
-
-```bash
-git submodule update --init
-```
+CivSYS comes with the clone. The repository is large (about 1.7 GB, mostly CivSYS's art assets, frontend
+build and virtualenv); `git clone --depth 1` keeps the download smaller.
 
 ```bash
 python -m venv .venv-exp
@@ -86,7 +85,7 @@ All tests (mind, white room, growth, battery, plus golden backcompat and focal t
 .venv-exp/Scripts/python -m pytest
 ```
 
-CivSYS's own upstream tests, inside the submodule:
+CivSYS's own upstream tests, inside `civsys/`:
 
 ```bash
 cd civsys/backend && ../../.venv-exp/Scripts/python -m pytest tests

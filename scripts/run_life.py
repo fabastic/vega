@@ -11,7 +11,7 @@ import sys
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-for i, p in enumerate((ROOT, ROOT / "civsys" / "backend")):   # CivSYS is the git submodule civsys/
+for i, p in enumerate((ROOT, ROOT / "civsys" / "backend")):   # CivSYS lives in civsys/
     if str(p) not in sys.path:
         sys.path.insert(i, str(p))
 

@@ -23,7 +23,7 @@ FEATURE_COLS = [f"f{i}" for i in range(FEATURE_DIM)]
 
 def _git_commit() -> str:
     try:
-        import app  # the CivSYS checkout (git submodule civsys/)
+        import app  # the CivSYS copy in civsys/
         return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=20,
                               cwd=str(Path(app.__file__).resolve().parent)).stdout.strip()
     except Exception:

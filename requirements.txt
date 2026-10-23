@@ -1,4 +1,4 @@
-# CivSYS's own requirements (from the civsys/ submodule)
+# CivSYS's own requirements (from civsys/)
 -r civsys/backend/requirements.txt
 
 # vega additions

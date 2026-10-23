@@ -1,7 +1,7 @@
 """Default config must reproduce the unmodified CivSYS trajectory exactly (SPEC F.1).
 
 Golden digests were recorded from unmodified CivSYS main by tests/civsys/golden/make_golden.py.
-CivSYS itself (the civsys/ submodule) is never modified; the focal engine lives in civsys_focal/.
+CivSYS itself (the civsys/ directory) is never modified; the focal engine lives in civsys_focal/.
 """
 import json
 import pathlib

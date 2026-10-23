@@ -22,7 +22,7 @@ def _top(name):
     return name.split(".")[0]
 
 
-CIVSYS_APP = ROOT / "civsys" / "backend" / "app"   # upstream CivSYS (git submodule, unmodified)
+CIVSYS_APP = ROOT / "civsys" / "backend" / "app"   # upstream CivSYS (copied in, unmodified)
 FOCAL = ROOT / "civsys_focal"                       # our flag-gated add-on to CivSYS
 
 

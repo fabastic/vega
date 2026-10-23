@@ -1,6 +1,6 @@
 # STATUS
 
-- Updated: 2026-10-17 IST. Repository: fabastic/vega (CivSYS as the civsys/ submodule).
+- Updated: 2026-10-17 IST. Repository: fabastic/vega (CivSYS copied into civsys/, pinned at 70420010).
 
 ## Round 2
 - Full run stopped at 1,054/1,320 (2026-10-15 12:13 IST; the driver was killed externally, exit code 4, no
