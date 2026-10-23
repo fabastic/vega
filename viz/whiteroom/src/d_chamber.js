@@ -76,3 +76,31 @@ function drawDoorSeam(alpha) {
   const g = WALLS[0].g, [x0, y0] = wallPx(wallUV(0, DOOR.x - DOOR.w / 2, 0), DOOR.h), [x1] = wallPx(wallUV(0, DOOR.x + DOOR.w / 2, 0), 0);
   g.strokeStyle = `rgba(60,60,58,${alpha})`; g.lineWidth = 1.4; g.strokeRect(x0, y0, x1 - x0, 512 - y0 - 1); WALLS[0].tex.needsUpdate = true;
 }
+
+// ---------- what his mind adds to the room ----------
+const ghosts = new Map();
+function ghostOf(c, parent, kind = 'ghost') {
+  const key = c.i + ':' + kind;
+  let g = ghosts.get(key);
+  if (!g) { g = makeHuman({ skin: 0xc9c4bc, shirt: c.shirt, pants: 0x8a8a90, hair: 0x8a8a90, height: c.look.height, hairStyle: c.look.hairStyle, ghost: kind === 'ghost', shadow: kind === 'shadow' }); g.op = 0; g.want = 0; g.c = c; g.root.visible = false; g.pos = new THREE.Vector3(); ghosts.set(key, g); }
+  if (parent && g.root.parent !== parent) parent.add(g.root);
+  return g;
+}
+function buildMind() {
+  memory = new THREE.Group(); mindGroup.add(memory);
+  const mm = c => { const m = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, depthWrite: false }); memMats.push(m); return m; };
+  const s = RS / 3;
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(RS * .95, 40), mm(0x9fb36a)); disc.rotation.x = -Math.PI / 2; disc.position.y = .01; memory.add(disc);
+  const plaza = new THREE.Mesh(new THREE.CircleGeometry(RS * .45, 32), mm(0xd9cfb4)); plaza.rotation.x = -Math.PI / 2; plaza.position.y = .015; memory.add(plaza);
+  const well = new THREE.Mesh(GEO.cyl(.35 * s, .4 * s, .35 * s, 14), mm(0x9a958a)); well.position.set(.6 * s, .17 * s, -.3 * s); memory.add(well);
+  for (let k = 0; k < 3; k++) { const st = new THREE.Mesh(GEO.box(.55 * s, .32 * s, .32 * s), mm([0xc0603a, 0xd8a64a, 0x6f8f4a][k])); st.position.set((-1.6 + k * .65) * s, .16 * s, -1.6 * s); memory.add(st); }
+  for (const [x, z] of [[1.9, 1.5], [-1.9, 1.2]]) {
+    const hw = new THREE.Mesh(GEO.box(.9 * s, .7 * s, .8 * s), mm(0xe6d9bf)); hw.position.set(x * s, .35 * s, z * s); memory.add(hw);
+    const hr = new THREE.Mesh(new THREE.ConeGeometry(.75 * s, .5 * s, 4), mm(0x9a5532)); hr.position.set(x * s, .95 * s, z * s); hr.rotation.y = Math.PI / 4; memory.add(hr);
+  }
+  const tree = new THREE.Mesh(new THREE.ConeGeometry(.45 * s, 1.6 * s, 7), mm(0x4f7038)); tree.position.set(-.4 * s, .8 * s, 1.9 * s); memory.add(tree);
+  const sunM = new THREE.Mesh(GEO.sph(.35 * s, 16, 10), mm(0xffe6a8)); sunM.position.set(0, RH * .85, 0); memory.add(sunM);
+  floorGrass = new THREE.InstancedMesh(new THREE.ConeGeometry(.03, .22, 3), mm(0x6f8f3a), 360);
+  for (let i = 0; i < 360; i++) { dummy.position.set(rnd(-RS + .2, RS - .2), .1, rnd(-RS + .2, RS - .2)); dummy.rotation.set(0, rnd(0, TAU), 0); dummy.scale.setScalar(rnd(.6, 1.4)); dummy.updateMatrix(); floorGrass.setMatrixAt(i, dummy.matrix); }
+  mindGroup.add(floorGrass);
+}
