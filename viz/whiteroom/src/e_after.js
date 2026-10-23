@@ -164,3 +164,25 @@ function wolfAttack(a) {
   if (R() < (armed ? .45 : .15) * (a.type === 'bear' ? .4 : 1)) { killAnimal(a); A.revengeAt = sim.hours; say(armed ? `The ${nm} came at me. I put the spear through it.` : `I killed the ${nm} with a rock. My hands won't stop shaking.`, 'bad'); }
   else say(a.type === 'bear' ? 'A bear. It knocked me down like I was nothing.' : a.type === 'dog' ? 'Dogs. Somebody\'s dogs, gone wild. They bit and ran.' : 'Wolves. One got my arm before it ran.', 'bad');
 }
+
+// ---------- remains and graves ----------
+function makeRemains(c) {
+  if (c.remains || c.buried) return;
+  const g = new THREE.Group(), bone = stdMat(0xd6cfbd, .8);
+  const skull = new THREE.Mesh(GEO.sph(.1), bone); skull.position.set(0, .09, .55); skull.scale.set(1, .85, 1.1); g.add(skull);
+  for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(GEO.box(.32 - i * .03, .02, .03), bone); r.position.set(0, .03, .25 - i * .08); g.add(r); }
+  for (const s of [-1, 1]) { const l = new THREE.Mesh(GEO.cyl(.022, .02, .8), bone); l.rotation.x = Math.PI / 2; l.position.set(s * .1, .025, -.35); g.add(l);
+    const a = new THREE.Mesh(GEO.cyl(.018, .016, .55), bone); a.rotation.x = Math.PI / 2; a.position.set(s * .26, .02, .15); a.rotation.y = s * .3; g.add(a); }
+  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(.55, .5), new THREE.MeshStandardMaterial({ color: new THREE.Color(c.shirt).lerp(new THREE.Color(0x4a4438), .45), roughness: 1, side: THREE.DoubleSide }));
+  cloth.rotation.x = -Math.PI / 2; cloth.rotation.z = rnd(-.5, .5); cloth.position.set(0, .015, .15); g.add(cloth);
+  g.position.copy(c.deathPos); g.rotation.y = rnd(0, TAU);
+  g.traverse(o => { o.castShadow = true; }); scene.add(g); c.remains = g;
+}
+function makeGrave(c) {
+  const g = new THREE.Group();
+  const mound = new THREE.Mesh(GEO.sph(.6), stdMat(0x5b4a35, 1)); mound.scale.set(.75, .22, 1.3); g.add(mound);
+  const stone = new THREE.Mesh(GEO.box(.42, .55, .1), stdMat(0x8e8c84)); stone.position.set(0, .28, -.85); g.add(stone);
+  c.gravePos = graveSlot(nearestVillage(c.deathPos));
+  g.position.copy(c.gravePos); g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
+  scene.add(g); c.grave = g; GRAVES.push(c);
+}
