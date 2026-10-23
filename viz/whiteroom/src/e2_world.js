@@ -147,3 +147,50 @@ function strikeThreat(t, dtH) {
     else { killAnimal(t); if (A.hurtBy === t) A.revengeAt = sim.hours; }
   }
 }
+
+// ---------- stores ----------
+// Grocery shops, a supermarket, a pharmacy and a hardware store. In life people spend their wages
+// there; when the fever comes the starving clear the fresh food; afterwards the tins are still on the
+// shelves for whoever comes with a bag.
+const STORE_KIND = {
+  grocery: { label: 'Grocery', col: 0xd8cfb4, roof: 0x3e5a3a, sign: '#2e5a2e', stock: () => ({ cans: Math.floor(rnd(18, 34)), food: Math.floor(rnd(6, 12)), seeds: Math.floor(rnd(3, 7)), medicine: 1, books: 0, tools: 0 }) },
+  supermarket: { label: 'Supermarket', col: 0xe4e2dc, roof: 0x55514a, sign: '#b5302a', stock: () => ({ cans: Math.floor(rnd(60, 90)), food: Math.floor(rnd(20, 30)), seeds: 10, medicine: 5, books: 3, tools: 2 }) },
+  pharmacy: { label: 'Pharmacy', col: 0xdfe6e4, roof: 0x3a4a5a, sign: '#2a6a5a', stock: () => ({ cans: 2, food: 1, seeds: 0, medicine: Math.floor(rnd(10, 16)), books: 1, tools: 0 }) },
+  hardware: { label: 'Hardware', col: 0xc8b89a, roof: 0x4a3a2e, sign: '#a8692a', stock: () => ({ cans: 0, food: 0, seeds: 8, medicine: 0, books: 1, tools: 4, wood: 12 }) },
+};
+const STORES = [];
+function signBoard(text, col) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g = c.getContext('2d');
+  g.fillStyle = col; g.fillRect(0, 0, 256, 64); g.strokeStyle = '#f2efe6'; g.lineWidth = 4; g.strokeRect(4, 4, 248, 56);
+  g.fillStyle = '#f2efe6'; g.font = 'bold 34px "Syne", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text.toUpperCase(), 128, 34);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+function buildStore(v, kind, dx, dz, rotY, w, d) {
+  const K = STORE_KIND[kind], rec = house(v.x + dx, v.z + dz, rotY, K.col, K.roof, w, d, 3.1, { kind: 'store', porch: false, doorX: 0 });
+  rec.kind = kind;
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(w * .7, 4), .9), new THREE.MeshStandardMaterial({ map: signBoard(K.label, K.sign), roughness: .7 }));
+  sign.position.set(0, rec.F + 2.75, d / 2 + .1); rec.g.add(sign); rec.sign = sign;
+  // shelves of tins inside
+  const W2 = w / 2 - .5, D2 = d / 2 - .6;
+  for (let r = 0; r < Math.floor(d / 1.6); r++) { const sh = new THREE.Mesh(GEO.box(w - 1.6, 1.5, .4), stdMat(0x8a8a86, .6)); sh.position.set(0, rec.F + .75, -D2 + .4 + r * 1.6); rec.inside.add(sh);
+    for (let k = 0; k < 10; k++) { const can = new THREE.Mesh(GEO.cyl(.06, .06, .14, 8), stdMat(pick([0xb5302a, 0x2e5a2e, 0xd8a64a, 0x2b4a7a, 0xe0d8c4]), .5)); can.position.set(-W2 + .5 + k * (w - 2) / 10, rec.F + 1.1, -D2 + .4 + r * 1.6); rec.inside.add(can); } }
+  if (kind === 'supermarket') { const lot = new THREE.Mesh(new THREE.PlaneGeometry(w + 6, 9), stdMat(0x4a4a4c, .95)); lot.rotation.x = -Math.PI / 2; rec.g.add(lot); lot.position.set(0, .04, d / 2 + 4.5); for (let k = -2; k <= 2; k++) { const ln = new THREE.Mesh(new THREE.PlaneGeometry(.08, 3), stdMat(0xe8e6dc)); ln.rotation.x = -Math.PI / 2; ln.position.set(k * 2.6, .05, d / 2 + 4.5); rec.g.add(ln); } }
+  rec.g.updateMatrixWorld(true);
+  const door = onGround(rec.g.localToWorld(new THREE.Vector3(0, 0, d / 2 + 1.2)));
+  const st = { door, pos: P(v.x + dx, v.z + dz), v: v.i, stock: K.stock(), searched: false, store: kind, rec, label: K.label, trips: 0 };
+  STORES.push(st); v.houses.push(st); HOUSES.push(st);
+  return st;
+}
+function furnishStores(v) {
+  buildStore(v, 'grocery', 0, -16.5, 0, 6, 4.4);
+  if (v.i % 2 === 0) buildStore(v, 'pharmacy', 1.5, 15.5, Math.PI, 4.8, 4);
+  if (v.i === 0 || v.i === 2) buildStore(v, 'hardware', 18, 2, -Math.PI / 2, 5.6, 4.4);
+  if (v.i === 0) { const a = Math.atan2(FAC.z - v.z, FAC.x - v.x), r = 38, px = Math.cos(a) * r + Math.cos(a + Math.PI / 2) * 9, pz = Math.sin(a) * r + Math.sin(a + Math.PI / 2) * 9; buildStore(v, 'supermarket', px, pz, Math.atan2(-px, -pz), 12, 8); }
+  v.places.store = { pos: STORES.find(s => s.v === v.i && s.store === 'grocery').door, r: 1.5 };
+}
+// during the collapse, the hungry strip the fresh food first; tins last
+function storesDuringCollapse(dtH) {
+  if (!WORLD.blight) return;
+  for (const s of STORES) { s.stock.food = Math.max(0, s.stock.food - dtH * .02); if (WORLD.food < .5) s.stock.cans = Math.max(Math.floor(s.stock.cans * .5), s.stock.cans - dtH * .015); }
+}
+const lootValue = s => (s.stock.cans || 0) * 1 + (s.stock.food || 0) * .8 + (s.stock.medicine || 0) * 2 + (s.stock.tools || 0) * 3 + (s.stock.seeds || 0) * .5 + (s.stock.books || 0) * 1.5;
