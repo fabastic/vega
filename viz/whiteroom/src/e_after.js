@@ -92,3 +92,75 @@ function placeStructure(k) {
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   g.position.copy(p); scene.add(g); STRUCTS.push({ k, g });
 }
+
+// ---------- animals ----------
+function spawnAnimals() {
+  const mult = { none: 0, few: .5, normal: 1, many: 2 }[cfg.after.animals];
+  const add = (type, n, near) => { for (let i = 0; i < Math.round(n * mult); i++) {
+    let x, z, home;
+    if (near) { const v = pick(VILL); home = P(v.x + rnd(-14, 14), v.z + rnd(-14, 14)); }
+    else { const t = TREES.length ? pick(TREES) : { x: rnd(-150, 150), z: rnd(-150, 150) }; home = P(t.x + rnd(-10, 10), t.z + rnd(-10, 10)); }
+    x = home.x; z = home.z;
+    const a = makeAnimal(type); a.pos = P(x, z); a.home = home; a.yaw = rnd(0, TAU); a.state = 'graze'; a.t = 0; a.alive = true; a.target = null; a.hpCooldown = 0;
+    a.root.position.copy(a.pos); scene.add(a.root); ANIMALS.push(a);
+  } };
+  add('deer', 16); add('rabbit', 22); add('boar', 7); add('chicken', 3 * VILL.length, true);
+  if (cfg.after.wolves) add('wolf', 5);
+}
+function animalStep(dtH, dtR) {
+  const vegaOut = sim.phase === 'after' && !A.ended;
+  const night = (sim.hours % 24) < 6 || (sim.hours % 24) > 20;
+  for (const a of ANIMALS) {
+    if (!a.alive) { a.respawn -= dtH; if (a.respawn <= 0) { a.alive = true; a.root.visible = true; a.pos.copy(a.home); a.state = 'graze'; } continue; }
+    const s = a.s;
+    const dV = vegaOut ? a.pos.distanceTo(A.pos) : 1e9;
+    const fire = A.built.campfire && a.pos.distanceTo(structPos('campfire')) < 9 && night;
+    if (s.predator) {
+      const hungry = vegaOut && ((night && (WORLD.season === 'winter' || S.health < .5)) || a.aggro || (a.type === 'dog' && night));
+      if (hungry && dV < 40 && !fire && !(A.built.fence && A.pos.distanceTo(A.base) < 10)) { a.state = 'stalk'; a.target = A.pos.clone(); }
+      else if (a.state === 'stalk') a.state = 'graze';
+      if (fire) { a.state = 'flee'; a.target = a.pos.clone().add(a.pos.clone().sub(A.pos).setY(0).normalize().multiplyScalar(30)); }
+      if (a.state === 'stalk' && dV < 1.6) { a.hpCooldown -= dtH; if (a.hpCooldown <= 0) { a.hpCooldown = 1; wolfAttack(a); } }
+    } else if (s.flee && dV < s.flee * (A.beh && A.beh.kind === 'hunt' ? 1.4 : 1) && a.state !== 'flee') {
+      a.state = 'flee'; a.t = 0; a.target = onGround(a.pos.clone().add(a.pos.clone().sub(A.pos).setY(0).normalize().multiplyScalar(s.flee * 2)));
+    }
+    a.t += dtH;
+    if (a.state === 'graze' || !a.target) { if (!a.target || a.t > rnd(.5, 3)) { a.t = 0; a.target = P(a.home.x + rnd(-25, 25) * (s.biped ? .4 : 1), a.home.z + rnd(-25, 25) * (s.biped ? .4 : 1)); a.state = R() < .5 ? 'graze' : 'wander'; } }
+    if (a.state === 'flee' && a.t > .6) { a.state = 'wander'; a.t = 0; }
+    const moving = a.state !== 'graze';
+    const sp = s.speed * (a.state === 'flee' || a.state === 'stalk' ? 1.6 : .35);
+    let gait = 0;
+    if (moving && a.target) {
+      const d = a.target.clone().sub(a.pos); d.y = 0; const dist = d.length();
+      if (dist > .3) { const step = Math.min(dist, sp * dtH); d.normalize(); a.pos.addScaledVector(d, step); onGround(a.pos); if (a.pos.y < LAKE.level) { a.pos.sub(d.multiplyScalar(step)); a.target = null; } a.yaw += angDiff(a.yaw, Math.atan2(d.x, d.z)) * Math.min(1, (dtR || .05) * 6); gait = a.state === 'flee' || a.state === 'stalk' ? 2 : .7; }
+      else if (a.state !== 'stalk') a.state = 'graze';
+    }
+    a.gait = gait;
+  }
+}
+function renderAnimals(dtR) {
+  for (const a of ANIMALS) {
+    if (!a.alive) continue;
+    const near = camera.position.distanceTo(a.pos) < 160;
+    a.root.visible = near;
+    if (!near) continue;
+    a.root.position.copy(a.pos); a.root.rotation.y = a.yaw;
+    animateAnimal(a, a.gait || 0, dtR, a.state === 'graze');
+    if (sim.phase === 'after' && a.pos.distanceTo(A.pos) < 18 && camMode !== 'map') tag('an' + ANIMALS.indexOf(a), a.type, new THREE.Vector3(a.pos.x, a.pos.y + a.s.leg + a.s.h + .5, a.pos.z), 'tag animal');
+  }
+}
+function killAnimal(a) {
+  a.alive = false; a.root.visible = false; a.respawn = 24 * rnd(8, 16);
+  if (a.type === 'chicken' && A.built.pen && A.research.done.husbandry) { A.pen++; say('Caught a hen alive. Into the pen.', 'ev'); return; }
+  A.inv.meat += a.s.meat; A.inv.hides += a.s.hide; A.inv.specimens += 1; A.kills++;
+  if (!A.coat && A.inv.hides >= 3) { A.coat = true; A.inv.hides -= 3; say('Stitched the hides into a coat. Ugly. Warm.', 'ev'); S.pride = clamp(S.pride + .2); }
+}
+function wolfAttack(a) {
+  const armed = A.research.done.tools || A.weapon; dayNote('attacks'); A.lastHurt = sim.hours; A.hurtBy = a;
+  if (a.type === 'bear') { S.health = clamp(S.health - .12 * harm()); S.pain = clamp(S.pain + .4); }
+  S.health = clamp(S.health - .05 * harm()); S.pain = clamp(S.pain + .25); S.fear = clamp(S.fear + .4); S.dread = clamp(S.dread + .3);
+  A.bubble = { text: 'GET BACK!', cls: 'bub shout', until: performance.now() + 2000 };
+  const nm = { wolf: 'wolf', dog: 'dog', bear: 'bear' }[a.type] || 'animal';
+  if (R() < (armed ? .45 : .15) * (a.type === 'bear' ? .4 : 1)) { killAnimal(a); A.revengeAt = sim.hours; say(armed ? `The ${nm} came at me. I put the spear through it.` : `I killed the ${nm} with a rock. My hands won't stop shaking.`, 'bad'); }
+  else say(a.type === 'bear' ? 'A bear. It knocked me down like I was nothing.' : a.type === 'dog' ? 'Dogs. Somebody\'s dogs, gone wild. They bit and ran.' : 'Wolves. One got my arm before it ran.', 'bad');
+}
