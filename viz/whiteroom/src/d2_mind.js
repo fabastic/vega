@@ -157,3 +157,110 @@ function depthThought() {
   return pick(DEPTH_LINES[sim.phase === 'chamber' ? 'chamber' : 'after'][i]);
 }
 const currentQuestion = () => { const i = DEPTH_STAGES.filter(([t]) => S.depth >= t).length - 1; const qs = QUESTIONS[Math.min(QUESTIONS.length - 1, i)]; return qs[Math.floor(sim.hours / 30) % qs.length]; };
+
+// ---------- the hallucinations ----------
+// Deprived senses fill themselves in, and the order they do it in is well documented: first lights and
+// geometry (the "prisoner's cinema", Klüver's lattices and tunnels), then faces in textures, sounds
+// that are not there, then whole people and places. What he sees is drawn from what he feels and what
+// has happened to him lately, and it learns: whatever he dwells on comes back stronger.
+const HALL = { stage: 0, w: { geometry: .5, faces: .3, voices: .3, ghosts: .4, food: .2, door: .3, eyes: .2, village: .3, crush: .2, rats: 0, blood: 0, observer: 0, light: 0 },
+  form: 'lattice', t: 0, layers: [], beat: 0, freeze: 0, lastDraw: 0, phantom: null, rats: [], insight: 0, heard: '', lastStage: 0 };
+const HALL_STAGES = ['Hungry senses', 'Geometry', 'Faces and voices', 'People and places', 'Immersion', 'Dissolution'];
+function hallStageOf(g) { return g > .85 ? 0 : g > .7 ? 1 : g > .5 ? 2 : g > .3 ? 3 : g > .15 ? 4 : 5; }
+const hallBoost = (k, v) => { HALL.w[k] = clamp((HALL.w[k] || 0) + v); };
+function hallStep(dtH) {
+  const g = S.grip, st = hallStageOf(g + (ITEMS.drug > 0 ? -.25 : 0) + (sim.phase === 'after' ? .15 : 0));
+  if (st !== HALL.lastStage) {
+    if (st > HALL.lastStage && sim.phase === 'chamber') say({ 1: 'The white is moving. Patterns, crawling under the paint.', 2: 'There are faces in the wall. There aren\'t. There are.', 3: `${fr()} was standing in the corner. I saw ${fr()}.`, 4: 'The room changes when I blink.', 5: S.depth > .55 ? 'The walls are going. I am not afraid.' : 'The walls are going. Where am I. WHERE AM I.' }[st], 'mind');
+    HALL.lastStage = st; dayNote('hall');
+  }
+  HALL.stage = st;
+  // what he feels decides what he sees; the weights drift toward it
+  const D = derived(), W = HALL.w;
+  const target = { geometry: .5 + (ROOM.dark ? .3 : 0), faces: S.fear * .6 + S.loneliness * .3, voices: S.loneliness * .8, ghosts: S.loneliness * S.love + S.grief * .5, food: S.hunger > .5 ? S.hunger : .05,
+    door: D.escape * .8, eyes: clamp(S.fear * (1 - g) + watched()), village: S.nostalgia, crush: (S.longing || 0) * (S.attraction || 0) * 1.5, rats: ITEMS.rat || HALL.ratMemory ? .6 : 0,
+    blood: S.hands * .8, observer: watched() + (ROOM.voices ? .2 : 0), light: equanimity() };
+  for (const k in target) W[k] = clamp(W[k] + (target[k] - W[k]) * .02 * dtH);
+  // insight: when he knows it is not real (depth, reading), the visions loosen their hold
+  HALL.insight = clamp(equanimity() * .7 + (S.grip > .6 ? .2 : 0));
+  if (ITEMS.drug > 0) ITEMS.drug = Math.max(0, ITEMS.drug - dtH);
+}
+function pickMotif(stage) {
+  const W = HALL.w, avail = ['geometry'];
+  if (stage >= 2) avail.push('faces', 'eyes', 'observer');
+  if (stage >= 3) avail.push('door', 'food', 'village', 'crush', 'rats', 'blood');
+  if (stage >= 5 && W.light > .3) avail.push('light');
+  let tot = 0; for (const k of avail) tot += W[k] + .02;
+  let r = Math.random() * tot; for (const k of avail) { r -= W[k] + .02; if (r <= 0) return k; }
+  return 'geometry';
+}
+// the layer over each wall that his visual cortex paints on
+function buildHallLayers() {
+  for (let i = 0; i < 4; i++) {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+    const tex = new THREE.CanvasTexture(c);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(RS * 2, RH), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 1 }));
+    m.rotation.y = [0, -Math.PI / 2, Math.PI, Math.PI / 2][i]; m.position.set([0, RS - .012, 0, -RS + .012][i], RH / 2, [-RS + .012, 0, RS - .012, 0][i]);
+    mindGroup.add(m); HALL.layers.push({ c, g, tex, m, motif: 'geometry', born: 0 });
+  }
+}
+function drawHall(now) {
+  if (!HALL.layers.length) return;
+  const mind = viewMode === 'mind', st = HALL.stage, g0 = S.grip;
+  const intensity = mind ? clamp((1 - g0) * 1.25 + (ROOM.dark ? .25 : 0) + (ITEMS.drug > 0 ? .3 : 0)) * (1 - HALL.insight * .5) : 0;
+  for (const L of HALL.layers) L.m.visible = mind && intensity > .02;
+  if (!mind || intensity <= .02 || now - HALL.lastDraw < 110) return;
+  HALL.lastDraw = now; HALL.t += .11;
+  const t = HALL.t;
+  HALL.layers.forEach((L, i) => {
+    if (now - L.born > 6000 + i * 900) { L.motif = pickMotif(st); L.born = now; L.seed = Math.random() * 1000; }
+    const g = L.g, W = 512, H = 256, a = intensity;
+    g.clearRect(0, 0, W, H);
+    // phosphenes: specks of colour that drift, the first thing a starved eye makes up
+    for (let k = 0; k < 6 + a * 20; k++) { const x = (Math.sin(k * 12.9 + t * .3 + i) * .5 + .5) * W, y = (Math.cos(k * 7.1 + t * .23 + i * 3) * .5 + .5) * H; g.fillStyle = `hsla(${(k * 47 + t * 20) % 360},70%,60%,${.05 + a * .12})`; g.beginPath(); g.arc(x, y, 1.5 + (k % 3), 0, TAU); g.fill(); }
+    if (st < 1 && !ROOM.dark) return void (L.tex.needsUpdate = true);
+    const m = L.motif;
+    g.save();
+    if (m === 'geometry' || st >= 1) {
+      // form constants: lattice, tunnel, spiral, cobweb
+      const form = ['lattice', 'tunnel', 'spiral', 'cobweb'][Math.floor((L.seed || 0) + i) % 4], cx = W / 2 + Math.sin(t * .2) * 40, cy = H / 2;
+      g.strokeStyle = `rgba(106,79,156,${(m === 'geometry' ? .12 : .05) + a * .14})`; g.lineWidth = 1.2;
+      if (form === 'lattice') { const s = 22 + Math.sin(t * .4) * 4; for (let x = -s + (t * 6) % s; x < W; x += s) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + Math.sin(t + x * .02) * 8, H); g.stroke(); } for (let y = 0; y < H; y += s) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y + Math.cos(t + y * .03) * 8); g.stroke(); } }
+      if (form === 'tunnel') for (let r = (t * 20) % 24; r < 300; r += 24) { g.beginPath(); g.ellipse(cx, cy, r * 1.5, r, 0, 0, TAU); g.stroke(); }
+      if (form === 'spiral') { g.beginPath(); for (let k = 0; k < 600; k++) { const ang = k * .08 + t * .5, r = k * .45; g.lineTo(cx + Math.cos(ang) * r * 1.4, cy + Math.sin(ang) * r); } g.stroke(); }
+      if (form === 'cobweb') for (let k = 0; k < 14; k++) { const ang = k / 14 * TAU + t * .05; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * 400, cy + Math.sin(ang) * 300); g.stroke(); for (let r = 20; r < 300; r += 26) { g.beginPath(); g.arc(cx, cy, r, ang, ang + TAU / 14); g.stroke(); } }
+    }
+    const pulse = .5 + .5 * Math.sin(t * 1.3 + i);
+    if (m === 'faces') for (let k = 0; k < 3; k++) {   // pareidolia: the plaster arranges itself into faces
+      const x = ((L.seed * 37 + k * 173) % 420) + 46, y = ((L.seed * 13 + k * 91) % 120) + 70, s = 18 + k * 6;
+      g.fillStyle = `rgba(30,24,22,${(.08 + a * .25) * pulse})`; g.beginPath(); g.ellipse(x - s * .5, y, s * .22, s * .14, 0, 0, TAU); g.ellipse(x + s * .5, y, s * .22, s * .14, 0, 0, TAU); g.fill();
+      g.strokeStyle = g.fillStyle; g.lineWidth = 2; g.beginPath(); g.arc(x, y + s * .9, s * .5, Math.PI * 1.15, Math.PI * 1.85, S.fear < .5); g.stroke();
+    }
+    if (m === 'eyes') for (let k = 0; k < 9; k++) { const x = (Math.sin(L.seed + k * 2.3) * .45 + .5) * W, y = (Math.cos(L.seed * .7 + k * 1.7) * .4 + .5) * H; g.fillStyle = `rgba(240,240,236,${(.2 + a * .4) * pulse})`; g.beginPath(); g.ellipse(x, y, 11, 5, 0, 0, TAU); g.fill(); g.fillStyle = `rgba(20,16,14,${(.3 + a * .5) * pulse})`; g.beginPath(); g.arc(x + Math.sin(t) * 2, y, 3, 0, TAU); g.fill(); }
+    if (m === 'observer') { g.strokeStyle = `rgba(20,20,22,${.15 + a * .3})`; g.lineWidth = 3; for (let r = 8; r < 46; r += 9) { g.beginPath(); g.arc(W * .5, H * .4, r, 0, TAU); g.stroke(); } g.fillStyle = `rgba(196,50,31,${.3 + .4 * pulse})`; g.beginPath(); g.arc(W * .5 + 30, H * .4 - 30, 5, 0, TAU); g.fill(); }
+    if (m === 'door') { const x = 180 + (L.seed % 120); g.strokeStyle = `rgba(60,60,58,${.2 + a * .45})`; g.lineWidth = 2; g.strokeRect(x, H * .3, 70, H * .7); g.fillStyle = g.strokeStyle; g.beginPath(); g.arc(x + 60, H * .66, 3, 0, TAU); g.fill(); HALL.fakeDoor = { wall: i, u: (x + 35) / W }; }
+    if (m === 'food') { for (let k = 0; k < 4; k++) { const x = 80 + k * 100, y = H * .7; g.fillStyle = `rgba(200,155,94,${.2 + a * .4})`; g.beginPath(); g.ellipse(x, y, 28, 14, 0, 0, TAU); g.fill(); } }
+    if (m === 'village') { g.fillStyle = `rgba(90,110,70,${.12 + a * .25})`; g.fillRect(0, H * .82, W, H * .18); for (let k = 0; k < 6; k++) { const x = 40 + k * 80, w = 50, h = 40 + (k * 13) % 30; g.fillStyle = `rgba(200,180,150,${.15 + a * .3})`; g.fillRect(x, H * .82 - h, w, h); g.fillStyle = `rgba(140,80,50,${.15 + a * .3})`; g.beginPath(); g.moveTo(x - 6, H * .82 - h); g.lineTo(x + w / 2, H * .82 - h - 24); g.lineTo(x + w + 6, H * .82 - h); g.fill(); } }
+    if (m === 'crush' && ROOM.crush) { g.font = '44px "Reenie Beanie", cursive'; g.fillStyle = `rgba(194,65,107,${.2 + a * .45})`; g.textAlign = 'center'; g.fillText(ROOM.crush.name, W / 2, H * .5); const hx = W / 2, hy = H * .5 + 30; g.beginPath(); g.moveTo(hx, hy + 18); g.bezierCurveTo(hx - 30, hy - 4, hx - 12, hy - 22, hx, hy - 8); g.bezierCurveTo(hx + 12, hy - 22, hx + 30, hy - 4, hx, hy + 18); g.fill(); }
+    if (m === 'rats') for (let k = 0; k < 5; k++) { const x = ((t * 60 + k * 110 + L.seed) % (W + 60)) - 30, y = H - 8; g.fillStyle = `rgba(40,34,30,${.3 + a * .4})`; g.beginPath(); g.ellipse(x, y, 10, 4, 0, 0, TAU); g.fill(); g.fillRect(x - 18, y, 9, 1); }
+    if (m === 'blood') for (let k = 0; k < 7; k++) { const x = 40 + k * 66 + (L.seed % 20), len = ((t * 8 + k * 30) % 140); g.strokeStyle = `rgba(130,38,28,${.25 + a * .35})`; g.lineWidth = 3; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, len); g.stroke(); }
+    if (m === 'light') { const gr = g.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, 300); gr.addColorStop(0, `rgba(255,250,235,${.4 * a})`); gr.addColorStop(1, 'rgba(255,250,235,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); g.strokeStyle = `rgba(200,170,100,${.15 * a})`; for (let k = 0; k < 12; k++) { g.beginPath(); g.ellipse(W / 2, H / 2, 40 + k * 18, 20 + k * 9, t * .05 + k * .26, 0, TAU); g.stroke(); } }
+    g.restore();
+    L.tex.needsUpdate = true;
+  });
+}
+// the brain's own signal: heartbeat in the vision, blinks, and gaps where time goes missing
+function sensorium(now, dtR, inPOV) {
+  const mind = viewMode === 'mind';
+  const bpm = 58 + S.fear * 70 + (S.anger > .5 ? 15 : 0) + (S.excite || 0) * 20 - equanimity() * 12;
+  HALL.beat += dtR * bpm / 60;
+  const thump = Math.pow(Math.max(0, Math.sin(HALL.beat * TAU)), 12);
+  if (mind && S.fear > .45) { const v = $('#vig'); v.style.opacity = (parseFloat(v.style.opacity || 0) + thump * (S.fear - .4) * .5).toFixed(3); if (thump > .9 && HALL.lastThump !== Math.floor(HALL.beat)) { HALL.lastThump = Math.floor(HALL.beat); if (S.fear > .65) sfx('beat'); } }
+  // eyelids in his own view
+  const h = vegaC.h, lid = inPOV ? clamp(h.face.shut + (h.blink < 0 ? 1 : 0)) : 0;
+  $('#lidT').style.height = $('#lidB').style.height = (lid * 50).toFixed(1) + '%';
+  // lost time: a jump cut when his grip is thin
+  if (mind && S.grip < .3 && Math.random() < dtR * .15 * (1 - S.grip)) { HALL.freeze = now + 300 + Math.random() * 600; if (Math.random() < .3) say(pick(['Where did the last hour go?', 'I blinked and I was across the room.', 'Time skipped. Like a scratched record.']), 'mind'); }
+  // tinnitus in the silence
+  if (AC && soundOn && HALL.tin) HALL.tin.gain.value = mind && sim.phase === 'chamber' && HALL.stage >= 1 && cfg.chamber.sound === 'silence' ? .004 + (1 - S.grip) * .006 : 0;
+}
