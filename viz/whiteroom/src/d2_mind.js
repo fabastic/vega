@@ -322,3 +322,27 @@ function startFlashback(cue) {
   if (A.beh && !A.ended) A.beh = { kind: 'flashback', target: A.pos.clone(), dur: PTSD.flash.until - sim.hours, t: 0, arrived: true, extra: {}, h0: S.hunger, th0: S.thirst };
   PTSD.nextCut = 0;
 }
+
+// ---------- feelings, read through the lexicon ----------
+function vegaCtx() {
+  const ph = sim.phase, D = derived();
+  if (ph === 'life' || ph === 'setup' || ph === 'taken') return {};
+  if (ph === 'chamber') {
+    const b = ROOM.beh || {};
+    return { trapped: 1, alone: 1, escape: D.escape, small: RS < 2.5 ? 1 : 0, hall: 1 - S.grip, watched: watched() + (S.grip < .4 ? .2 : 0), expecting: !ROOM.food && ROOM.hours - (ROOM.lastMealH || 0) > 6 ? .45 : 0,
+      justAte: b.kind === 'eat' && b.arrived ? 1 : 0, justWoke: b.kind === 'wake' ? 1 : 0, letdown: ROOM.letdown || 0, catatonic: b.kind === 'catatonic', freedom: vegaC.v.freedom, homebound: 1, lostHome: .6,
+      litost: ROOM.litost || 0, drugged: ITEMS.drug > 0 ? .6 : 0, pet: ITEMS.rat && ITEMS.rat.alive ? 1 : 0, edge: 0, purpose: b.kind === 'pry' || b.kind === 'exercise' ? .6 : 0, sick: ITEMS.poison ? .6 : 0, unsure: (1 - S.grip) * .4 };
+  }
+  const near = r => COMPANIONS.some(z => z.kind !== 'zombie' && z.pos.distanceTo(A.pos) < r);
+  const b = A.beh || {}, hour = sim.hours % 24, inVillage = villDist(A.pos.x, A.pos.z)[0] < 30;
+  const partner = COMPANIONS.find(z => z.partner), kids = COMPANIONS.filter(z => z.kind === 'child');
+  const danger = ANIMALS.some(a => a.alive && (a.state === 'stalk') && a.pos.distanceTo(A.pos) < 25) || HOSTILES.some(z => z.alive && z.pos.distanceTo(A.pos) < 20);
+  return { company: near(12), partnerNear: partner && partner.pos.distanceTo(A.pos) < 8, crushNear: ROOM.crush && COMPANIONS.some(z => z.c === ROOM.crush && z.pos.distanceTo(A.pos) < 6), child: kids.length ? 1 : 0,
+    fire: A.built.campfire && A.pos.distanceTo(structPos('campfire')) < 6, indoors: b.kind === 'sleep' && A.sleepIndoors, storm: WEATHER.kind === 'storm' || WEATHER.kind === 'blizzard', danger: danger ? 1 : 0, fight: b.kind === 'fight' ? 1 : 0,
+    emptyPlace: inVillage && !near(25) && aloneDays() < 120 ? clamp(.7 - aloneDays() / 200) : 0, impermanence: WORLD.rot * .6 + (A.seasonTurn ? .4 : 0), outOfPlace: clamp(.8 - aloneDays() / 10), sonder: b.kind === 'scavenge' && b.arrived ? .7 : 0,
+    cute: kids.some(z => z.pos.distanceTo(A.pos) < 5) ? .6 : 0, expecting: citizens.some(c => c.survivor && c.alive && !c.met) && aloneDays() > cfg.outside.findDays * .5 ? .5 : 0, leftRecently: clamp(1 - (sim.hours - (A.lostAt || -1e9)) / 72) * .8,
+    edge: heightAt(A.pos.x, A.pos.z) > 12 ? .6 : 0, newLove: partner && sim.hours - (partner.since || 0) < 24 * 20 ? 1 : 0, schaden: clamp(1 - (sim.hours - (A.revengeAt || -1e9)) / 6) * .6, hunt: b.kind === 'hunt' ? 1 : 0,
+    dead: citizens.some(c => c.remains && c.found && c.deathPos.distanceTo(A.pos) < 8) ? .7 : 0, sick: A.sickLeft > 0 ? .7 : 0, freedom: vegaC.v.freedom, alone: !near(30), watched: watched(),
+    hall: 1 - S.grip, flash: PTSD.flash ? 1 : 0, purpose: b.kind === 'build' || b.kind === 'research' ? .6 : 0, obsess: A.directive === 'revive' ? S.grief : 0, won: b.kind === 'fight' && b.won ? 1 : 0, justAte: b.kind === 'eat' || b.kind === 'cook' ? .8 : 0 };
+}
+const vegaFeelings = () => emoWords(S, vegaCtx());
