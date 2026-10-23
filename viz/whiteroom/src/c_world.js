@@ -1,3 +1,4 @@
+
 // =====================================================================
 // THE WORLD: terrain, villages, roads, a lake, forests and the facility
 // =====================================================================
@@ -730,4 +731,26 @@ function renderPeople(dtR, now, filter) {
     }
     if (c.chatLine && now < c.chatLine.until && h.root.visible && camera.position.distanceTo(c.pos) < 70) tag('chat' + c.i, c.chatLine.text, new THREE.Vector3(c.pos.x, c.pos.y + 2.3, c.pos.z), 'bub');
   }
+}
+
+// ---------- decay ----------
+function applyDecay(rot) {
+  WORLD.rot = rot;
+  const dark = new THREE.Color(0x544c40), rust = new THREE.Color(0x7a4a2a);
+  for (const b of BUILDS) {
+    if (b.repaired || b.burnt) continue;
+    b.wallMat.color.copy(b.wallBase).lerp(dark, rot * .45); b.gMat.color.copy(b.wallMat.color);
+    b.roofMat.color.copy(b.roofBase).lerp(dark, rot * .5);
+    b.roof.rotation.z = b.tz * rot * .35; b.roof.rotation.x = b.tx * rot * .35;
+    b.door.rotation.y = rot > .2 ? -b.doorSwing * clamp(rot * 2) : 0;
+    for (const gl of b.glass) { const br = rot > .15 && gl.brk < rot * 1.3; if (br !== gl.broken && !gl.boarded) { gl.broken = br; gl.gl.visible = !br; gl.hole.visible = br; } }
+    if (b.collapse) { const k = smooth(.35, .8, rot); b.walls.scale.y = 1 - k * .3; b.roof.position.y = b.F + b.h * (1 - k * .3) - k * .2; b.roof.rotation.x = b.tx * rot * .35 + k * .3; }
+  }
+  for (const c of CARS) { c.body.color.copy(c.base).lerp(rust, rot * .75); c.wheels.forEach((w, i) => { w.position.y = .34 - (i % 2 ? rot : rot * .6) * .14; }); }
+  for (const f of FENCES) { f.g.rotation.z = f.lean * rot; f.m.color.copy(f.base).lerp(dark, rot * .5); }
+  for (const v of VILL) {
+    v.stalls.forEach((s, k) => { const t = smooth(.15, .5, rot); s.rotation.z = t * (1 + k * .15); s.position.y = heightAt(s.position.x, s.position.z) + .45 - t * .1; });
+    v.fields.material.color.set(0xffffff).lerp(new THREE.Color(0x6a7a3a), rot);
+  }
+  growGrass(rot);
 }
