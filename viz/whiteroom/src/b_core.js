@@ -29,3 +29,37 @@ function vnoise(x, z) {
   return lerp(lerp(h(xi, zi), h(xi + 1, zi), u), lerp(h(xi, zi + 1), h(xi + 1, zi + 1), u), v);
 }
 function fbm(x, z, o = 4) { let s = 0, a = .5, f = 1, n = 0; for (let i = 0; i < o; i++) { s += a * vnoise(x * f, z * f); n += a; a *= .5; f *= 2.03; } return s / n; }
+
+// ---------- renderer ----------
+const stage = $('#stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+stage.prepend(renderer.domElement);
+const camera = new THREE.PerspectiveCamera(50, 1, .1, 2000);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = 1.47;
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix();
+  const tl = $('#tl'), r = tl.getBoundingClientRect();
+  tl.width = Math.max(10, r.width * devicePixelRatio); tl.height = Math.max(10, r.height * devicePixelRatio);
+}
+new ResizeObserver(resize).observe(stage);
+
+// a gradient sky dome; colours are set per frame from the time of day
+function makeSky() {
+  const m = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { top: { value: new THREE.Color(0x8fb1d6) }, bottom: { value: new THREE.Color(0xdfe3dc) } },
+    vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 top; uniform vec3 bottom; varying vec3 vP; void main(){ float t = clamp(vP.y * 1.8 + .08, 0., 1.); gl_FragColor = vec4(mix(bottom, top, t), 1.); }',
+  });
+  return new THREE.Mesh(new THREE.SphereGeometry(1200, 24, 12), m);
+}
