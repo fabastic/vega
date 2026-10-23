@@ -2202,7 +2202,7 @@ function startBehaviour(kind) {
     case 'tally': target = wallSpot(ROOM.tallyWall, -.75, .5); dur = .25; break;
     case 'write': { const w = randWall(); target = wallSpot(w, rnd(-.85, .85), .5); dur = .35; extra.wall = w; break; }
     case 'sit_hug': case 'rock': case 'remember': target = pick(CORNERS); dur = rnd(1.2, 3.5); break;
-    case 'read': target = FURN.books; dur = rnd(1.5, 3); ROOM.booksRead++; break;
+    case 'read': target = FURN.books || pick(CORNERS); dur = rnd(1.5, 3); ROOM.booksRead++; break;   // with only a journal he reads in a corner
     case 'toilet': target = FURN.toilet; dur = .4; break;
     case 'talk_ghost': { const f = ROOM.friends[Math.floor(Math.pow(R(), 1.6) * ROOM.friends.length)]; ROOM.ghostC = f.c; target = pt(rnd(-1, 1) * RS * .3, rnd(-1, 1) * RS * .3, 0); dur = rnd(.8, 2); break; }
     case 'stare': target = wallSpot(randWall(), rnd(-.8, .8), .38); dur = rnd(1, 3); break;
@@ -2213,7 +2213,7 @@ function startBehaviour(kind) {
     case 'philosophize': { const w = randWall(); target = wallSpot(w, rnd(-.85, .85), .5); dur = .5; extra.wall = w; break; }
     case 'knock': { const w = randWall(); target = wallSpot(w, rnd(-.8, .8), .5); dur = .3; break; }
     case 'phantom': target = pt(0, RS - .85, 0); dur = .35; break;
-    case 'false_door': { const fd = HALL.fakeDoor; target = wallSpot(fd.wall, (fd.u * 2 - 1) * .95, .5); dur = .5; break; }
+    case 'false_door': { const fd = HALL.fakeDoor || { wall: 0, u: .5 }; target = wallSpot(fd.wall, (fd.u * 2 - 1) * .95, .5); dur = .5; break; }
     case 'mirror': target = wallSpot(1, .3, .55); dur = rnd(.3, 1); break;
     case 'photo': case 'radio': target = pick(CORNERS); dur = rnd(.6, 1.6); break;
     case 'rat': case 'eat_rat': target = pt(ITEMS.rat.pos.x + .5, ITEMS.rat.pos.z, -Math.PI / 2); dur = kind === 'rat' ? rnd(.5, 1.2) : .4; break;
