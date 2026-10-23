@@ -1,0 +1,32 @@
+<title>Vega White Room</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Schibsted+Grotesk:wght@400;500;600&family=Martian+Mono:wght@400;500&family=Reenie+Beanie&display=swap">
+<style>
+/* Layout: a one-screen observation console. A live 3D stage (the villages, the sealed chamber, the dead country)
+   beside a case-file panel that reads out the subject's body, feelings, wants and what his mind is showing him.
+   One deliberate look: clinical white paper, graphite ink, alarm red for harm, ochre for the life he had,
+   moss for what grows back and a violet for what only exists in his head. */
+:root{
+  --paper:#f2f3f0; --white:#fcfcfa; --ink:#16181b; --ink2:#5b6168; --rule:#d8dbd6; --rule2:#e7e9e5;
+  --alarm:#c4321f; --civ:#a8692a; --calm:#2b6684; --moss:#5d6f3a; --mind:#6a4f9c;
+  --display:'Syne','Arial Narrow',system-ui,sans-serif;
+  --body:'Schibsted Grotesk','Segoe UI',system-ui,sans-serif;
+  --mono:'Martian Mono',ui-monospace,Consolas,monospace;
+  --hand:'Reenie Beanie','Comic Sans MS',cursive;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font:14px/1.45 var(--body);display:flex;flex-direction:column;gap:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;overflow:hidden}
+[hidden]{display:none!important}
+button,select,input[type=text],input[type=number]{font:500 12px var(--mono);color:var(--ink);background:var(--white);border:1px solid var(--rule);border-radius:3px;padding:7px 10px}
+button{cursor:pointer}
+button:hover{border-color:var(--ink2)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--calm);outline-offset:2px}
+button[aria-pressed="true"],button[aria-selected="true"]{background:var(--ink);color:var(--white);border-color:var(--ink)}
+button:disabled{opacity:.4;cursor:default}
+.lbl{font:500 10.5px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.dim{color:var(--ink2)}
+.primary{background:var(--ink);color:var(--white);border-color:var(--ink)}
+.primary:hover{background:#000}
