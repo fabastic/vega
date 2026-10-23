@@ -1,3 +1,4 @@
+
 // =====================================================================
 // HIS MIND: hallucinations that grow with him, depth of thought, the scar the room leaves, and days
 // that carry over into the next
@@ -346,3 +347,22 @@ function vegaCtx() {
     hall: 1 - S.grip, flash: PTSD.flash ? 1 : 0, purpose: b.kind === 'build' || b.kind === 'research' ? .6 : 0, obsess: A.directive === 'revive' ? S.grief : 0, won: b.kind === 'fight' && b.won ? 1 : 0, justAte: b.kind === 'eat' || b.kind === 'cook' ? .8 : 0 };
 }
 const vegaFeelings = () => emoWords(S, vegaCtx());
+
+// ---------- feelings drive choices ----------
+// Nothing he does is scheduled. Every option is scored from his needs, and each score is then bent by
+// what he is feeling right now (the same families the lexicon reads) and by what yesterday left him with.
+const FEEL_DRIVES = {
+  explore: [['curious', .6], ['wander', .8], ['restless', .4]], search: [['lonely', .6], ['hope', .4], ['longing', .4]], pry: [['determ', .7], ['defiant', .5], ['trapped', .4]],
+  pound: [['anger', .8], ['aggress', .6], ['trapped', .3]], shout: [['lonely', .5], ['panic', .4], ['anger', .3]], pace: [['restless', .7], ['anxiety', .5]], exercise: [['determ', .5], ['pride', .3], ['restless', .3]],
+  sit_hug: [['sad', .5], ['fear', .4], ['vulnerable', .4]], rock: [['dissoc', .5], ['anxiety', .4]], remember: [['nostalgia', .7], ['longing', .5]], read: [['curious', .5], ['bored', .3], ['contemplate', .4]],
+  talk_ghost: [['lonely', .6], ['longing', .5], ['haunted', .4]], stare: [['numb', .5], ['apathy', .5], ['dissoc', .4]], meditate: [['contemplate', .6], ['calm', .4], ['transcend', .6], ['anxiety', .2]],
+  philosophize: [['contemplate', .7], ['nihil', .4], ['analytic', .3]], watch: [['paranoid', .6], ['contempt', .3], ['defiant', .3]], photo: [['longing', .6], ['love', .4], ['grief', .3]],
+  rat: [['tender', .5], ['lonely', .5], ['affection', .4]], mirror: [['shame', .4], ['dissoc', .4], ['curious', .2]], knock: [['haunted', .5], ['lonely', .4]], false_door: [['determ', .4], ['trapped', .5], ['mad', .4]],
+  talk: [['lonely', .5], ['affection', .5], ['connected', .4], ['love', .3]], court: [['attract', .9], ['romance', .6], ['lust', .4], ['lonely', .3]], intimate: [['lust', .8], ['romance', .5], ['love', .4]],
+  cradle: [['tender', .8], ['protect', .4]], hunt: [['aggress', .3], ['crave', .3], ['feral', .4], ['vengeful', .3]], fight: [['aggress', .6], ['courage', .6], ['protect', .6], ['vengeful', .5]],
+  flee: [['fear', .7], ['panic', .6], ['vulnerable', .4]], barricade: [['wary', .6], ['fear', .4], ['protect', .5]], loot: [['crave', .3], ['determ', .2], ['anticip', .2]],
+  build: [['determ', .5], ['pride', .3], ['protect', .3]], research: [['curious', .6], ['obsess', .4], ['determ', .3]], revive: [['grief', .5], ['obsess', .6], ['longing', .4]], collect: [['grief', .5], ['obsess', .6]],
+  bury: [['grief', .5], ['solemn', .5], ['care', .3]], grave: [['grief', .6], ['longing', .4]], journal: [['contemplate', .4], ['lonely', .3], ['sad', .2]], contemplate: [['contemplate', .6], ['awe', .5], ['calm', .3]],
+  sit: [['sad', .4], ['apathy', .4], ['defeat', .3]], wander: [['restless', .4], ['bored', .4]], scavenge: [['crave', .3], ['determ', .2]], tally_out: [['anxiety', .4], ['trapped', .3]],
+};
+function feelBias(F, k) { const d = FEEL_DRIVES[k]; if (!d) return 1; let s = 0; for (const [f, w] of d) s += (F[f] || 0) * w; return .7 + s * 1.1; }
