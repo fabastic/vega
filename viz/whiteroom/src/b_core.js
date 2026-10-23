@@ -487,3 +487,206 @@ function setFace(h, e, dt) {
 const faceFrom = (s, asleep, x = {}) => ({ brow: clamp(s.fear * .9 - .25 + (s.surprise || 0) * .6), knit: clamp(s.anger * 1.2), sad: clamp(Math.max(s.grief || 0, (1 - s.hope) * .7, s.loneliness * .6, s.heartbreak || 0) - .15),
   smile: clamp((s.hope - .45) * .8 + (s.joy || 0) * .5 + (s.love || 0) * .2 - (s.grief || 0) * .6 - s.fear * .3, -1, 1), open: s.fear > .75 ? .25 : 0, shut: asleep ? 1 : 0, nervous: s.fear > .55,
   blush: clamp((s.attraction || 0) * (x.crushNear ? 1 : .2) + (s.lust || 0) * .3 + (s.shame || 0) * .3), tears: clamp(((s.grief || 0) + (1 - s.hope) * .5 + (s.heartbreak || 0)) - .9), tired: clamp((s.sleep || 0) - .3), pale: clamp(1 - (s.health == null ? 1 : s.health) - .2) });
+
+// ---------- tools and things people carry ----------
+const TOOLMAT = {};
+const tmat = (c, r = .7, m = 0, e = 0) => TOOLMAT[[c, r, m, e]] || (TOOLMAT[[c, r, m, e]] = new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m, emissive: e ? c : 0, emissiveIntensity: e }));
+function makeTool(kind) {
+  const g = new THREE.Group(), wood = tmat(0x7a5a3a, .8), steel = tmat(0x8d9399, .35, .6), dark = tmat(0x2e2c2a, .5, .3), H = Math.PI / 2;
+  const add = (geo, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const me = new THREE.Mesh(geo, m); me.position.set(x, y, z); me.rotation.set(rx, ry, rz); me.castShadow = true; g.add(me); return me; };
+  switch (kind) {
+    case 'axe': add(GEO.cyl(.018, .022, .72, 6), wood, 0, 0, .22, H); add(GEO.box(.022, .07, .12), dark, 0, .02, .54); add(GEO.box(.012, .17, .05), steel, 0, .06, .6); break;
+    case 'hammer': add(GEO.cyl(.014, .017, .36, 6), wood, 0, 0, .1, H); add(GEO.box(.04, .12, .04), dark, 0, .02, .28); break;
+    case 'spear': add(GEO.cyl(.016, .016, 1.8, 6), wood, 0, 0, .3, H); add(new THREE.ConeGeometry(.035, .18, 6), steel, 0, 0, 1.28, H); add(GEO.cyl(.022, .022, .05, 6), tmat(0x4a3a2a), 0, 0, 1.17, H); break;
+    case 'rod': add(GEO.cyl(.007, .014, 1.7, 5), wood, 0, 0, .7, H); add(GEO.cyl(.002, .002, 1.3, 3), tmat(0xdcdcdc, .5), 0, -.62, 1.55); break;
+    case 'shovel': add(GEO.cyl(.017, .017, 1.05, 6), wood, 0, 0, .35, H); add(GEO.box(.16, .2, .015), steel, 0, -.05, .93, .4); add(GEO.box(.12, .025, .025), wood, 0, 0, -.18); break;
+    case 'crowbar': add(GEO.cyl(.012, .012, .62, 6), dark, 0, 0, .2, H); add(GEO.box(.02, .07, .02), dark, 0, .03, .52, .6); break;
+    case 'knife': add(GEO.box(.006, .028, .16), steel, 0, 0, .12); add(GEO.box(.018, .024, .09), dark, 0, 0, -.01); break;
+    case 'book': add(GEO.box(.16, .035, .21), tmat(pick([0x8a3b2c, 0x2b5a7a, 0x5d6f3a, 0x6a4f9c])), 0, .02, .06); add(GEO.box(.15, .03, .2), tmat(0xeee8d8, .9), .005, .022, .06); break;
+    case 'journal': add(GEO.box(.13, .02, .18), tmat(0x5a4632), 0, .015, .06); add(GEO.box(.006, .006, .14), dark, .09, .03, .05, 0, .4); break;
+    case 'bread': add(GEO.box(.12, .06, .08), tmat(0xc89b5e, .9), 0, .02, .05); break;
+    case 'meat': add(GEO.box(.12, .05, .08), tmat(0x9a3b30, .6), 0, .02, .05); break;
+    case 'photo': add(GEO.box(.09, .12, .004), tmat(0xf2efe6, .9), 0, .05, .05, -.3); add(GEO.box(.075, .09, .005), tmat(0x8a7058, .8), 0, .055, .053, -.3); break;
+    case 'mirror': add(GEO.box(.13, .17, .012), dark, 0, .07, .05, -.3); add(GEO.box(.11, .15, .004), tmat(0xcfd8de, .08, .25, .15), 0, .07, .057, -.3); break;
+    case 'torch': add(GEO.cyl(.018, .022, .5, 6), wood, 0, .2, .02); add(new THREE.ConeGeometry(.05, .15, 6), tmat(0xffa040, .5, 0, 1.4), 0, .5, .02); break;
+    case 'bucket': add(GEO.cyl(.11, .09, .2, 12), tmat(0x7d8288, .4, .5), 0, -.16, 0); add(new THREE.TorusGeometry(.1, .006, 4, 12, Math.PI), dark, 0, -.05, 0); break;
+    case 'basket': add(GEO.cyl(.15, .11, .14, 10), tmat(0xa9844f, .95), 0, -.12, 0); break;
+    case 'rock': add(GEO.sph(.06, 7, 6), tmat(0x84807a, .95), 0, 0, .03); break;
+    case 'nail': add(GEO.cyl(.004, .004, .07, 4), steel, 0, 0, .04, H); break;
+    case 'syringe': add(GEO.cyl(.01, .01, .1, 6), tmat(0xd9e3e6, .2), 0, 0, .06, H); add(GEO.cyl(.002, .002, .05, 3), steel, 0, 0, .13, H); break;
+    case 'saw': add(GEO.box(.006, .1, .4), steel, 0, -.03, .22); add(GEO.box(.025, .06, .1), wood, 0, 0, -.02); break;
+    case 'rifle': add(GEO.box(.035, .06, .9), tmat(0x4a3826), 0, 0, .25); add(GEO.cyl(.012, .012, .5, 6), dark, 0, .03, .65, H); break;
+    case 'flower': add(GEO.cyl(.004, .004, .2, 4), tmat(0x4f7038), 0, .08, .02); add(GEO.sph(.025, 6, 5), tmat(0xd8b23a), 0, .19, .02); break;
+  }
+  return g;
+}
+function holdTool(h, kind, left) {
+  const sock = left ? h.socketL : h.socketR;
+  if (!sock || sock.userData.kind === kind) return;
+  sock.userData.kind = kind;
+  for (const c of sock.children) c.visible = false;
+  if (!kind) return;
+  h.toolCache = h.toolCache || {};
+  const key = (left ? 'L' : 'R') + kind;
+  let t = h.toolCache[key]; if (!t) { t = makeTool(kind); h.toolCache[key] = t; sock.add(t); }
+  t.visible = true;
+}
+function setMass(h, m) { h.mass = m; if (h.mesh) h.mesh.morphTargetInfluences[0] = clamp((1 - m) * 1.6); }
+// beard and hair grow; clothes collect dirt
+function setGrooming(h, days, dirt) {
+  h.beardAmt = h.fem ? 0 : clamp(days / 40) * .9; h.dirt = dirt;
+  for (const m of h.hairMeshes) m.scale.y = 1.15 + clamp(days / 120) * .4;
+  h.shirtMat.color.copy(h.shirtBase).lerp(new THREE.Color(0x4a3f33), dirt * .55);
+  h.pantsMat.color.copy(h.pantsBase).lerp(new THREE.Color(0x3d342a), dirt * .5);
+}
+
+// Poses: every activity is a function of a phase and the body's condition (slump, tremor).
+function pose(kind, ph, c = {}) {
+  const p = basePose();
+  const slump = c.slump || 0, trem = c.tremor || 0;
+  const breathe = Math.sin(ph * .5) * .02;
+  p.sx = .03 + slump * .3 + breathe; p.nx = .04 + slump * .35;
+  switch (kind) {
+    case 'stand': p.sz = Math.sin(ph * .21) * .025; p.tz = Math.sin(ph * .21) * .015; p.ny = Math.sin(ph * .13) * .25; p.lhz = Math.max(0, Math.sin(ph * .21)) * .05; p.rhz = Math.max(0, -Math.sin(ph * .21)) * .05; break;
+    case 'walk': case 'pace': case 'shamble': case 'stagger': {
+      const a = c.amp == null ? 1 : c.amp, s = Math.sin(ph);
+      p.lhx = s * .5 * a; p.rhx = -s * .5 * a;
+      p.lkx = Math.max(0, Math.sin(ph - 1.3)) * .9 * a + .05; p.rkx = Math.max(0, Math.sin(ph + Math.PI - 1.3)) * .9 * a + .05;
+      p.lsx = -s * .38 * a; p.rsx = s * .38 * a; p.lex = p.rex = .3;
+      p.y = Math.abs(Math.cos(ph)) * .03 - .02; p.sx += .06; p.sz = Math.sin(ph) * .03; p.ny = -Math.sin(ph) * .05;
+      if (kind === 'shamble') { p.lsx = p.rsx = 1.35 + s * .1; p.lex = p.rex = .15; p.nz = .25; p.nx = .3; p.sz = .12 * Math.sin(ph * .5); p.lhx *= .6; p.rhx *= .6; }
+      if (kind === 'stagger') { p.tz = Math.sin(ph * .5) * .12; p.sx += .25; p.nx += .2; }
+      break;
+    }
+    case 'run': {
+      const s = Math.sin(ph);
+      p.lhx = s * .8; p.rhx = -s * .8; p.lkx = Math.max(0, Math.sin(ph - 1.2)) * 1.5 + .2; p.rkx = Math.max(0, Math.sin(ph + Math.PI - 1.2)) * 1.5 + .2;
+      p.lsx = -s * .7; p.rsx = s * .7; p.lex = p.rex = 1.3; p.sx = .2; p.y = Math.abs(Math.cos(ph)) * .06 - .03; break;
+    }
+    case 'turn': { const s = Math.sin(ph * 2); p.lhx = Math.max(0, s) * .3; p.rhx = Math.max(0, -s) * .3; p.lkx = Math.max(0, s) * .4; p.rkx = Math.max(0, -s) * .4; break; }
+    case 'sit_hug': case 'rock':
+      p.y = -.8; p.lhx = p.rhx = 1.95; p.lkx = p.rkx = 2.3; p.sx = .5 + slump * .2; p.nx = .4;
+      p.lsx = p.rsx = .85; p.lsz = p.rsz = .28; p.lex = p.rex = 1.55;
+      if (kind === 'rock') p.sx += Math.sin(ph) * .28; break;
+    case 'sit_wall': case 'read': case 'warm': case 'fish': case 'hold_sit':
+      p.y = -.8; p.lhx = p.rhx = 1.5; p.lkx = p.rkx = .15; p.lhz = p.rhz = .1; p.sx = .02 + slump * .45; p.nx = .1 + slump * .4;
+      p.lsx = p.rsx = .3; p.lex = p.rex = .35;
+      if (kind === 'read') { p.lsx = p.rsx = .55; p.lex = p.rex = 1.3; p.nx = .45; }
+      if (kind === 'hold_sit') { p.rsx = .9; p.rex = 1.5; p.nx = .45; p.lkx = 1.2; }
+      if (kind === 'warm') { p.lsx = p.rsx = .95; p.lex = p.rex = .4; p.lkx = p.rkx = 1.2; p.sx = .3; }
+      if (kind === 'fish') { p.rsx = 1.0 + Math.sin(ph * .3) * .05; p.rex = .3; p.lsx = .9; p.lex = .5; p.nx = .15; }
+      break;
+    case 'sit_bed':
+      p.y = -.47; p.lhx = p.rhx = 1.5; p.lkx = p.rkx = 1.45; p.sx = .2 + slump * .4; p.nx = .2 + slump * .4; p.lsx = p.rsx = .45; p.lex = p.rex = .9; p.lsz = p.rsz = .12; break;
+    case 'bed':
+      p.y = -.35; p.tx = -Math.PI / 2; p.lsz = p.rsz = .2; p.lkx = p.rkx = .15; p.lhx = p.rhx = .12; p.sx = breathe; break;
+    case 'eat_sit':
+      p.y = -.8; p.lhx = p.rhx = 1.5; p.lkx = 1.6; p.rkx = .3; p.sx = .25;
+      p.rsx = .9; p.rex = 2.2 + Math.sin(ph * 2) * .2; p.lsx = .7; p.lex = 1.4; p.nx = .2; p.mo = Math.max(0, Math.sin(ph * 4)) * .5; break;
+    case 'eat_stand':
+      p.rsx = .9; p.rex = 2.1 + Math.sin(ph * 2) * .2; p.lsx = .4; p.lex = 1.1; p.mo = Math.max(0, Math.sin(ph * 4)) * .5; break;
+    case 'lie':
+      p.y = -.83; p.tx = -Math.PI / 2; p.sx = breathe; p.nx = 0; p.lsz = p.rsz = .2; p.lkx = p.rkx = .15; p.lhx = p.rhx = .12; break;
+    case 'curl':
+      p.y = -.8; p.tz = Math.PI / 2; p.lhx = p.rhx = 1.4; p.lkx = p.rkx = 1.8; p.sx = .55; p.nx = .5;
+      p.lsx = p.rsx = 1.3; p.lex = p.rex = 1.9; p.lsz = p.rsz = .1; break;
+    case 'collapsed':
+      p.y = -.84; p.tx = -Math.PI / 2; p.tz = .25; p.lsz = .9; p.rsz = .3; p.lex = .2; p.rex = .9; p.lhz = .25; p.lkx = .5; p.nx = -.3; p.ny = .7; break;
+    case 'reach_wall': {
+      const s = Math.sin(ph * .8);
+      p.lsx = 1.45 + s * .12; p.rsx = 1.45 - s * .12; p.lsz = .3 + s * .15; p.rsz = .3 - s * .15; p.lex = p.rex = .25;
+      p.lhz = Math.max(0, s) * .18; p.rhz = Math.max(0, -s) * .18; p.nx = .1; break;
+    }
+    case 'punch': {
+      const a = Math.max(0, Math.sin(ph * 2.2));
+      p.rsx = .85 + .7 * a; p.rex = 1.8 * (1 - a) + .05; p.lsx = .95; p.lex = 1.7; p.lsz = .15;
+      p.sx = .12 + a * .12; p.sz = -a * .12; p.lhx = .25; p.rkx = .25; p.y = -.04; p.mo = a * .6; break;
+    }
+    case 'hammer': case 'build': {
+      const a = Math.max(0, Math.sin(ph * 2));
+      p.rsx = 1.3 + a * 1.1; p.rex = .5 + a * .6; p.lsx = .9; p.lex = 1; p.sx = .35; p.nx = .3;
+      if (kind === 'build') { p.y = -.25; p.lkx = p.rkx = 1; p.lhx = p.rhx = .7; } break;
+    }
+    case 'chop': {
+      const a = (Math.sin(ph * 1.6) + 1) / 2;
+      p.lsx = p.rsx = .6 + a * 2.2; p.lsz = p.rsz = .05; p.lex = p.rex = .3 + (1 - a) * .3; p.sx = .45 - a * .5; p.lhx = .25; p.rhx = -.1; p.lkx = .3; break;
+    }
+    case 'spear': {
+      const a = Math.max(0, Math.sin(ph * 1.8));
+      p.rsx = .9 + a * .9; p.rex = 1.6 * (1 - a); p.lsx = .8 + a * .5; p.lex = .9; p.sx = .2 + a * .2; p.lhx = .4; p.lkx = .4; p.rhx = -.2; break;
+    }
+    case 'swing': {
+      const a = Math.sin(ph * 2.4);
+      p.rsx = 1.2 + a * .5; p.rsz = .4 + a * .7; p.rex = .4; p.lsx = 1.1; p.lex = 1.2; p.sz = a * .22; p.sx = .2; p.lhx = .35; p.lkx = .35; p.rhx = -.15; break;
+    }
+    case 'dig': case 'forage': {
+      const a = (Math.sin(ph * 2) + 1) / 2;
+      p.y = kind === 'dig' ? -.15 : -.35; p.lhx = p.rhx = kind === 'dig' ? .5 : 1.1; p.lkx = p.rkx = kind === 'dig' ? .7 : 1.6; p.sx = kind === 'dig' ? .5 + a * .3 : .7;
+      p.lsx = p.rsx = .6 + a * .7; p.lex = p.rex = .3; break;
+    }
+    case 'carry':
+      p.lsx = p.rsx = .8; p.lex = p.rex = 1.3; p.lsz = p.rsz = .25; break;
+    case 'wash':
+      p.y = -.4; p.lhx = p.rhx = 1.2; p.lkx = p.rkx = 1.9; p.sx = .7; p.lsx = p.rsx = 1.8 + Math.sin(ph * 3) * .3; p.lex = p.rex = 2.0; p.lsz = p.rsz = .3; break;
+    case 'pry': {
+      const s = Math.sin(ph * 1.6);
+      p.lsx = p.rsx = 1.35; p.lsz = p.rsz = .06; p.lex = p.rex = .55 + .35 * s; p.sx = -.08 + .14 * s; p.lhx = .35; p.lkx = .5; p.rhx = -.15; p.y = -.06; break;
+    }
+    case 'shout': {
+      const s = Math.sin(ph * 1.3);
+      p.nx = -.5; p.sx = -.12; p.lsz = p.rsz = .75 + .2 * s; p.lsx = p.rsx = .6; p.lex = p.rex = .45; p.mo = 1; break;
+    }
+    case 'tally':
+      p.rsx = 1.65 + Math.sin(ph * 3) * .15; p.rex = .55; p.lsx = .9; p.lsz = .25; p.lex = .35; p.nx = .1; break;
+    case 'write':
+      p.rsx = 1.8 + Math.sin(ph * 2) * .25; p.rsz = .2 + Math.sin(ph * 1.3) * .3; p.rex = .4; p.lsx = .3; p.lex = .3; break;
+    case 'jump': {
+      const s = Math.sin(ph * 1.8), up = Math.max(0, s);
+      p.lsx = p.rsx = 2.9; p.lsz = p.rsz = .15; p.lex = p.rex = .1; p.y = up * .38 - Math.max(0, -s) * .14;
+      p.lhx = p.rhx = Math.max(0, -s) * .7; p.lkx = p.rkx = Math.max(0, -s) * 1.2; p.nx = -.5; break;
+    }
+    case 'pushup': {
+      const a = (Math.sin(ph * 1.5) + 1) / 2;
+      p.tx = 1.12; p.y = -.64 - (1 - a) * .1; p.sx = 0; p.nx = -.35; p.lsx = p.rsx = Math.PI / 2 - .05 - (1 - a) * .25; p.lsz = p.rsz = .22; p.lex = p.rex = (1 - a) * .9; p.lhx = p.rhx = 0; p.lkx = p.rkx = 0; break;
+    }
+    case 'squat': {
+      const a = (Math.sin(ph * 1.4) + 1) / 2;
+      p.y = -.38 * a; p.lhx = p.rhx = 1.45 * a; p.lkx = p.rkx = 2.1 * a; p.lsx = p.rsx = 1.45 * a; p.lex = p.rex = .1; p.sx = .25 * a; break;
+    }
+    case 'stretch': p.lsx = p.rsx = 2.95; p.lsz = p.rsz = .25; p.lex = p.rex = .1; p.nx = -.35; p.sx = -.12; p.y = .02; break;
+    case 'scratch': p.rsx = 2.6; p.rex = 2.3 + Math.sin(ph * 6) * .25; p.nx = .25; p.ny = .2; p.lsx = .1; break;
+    case 'shiver': p.lsx = p.rsx = .75; p.lex = p.rex = 2.0; p.lsz = p.rsz = -.28; p.sx = .3; p.nx = .3; p.y = -.03; break;
+    case 'cower':
+      p.y = -.52; p.lhx = p.rhx = 1.7; p.lkx = p.rkx = 2.4; p.sx = .8; p.nx = .55; p.lsx = p.rsx = 2.5; p.lex = p.rex = 2.1; p.lsz = p.rsz = .45; break;
+    case 'meditate':
+      p.y = -.82; p.lhx = p.rhx = 1.35; p.lhz = p.rhz = .8; p.lkx = p.rkx = 2.5; p.sx = breathe * .5; p.nx = .12 + Math.sin(ph * .2) * .02;
+      p.lsx = p.rsx = .35; p.lsz = p.rsz = .28; p.lex = p.rex = 1.05; break;
+    case 'gaze_up': p.nx = -.7; p.sx = -.12; p.lsx = p.rsx = .1; p.ny = Math.sin(ph * .15) * .3; break;
+    case 'hold_up': p.rsx = 1.0; p.rex = 1.55; p.rsz = .05; p.nx = .38; p.lsx = .15; p.lex = .3; break;
+    case 'pet':
+      p.y = -.45; p.lhx = .2; p.lkx = 1.6; p.rhx = 1.4; p.rkx = 1.5; p.sx = .7; p.nx = .4; p.rsx = 1.1 + Math.sin(ph * 2) * .15; p.rex = .2; p.lsx = .3; p.lex = .6; break;
+    case 'cradle':
+      p.lsx = p.rsx = .75; p.lex = p.rex = 1.75; p.lsz = p.rsz = .15; p.nx = .45; p.sz = Math.sin(ph * .8) * .06; p.tz = Math.sin(ph * .8) * .03; break;
+    case 'pray':
+      p.y = -.47; p.lhx = p.rhx = .05; p.lkx = p.rkx = 1.6; p.sx = .15; p.nx = .45; p.lsx = p.rsx = .95; p.lex = p.rex = 1.75; p.lsz = p.rsz = -.3; break;
+    case 'talk': case 'chat': {
+      const s = Math.sin(ph * 1.4);
+      p.rsx = .5 + .25 * s; p.rex = 1.2 + .35 * Math.sin(ph * 1.9); p.lsx = .25; p.lex = .55; p.nx = -.03 + .05 * s; p.ny = .1 * Math.sin(ph * .7);
+      p.mo = Math.max(0, Math.sin(ph * 5)) * .4; break;
+    }
+    case 'stare':
+      p.nx = .2 + slump * .3; p.lsz = p.rsz = .02; p.lex = p.rex = .02; p.sx = .1 + slump * .3; break;
+    case 'clutch':
+      p.lsx = p.rsx = 2.5; p.lsz = p.rsz = .65; p.lex = p.rex = 2.3; p.sx = .45; p.nx = .55; p.lkx = p.rkx = .4; p.lhx = p.rhx = .3; p.y = -.08; break;
+    case 'kneel':
+      p.y = -.45; p.lhx = .2; p.lkx = 1.6; p.rhx = 1.4; p.rkx = 1.5; p.sx = .45; p.nx = .5; p.lsx = p.rsx = .3; p.lex = p.rex = .6; break;
+    case 'look':
+      p.ny = Math.sin(ph * .4) * .7; p.nx = -.1; break;
+  }
+  if (trem > 0) for (const k of ['sx', 'nx', 'lsx', 'rsx', 'lex', 'rex']) p[k] += (Math.random() - .5) * trem;
+  return p;
+}
+// how high a pose puts the head, for labels
+const poseHeight = k => /^(lie|curl|bed|collapsed|pushup)$/.test(k) ? .75 : /^(sit|rock|eat_sit|read|warm|fish|hold_sit|meditate|cower)/.test(k) ? 1.25 : /^(kneel|pray|pet|sit_bed|forage|wash)/.test(k) ? 1.6 : 2.15;
+// the poses that put him on the floor; getting up from them goes through sitting and kneeling
+const GROUND = new Set(['lie', 'curl', 'bed', 'collapsed', 'sit_hug', 'rock', 'sit_wall', 'read', 'warm', 'fish', 'hold_sit', 'eat_sit', 'meditate', 'cower', 'pushup']);
