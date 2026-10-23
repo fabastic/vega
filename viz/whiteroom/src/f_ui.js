@@ -152,3 +152,121 @@ $('#setup').addEventListener('click', e => {
     renderSetup();
   }
 });
+
+// =====================================================================
+// RUNNING THE STORY
+// =====================================================================
+let speed = 1;
+const sim = { phase: 'setup', hours: 7, takeAt: 0, chamberStart: 0, collapseAt: Infinity, aloneStart: 0, skipTo: null, lastDay: -1 };
+const fmtClock = h => { const d = Math.floor(h / 24) + 1, hh = Math.floor(h % 24), mm = Math.floor((h * 60) % 60); return `Day ${d} · ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; };
+const fmtShort = h => `D${Math.floor(h / 24) + 1} ${String(Math.floor(h % 24)).padStart(2, '0')}:${String(Math.floor((h * 60) % 60)).padStart(2, '0')}`;
+
+$('#begin').addEventListener('click', () => {
+  if (cfg.world.fresh !== false) cfg.world.seed = Math.floor(Math.random() * 1e6);
+  try { localStorage.setItem('vega-whiteroom-cfg', JSON.stringify(cfg)); } catch (e) { /* fine */ }
+  cfg.vega.home = Math.min(cfg.vega.home, cfg.world.villages - 1);
+  $('#setup').hidden = true;
+  $('#fadeTxt').textContent = 'Building the villages…'; $('#fade').classList.add('on');
+  setTimeout(() => {
+    buildWorld(); buildPeople(); spawnAnimals();
+    sim.takeAt = cfg.time.lifeDays * 24 + 3;
+    selected = vegaC;
+    buildCitList();
+    setPhase('life'); setTownCam(); setSpeed(1);
+    $('#fade').classList.remove('on');
+    renderLifePanel(true);
+  }, 60);
+});
+
+function setPhase(ph) {
+  sim.phase = ph;
+  const idx = { setup: -1, life: 0, taken: 1, chamber: 1, return: 2, after: 3 }[ph];
+  ['ph1', 'ph2', 'ph3', 'ph4'].forEach((id, i) => { $('#' + id).className = i === idx ? 'on' : (i < idx ? 'done' : ''); });
+  $('#setupPanel').hidden = ph !== 'setup';
+  $('#lifePanel').hidden = !(ph === 'life' || ph === 'taken');
+  $('#roomPanel').hidden = ph !== 'chamber';
+  $('#afterPanel').hidden = !(ph === 'after' || ph === 'return');
+  $('#feedSec').hidden = !(ph === 'chamber' || ph === 'after' || ph === 'return');
+  $('#tlWrap').hidden = ph !== 'chamber';
+  const mindBtns = ph === 'chamber' || ph === 'after';
+  $('#vMind').hidden = $('#vReal').hidden = !mindBtns;
+  $('#vFollow').hidden = $('#vMap').hidden = $('#vIso').hidden = !(ph === 'life' || ph === 'after');
+  $('#vPov').hidden = !(ph === 'chamber' || ph === 'after');
+  updateAudio();
+}
+function fadeThen(text, fn, ms = 2400) {
+  $('#fadeTxt').textContent = text; $('#fade').classList.add('on');
+  sim.skipTo = null; setSpeed(0);
+  setTimeout(() => { clearTags(); fn(); setTimeout(() => { $('#fade').classList.remove('on'); setSpeed(1); }, 400); }, reduceMotion ? 300 : ms);
+}
+function takeVega() {
+  setPhase('taken');
+  fadeThen(`${fmtClock(sim.hours)}. ${NAME()} is taken from his bed in ${homeName()}. Nobody sees him go.`, () => {
+    sim.chamberStart = sim.hours;
+    const days = cfg.time.chamberDays, cd = Math.min(rnd(5, 12), Math.max(2, days * .15));
+    sim.collapseAt = sim.hours + 24 * cd;
+    const end = Math.max(cd + 8, days - 4);
+    for (const c of citizens) {
+      if (c.isVega || c.survivor) continue;
+      const d = cd + 3 + Math.pow(R(), .85) * (end - cd - 3);
+      c.deathAt = sim.chamberStart + d * 24 + rnd(0, 24);
+      c.sickAt = c.deathAt - rnd(36, 96);
+      const late = d > end * .6;
+      c.cause = cfg.outside.cause === 'fever' ? 'the fever' : cfg.outside.cause === 'famine' ? (late ? pick(['hunger', 'the cold']) : 'hunger') : (late ? pick(['hunger', 'the cold', 'the fever']) : 'the fever');
+    }
+    vegaC.act = null;
+    scene.remove(vegaC.h.root);
+    enterRoom();
+    renderer.domElement.style.filter = '';
+    setCCTV(); setPhase('chamber'); buildGodPanel($('#rGod'), GOD_ROOM);
+    feedDirty = true;
+  });
+}
+function goAfter() {
+  setPhase('return');
+  fadeThen(ROOM.broke ? `Chamber day ${Math.floor(ROOM.hours / 24) + 1}. He tore the door out of its frame and walked into ${seasonAt(sim.hours)} light.` : `Chamber day ${cfg.time.chamberDays}. The power failed and the door swung open. ${NAME()} walks out into ${seasonAt(sim.hours)} light.`, () => {
+    for (const [, g] of ghosts) { g.want = 0; g.op = 0; g.root.visible = false; }
+    const rot = clamp((sim.hours - sim.collapseAt) / (24 * 90));
+    applyDecay(rot); WORLD.lastRot = rot;
+    for (const c of citizens) if (!c.isVega && !c.alive) makeRemains(c);
+    scene.add(vegaC.h.root); vegaC.h.root.visible = true;
+    A.pos.copy(FAC.door); A.yaw = Math.atan2(VILL[vegaC.homeVillage].x - FAC.door.x, VILL[vegaC.homeVillage].z - FAC.door.z);
+    A.base.copy(vegaC.home.door); A.inv.food = 3;
+    A.beh = { kind: 'arrive', target: VILL[vegaC.homeVillage].places.plaza.pos.clone(), dur: .5, t: 0, arrived: false, extra: {} };
+    sim.aloneStart = sim.hours;
+    S.grief = 0; S.boredom = .2; S.loneliness = Math.max(S.loneliness, .5); S.fear = .5; S.health = Math.max(S.health, .45); S.warmth = 1; S.guilt = .25; S.thirst = Math.min(S.thirst, .35);
+    say('A rain barrel by the facility door. I drank until I was sick. Next to it, a crate of the same bread they fed me through the hatch. Three loaves.', 'ev');
+    say(line(ALINES.arrive, true));
+    renderer.domElement.style.filter = '';
+    ptsdInit(); dayReset(); HALL.lastStage = hallStageOf(S.grip + .15);
+    if (S.ptsd > .2) say('Out. I\'m out. So why do I keep checking for the walls?', 'mind');
+    setPhase('after'); setFollow(); buildDirs(); buildGodPanel($('#aGod'), GOD_WORLD);
+  }, 2800);
+}
+function showEnding(where) {
+  const days = where === 'chamber' ? Math.floor(ROOM.hours / 24) : Math.floor(aloneDays());
+  $('#endEyebrow').textContent = `This is how he died · ${fmtClock(sim.hours)}`;
+  if (where === 'chamber') {
+    $('#endTitle').textContent = `${NAME()} died in the chamber`;
+    $('#endText').textContent = `He lived ${cfg.time.lifeDays} normal days and survived ${days} in the white chamber. The hatch did not give him enough.`;
+  } else {
+    $('#endTitle').textContent = `${NAME()} died after ${days} day${days === 1 ? '' : 's'} outside`;
+    const cause = S.thirst > .9 ? 'thirst' : S.hunger > .85 ? 'hunger' : A.sickLeft > 0 ? 'the fever' : S.warmth < .25 ? 'the cold' : S.pain > .3 ? 'his wounds' : 'everything at once';
+    $('#endText').textContent = `He lived ${cfg.time.lifeDays} normal days, ${Math.floor(ROOM.hours / 24)} in the white chamber, and ${days} in what was left. In the end it was ${cause}.`;
+  }
+  const total = citizens.length - 1;
+  const st = [['Normal life', `${cfg.time.lifeDays} days`], ['In the chamber', `${Math.floor(ROOM.hours / 24)} days`], ['Days he thought passed inside', ROOM.sleeps + 1], ['Grip on reality at the end', Math.round(S.grip * 100) + '%']];
+  if (where === 'after') st.push(['Children', FAMILY.children.length], ['Times you intervened', GOD.acts], ['Depth of mind', depthStage()],
+    ['Days outside', days], ['People he found', `${A.found} of ${total}`], ['Graves dug', A.buried], ['Survivors met', A.met], ['Brought back', A.revived + (A.restored ? ` (${A.restored} as themselves)` : '')], ['Research finished', Object.keys(A.research.done).length], ['Animals hunted', A.kills]);
+  $('#endStats').innerHTML = st.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+  $('#ending').hidden = false;
+}
+$('#endWatch').addEventListener('click', () => { $('#ending').hidden = true; });
+$('#endRestart').addEventListener('click', () => location.reload());
+$('#skipLife').addEventListener('click', () => { if (sim.phase === 'life') sim.skipTo = sim.takeAt; });
+$('#skipRoom').addEventListener('click', () => { if (sim.phase === 'chamber' && !ROOM.released) sim.skipTo = sim.chamberStart + cfg.time.chamberDays * 24; });
+$('#skipAfter').addEventListener('click', () => { if (sim.phase === 'after' && !A.ended) sim.skipTo = sim.hours + 240; });
+$('#ivLights').addEventListener('click', e => { if (sim.phase !== 'chamber' || ROOM.released) return; ROOM.darkManual = ROOM.darkManual == null ? !ROOM.dark : (ROOM.darkManual ? null : true); const dark = ROOM.darkManual === true; e.currentTarget.setAttribute('aria-pressed', dark); e.currentTarget.textContent = dark ? 'Lights on' : 'Lights off'; say(dark ? (S.grip > .5 ? 'Dark. Finally dark.' : 'Something is in here with me. In the dark.') : 'The light is back.', dark && S.grip <= .5 ? 'bad' : 'ev'); updateAudio(); });
+$('#ivNoise').addEventListener('click', e => { if (sim.phase !== 'chamber' || ROOM.released) return; ROOM.noise = !ROOM.noise; e.currentTarget.setAttribute('aria-pressed', ROOM.noise); say(ROOM.noise ? 'A hiss from everywhere. Like rain that never lands.' : 'The hiss stopped. The silence is louder.', 'ev'); updateAudio(); });
+$('#ivVoice').addEventListener('click', () => { if (sim.phase !== 'chamber' || ROOM.released) return; const keep = cfg.chamber.voice; cfg.chamber.voice = keep === 'none' ? 'kind' : keep; observerVoice(); cfg.chamber.voice = keep; });
+$('#ivFood').addEventListener('click', () => { if (sim.phase !== 'chamber' || ROOM.released || ROOM.food) return; deliverFood(true); });
