@@ -1,0 +1,222 @@
+{
+	"frames": [
+		{
+			"frame": {
+				"x": 0,
+				"y": 0,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 256,
+				"y": 0,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 512,
+				"y": 0,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 768,
+				"y": 0,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 1024,
+				"y": 0,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 0,
+				"y": 256,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 256,
+				"y": 256,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 512,
+				"y": 256,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 768,
+				"y": 256,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 1024,
+				"y": 256,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 0,
+				"y": 512,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 256,
+				"y": 512,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 512,
+				"y": 512,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 768,
+				"y": 512,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 1024,
+				"y": 512,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 0,
+				"y": 768,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 256,
+				"y": 768,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 512,
+				"y": 768,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 768,
+				"y": 768,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 1024,
+				"y": 768,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 0,
+				"y": 1024,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		},
+		{
+			"frame": {
+				"x": 256,
+				"y": 1024,
+				"w": 256,
+				"h": 256
+			},
+			"duration": 83
+		}
+	],
+	"meta": {
+		"app": "https://pixelover.io",
+		"version": "0.15",
+		"filepath": "Z:/PixelOver/Businessman/Idle/Businessman_Idle_dir7.png",
+		"frameAnimations": [
+			{
+				"name": "Idle",
+				"fps": 12,
+				"speed_scale": 1,
+				"from": 0,
+				"to": 21
+			}
+		],
+		"size": {
+			"w": 1280,
+			"h": 1280
+		},
+		"view": "Preview",
+		"direction": 6
+	}
+}
