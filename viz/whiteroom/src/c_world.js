@@ -91,3 +91,61 @@ function recolorTerrain(rot, winter) {
   terrainGeo.attributes.color.needsUpdate = true;
   water.material.color.set(0x3f5d68).lerp(new THREE.Color(0xc9d6dc), winter * .8);
 }
+
+// ---------- forests, rocks, berry bushes, wild grass ----------
+let pineTrunks, pineTops, leafTrunks, leafTops, rockMesh, grassMesh;
+const leafMat = stdMat(0x5e7a3c, .9), pineMat = stdMat(0x3f5a34, .9);
+const GRASS = [];
+const dummy = new THREE.Object3D();
+function buildNature() {
+  const pines = [], leaves = [];
+  for (let k = 0; k < 5200; k++) {
+    const x = rnd(-215, 215), z = rnd(-215, 215), f = fbm(x * .012 + 40, z * .012 - 13);
+    if (f < .53 && R() > .025) continue;
+    if (villDist(x, z)[0] < 36 || Math.hypot(x - FAC.x, z - FAC.z) < 24 || Math.hypot(x - LAKE.x, z - LAKE.z) < LAKE.r + 8 || roadDist(x, z) < 5 || Math.hypot(x, z) > 212) continue;
+    const t = { x, z, y: heightAt(x, z), s: rnd(.75, 1.45), wood: 4, type: f > .6 || R() < .45 ? 'pine' : 'leaf' };
+    (t.type === 'pine' ? pines : leaves).push(t); TREES.push(t);
+    if (TREES.length > 900) break;
+  }
+  const inst = (geo, mat, list, fn) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, list.length)); m.castShadow = true; m.receiveShadow = true; list.forEach((t, i) => { fn(t); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix); }); scene.add(m); return m; };
+  const trunkMat = stdMat(0x5a4632, .95);
+  pineTrunks = inst(GEO.cyl(.18, .26, 2.4, 6), trunkMat, pines, t => { dummy.position.set(t.x, t.y + 1.2 * t.s, t.z); dummy.rotation.set(0, 0, 0); dummy.scale.setScalar(t.s); });
+  pineTops = inst(new THREE.ConeGeometry(1.7, 5.2, 7), pineMat, pines, t => { dummy.position.set(t.x, t.y + 4.4 * t.s, t.z); dummy.rotation.set(0, t.x, 0); dummy.scale.setScalar(t.s); });
+  leafTrunks = inst(GEO.cyl(.2, .3, 3, 6), trunkMat, leaves, t => { dummy.position.set(t.x, t.y + 1.5 * t.s, t.z); dummy.rotation.set(0, 0, 0); dummy.scale.setScalar(t.s); });
+  leafTops = inst(new THREE.IcosahedronGeometry(2.1, 1), leafMat, leaves, t => { dummy.position.set(t.x, t.y + 4.1 * t.s, t.z); dummy.rotation.set(t.z, t.x, 0); dummy.scale.set(t.s, t.s * .85, t.s); });
+  for (let k = 0; k < 900 && ROCKS.length < 150; k++) {
+    const x = rnd(-205, 205), z = rnd(-205, 205);
+    if (villDist(x, z)[0] < 30 || roadDist(x, z) < 4 || Math.hypot(x - LAKE.x, z - LAKE.z) < LAKE.r + 4) continue;
+    const y = heightAt(x, z); if (y < 3 && R() < .7) continue;
+    ROCKS.push({ x, z, y, s: rnd(.5, 1.6), stone: 6 });
+  }
+  rockMesh = inst(new THREE.DodecahedronGeometry(.9, 0), stdMat(0x84807a, .95), ROCKS, r => { dummy.position.set(r.x, r.y + .2 * r.s, r.z); dummy.rotation.set(r.x, r.z, 0); dummy.scale.set(r.s, r.s * .7, r.s); });
+  const bushMat = stdMat(0x4e6b33, .95), berryMat = stdMat(0xa3263a, .5);
+  for (let k = 0; k < 2000 && BUSHES.length < 110; k++) {
+    const x = rnd(-205, 205), z = rnd(-205, 205), f = fbm(x * .012 + 40, z * .012 - 13);
+    if (f < .45 || f > .56 || villDist(x, z)[0] < 30 || roadDist(x, z) < 4 || Math.hypot(x - LAKE.x, z - LAKE.z) < LAKE.r + 6) continue;
+    const g = new THREE.Group(), y = heightAt(x, z);
+    const b = new THREE.Mesh(GEO.sph(.7, 9, 7), bushMat); b.scale.set(1, .7, 1); b.position.y = .4; b.castShadow = true; g.add(b);
+    const berries = new THREE.Group(); for (let j = 0; j < 7; j++) { const be = new THREE.Mesh(GEO.sph(.06, 6, 5), berryMat); be.position.set(rnd(-.55, .55), rnd(.4, .8), rnd(-.55, .55)); berries.add(be); } g.add(berries);
+    g.position.set(x, y, z); scene.add(g);
+    BUSHES.push({ x, z, y, g, berries, stock: 4 });
+  }
+  // wild grass that takes over the villages once nobody tends them
+  for (let k = 0; k < 2400; k++) {
+    const near = R() < .65, v = VILL[Math.floor(R() * VILL.length)], a = rnd(0, TAU), r = near ? Math.sqrt(R()) * 34 : rnd(0, 200);
+    const x = near ? v.x + Math.cos(a) * r : Math.cos(a) * r, z = near ? v.z + Math.sin(a) * r : Math.sin(a) * r;
+    GRASS.push({ x, z, y: heightAt(x, z), s: rnd(.4, 1.2), rot: rnd(0, TAU), village: near });
+  }
+  grassMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(.16, .7, 4), stdMat(0x5d7038, .95), GRASS.length); grassMesh.castShadow = false;
+  scene.add(grassMesh); growGrass(0);
+}
+function growGrass(rot) {
+  GRASS.forEach((w, i) => { const s = w.village ? .05 + rot * 1.1 : .55; dummy.position.set(w.x, w.y + .3 * w.s * s, w.z); dummy.rotation.set(0, w.rot, 0); dummy.scale.setScalar(Math.max(.001, w.s * s)); dummy.updateMatrix(); grassMesh.setMatrixAt(i, dummy.matrix); });
+  grassMesh.instanceMatrix.needsUpdate = true;
+}
+function seasonalFoliage(season, winter) {
+  const leaf = { spring: 0x6c8a40, summer: 0x5e7a3c, autumn: 0xa86d2c, winter: 0x6f6a5c }[season];
+  leafMat.color.set(leaf).lerp(new THREE.Color(0xdfe2e4), winter * .5);
+  pineMat.color.set(0x3f5a34).lerp(new THREE.Color(0xd5dadc), winter * .45);
+  for (const b of BUSHES) b.berries.visible = (season === 'summer' || season === 'autumn') && b.stock > 0;
+}
