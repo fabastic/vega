@@ -34,3 +34,9 @@ function moodStep(dtH, x) {
   S.tenderness = clamp(S.tenderness + (((x.child ? .7 : 0) + (x.pet ? .3 : 0)) - S.tenderness) * .05 * dtH);
   S.trust = clamp(S.trust + (((company ? .65 : .45) - S.betrayal * .4) - S.trust) * .01 * dtH);
 }
+
+// ---------- things put into the experiment ----------
+// God mode adds these; the chamber and the world both read them.
+const ITEMS = { room: {}, rat: null, radio: false, mirror: false, photo: null, knife: false, journalGiven: false, clock: null, cold: 0, heat: 0, flood: 0, strobe: 0, siren: 0, shrink: 0, drug: 0, red: 0, prisoner: null };
+const GOD = { acts: 0, lastAct: -1e9, torments: 0, kindness: 0, log: [] };
+const watched = () => clamp(GOD.acts * .04 + (sim.hours - GOD.lastAct < 24 ? .25 : 0) + (S.depth > .55 ? GOD.acts * .03 : 0));
