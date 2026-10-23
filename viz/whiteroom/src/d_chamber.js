@@ -1,3 +1,4 @@
+
 // =====================================================================
 // THE WHITE CHAMBER
 // =====================================================================
@@ -502,4 +503,201 @@ function release(brokeOut) {
   if (wasCata) { S.grip = Math.max(S.grip, .12); say('He doesn\'t move for a long time. Then he stands up.', 'ev'); }
   S.hope = clamp(S.hope + .35); S.fear = clamp(S.fear + .2); S.pride = clamp(S.pride + (brokeOut ? .6 : 0));
   ROOM.beh = { kind: 'escape', target: pt(DOOR.x, -RS + .5, Math.PI), dur: 99, t: 0, arrived: false, extra: {}, delay: performance.now() + (wasCata ? 3500 : 1500) };
+}
+
+// ---------- chamber rendering ----------
+let impactPrev = 0, shake = 0;
+const POSE_ROOM = { wake: 'lie', explore: 'reach_wall', search: 'reach_wall', pry: 'pry', pound: 'punch', shout: 'shout', pace: 'walk', exercise: 'jump', tally: 'tally', write: 'write', sit_hug: 'sit_hug', rock: 'rock',
+  remember: 'sit_wall', read: 'read', toilet: 'wash', talk_ghost: 'talk', stare: 'stare', jump: 'jump', eat: 'eat_sit', panic: 'clutch', escape: 'walk', catatonic: 'sit_hug', dead: 'collapsed' };
+function mindLevels() {
+  const g = S.grip, mind = viewMode === 'mind', b = ROOM.beh || {};
+  const asleep = b.kind === 'sleep' && b.arrived;
+  return {
+    mind, asleep,
+    whisper: mind && g < .75 && !ROOM.released,
+    ghosts: mind ? 1 : 0,
+    memory: mind ? Math.max(clamp((.4 - g) / .22), b.kind === 'remember' && b.arrived ? .55 : 0, asleep ? .75 * (S.fear > .6 ? .3 : 1) : 0) : 0,
+    dissolve: mind && !ROOM.released ? clamp((.16 - g) / .16) : 0,
+    shadows: mind && equanimity() < .5 && (S.fear > .5 && g < .75 || asleep && S.fear > .6),
+    bleed: mind ? Math.pow(1 - g, 1.4) : 0,
+  };
+}
+const ROOM_TOOL = { tally: 'nail', write: 'nail', philosophize: 'nail', read: 'book', eat: 'bread', mirror: 'mirror', photo: 'photo', pry: null, eat_rat: null };
+const _cam = new THREE.Vector3(), _hp = new THREE.Vector3(), _fw = new THREE.Vector3(), _q = new THREE.Quaternion();
+function roomRender(dtR, now) {
+  const h = vegaC.h, b = ROOM.beh, D = derived(), M = mindLevels();
+  const k = 1 - Math.exp(-dtR * 7);
+  const fast = speed >= 60 || sim.skipTo != null;
+  let kind = b.kind;
+  const cond = { slump: D.slump, tremor: S.fear * .04 + (1 - S.health) * .05 + (1 - S.grip) * .02 + ((S.warmth ?? 1) < .4 ? .06 : 0), amp: .65 + .35 * S.energy };
+  const waiting = b.delay && now < b.delay;
+  const sf = 1 - (ITEMS.shrinkK || 0) * .22;   // walls closing in
+  // where he is going: he turns toward it first, then walks at a human pace
+  if (!b.arrived && !waiting && !ROOM.dead) {
+    const t = b.target, dx = t.x - ROOM.pos.x, dz = t.z - ROOM.pos.z, dist = Math.hypot(dx, dz);
+    const run = (b.kind === 'pound' && S.anger > .5) || b.kind === 'panic';
+    const sp = (run ? 2.4 : 1.1) * (.35 + .65 * Math.min(S.energy + .2, S.health, 1)) * Math.min(Math.max(speed, 1), 2.5);
+    const want = Math.atan2(dx, dz), turn = angDiff(ROOM.yaw, want);
+    if (dist > .08) {
+      if (!fast && Math.abs(turn) > .9 && dist > .4) { ROOM.yaw += Math.sign(turn) * Math.min(Math.abs(turn), dtR * 4.5); h.phase += dtR * 6; kind = 'turn'; }
+      else {
+        const step = fast && b.kind !== 'escape' ? dist : Math.min(dist, sp * dtR);
+        ROOM.pos.x += dx / dist * step; ROOM.pos.z += dz / dist * step;
+        ROOM.yaw += turn * Math.min(1, dtR * 7);
+        h.phase += step * (run ? 3.4 : 4.4); kind = run ? 'run' : 'walk';
+      }
+    } else b.arrived = true;
+    if (b.kind !== 'escape') { ROOM.pos.x = clamp(ROOM.pos.x, -RS + .4, RS - .4); ROOM.pos.z = clamp(ROOM.pos.z, -RS + .4, RS - .4); }
+  } else if (!waiting) {
+    ROOM.yaw += angDiff(ROOM.yaw, b.target.yaw) * Math.min(1, dtR * 4);
+    h.phase += dtR * (2.4 + S.fear * 1.5) * Math.min(Math.max(speed, 1), 3);
+    if (b.kind === 'pace' && b.extra.a) { b.target = b.target === b.extra.a ? b.extra.b : b.extra.a; b.arrived = false; }
+    if (b.kind === 'explore' && R() < dtR * .5) { b.target = wallSpot(Math.floor(R() * 4), rnd(-1, 1)); b.arrived = false; }
+    if (b.kind === 'talk_ghost' && ROOM.ghostC) { const g = ghosts.get(ROOM.ghostC.i + ':ghost'); if (g) b.target.yaw = Math.atan2(g.root.position.x - ROOM.pos.x, g.root.position.z - ROOM.pos.z); }
+    if (b.kind === 'escape') {
+      if (!b.out) { b.out = true; b.target = pt(DOOR.x, -RS - 3, Math.PI); b.arrived = false; say(ROOM.broke ? 'Daylight through the gap. Real daylight.' : 'The door is open. There is grey daylight behind it.', 'ev'); }
+      else if (!b.left) { b.left = true; goAfter(); return; }
+    }
+  }
+  if (b.kind === 'escape' && b.out && ROOM.pos.z < -RS - 1.6 && !b.left) { b.left = true; goAfter(); return; }
+  if (kind === b.kind) {
+    kind = b.kind === 'sleep' ? (FURN.bed ? 'bed' : S.grip < .5 ? 'curl' : 'lie') : (POSE_ROOM[b.kind] || 'stand');
+    if (b.kind === 'exercise') kind = b.extra.ex || 'pushup';
+    if (b.kind === 'talk_ghost' && (S.energy < .4 || D.despair > .6)) kind = 'sit_wall';
+    if (b.kind === 'wake' && b.t > .12) kind = 'sit_wall';
+    if (b.kind === 'sit_hug' && S.fear > .7 && S.grip < .5) kind = 'cower';
+  }
+  if (waiting) kind = 'sit_hug';
+  // getting up from the floor goes through sitting and kneeling, and lying down the other way
+  const prev = ROOM.lastKind || kind;
+  if (!fast && GROUND.has(prev) && !GROUND.has(kind) && kind !== 'turn') ROOM.trans = { seq: /lie|curl|bed|collapsed/.test(prev) ? ['sit_wall', 'kneel'] : ['kneel'], t0: now };
+  if (!fast && !GROUND.has(prev) && /^(lie|curl)$/.test(kind)) ROOM.trans = { seq: ['kneel', 'sit_wall'], t0: now };
+  ROOM.lastKind = kind;
+  if (ROOM.trans) { const i = Math.floor((now - ROOM.trans.t0) / 480); if (i < ROOM.trans.seq.length) kind = ROOM.trans.seq[i]; else ROOM.trans = null; }
+  // standing about, he fidgets: stretches, scratches his head, shivers in the cold
+  if (kind === 'stand' || kind === 'stare') {
+    if (!ROOM.idle && Math.random() < dtR * .12) ROOM.idle = { kind: (S.warmth ?? 1) < .5 ? 'shiver' : pick(['stretch', 'scratch', 'look', 'shiver']), until: now + 1600 };
+    if (ROOM.idle) { if (now < ROOM.idle.until) kind = ROOM.idle.kind; else ROOM.idle = null; }
+  }
+  if (PTSD.flash) kind = 'cower';
+  applyPose(h, pose(kind, h.phase, cond), k);
+  holdTool(h, b.arrived ? (b.kind === 'pry' && ITEMS.knife ? 'knife' : ROOM_TOOL[b.kind] || null) : null);
+  // his face shows it; his head turns to what holds his attention
+  setFace(h, faceFrom(S, (b.kind === 'sleep' && b.arrived) || kind === 'meditate' || b.kind === 'catatonic'), dtR);
+  let look = null;
+  if (b.kind === 'talk_ghost' && ROOM.ghostC) { const g = ghosts.get(ROOM.ghostC.i + ':ghost'); if (g) look = _hp.set(g.root.position.x, 1.6, g.root.position.z); }
+  else if (b.kind === 'watch' || (S.grip < .4 && S.fear > .5 && Math.sin(now * .0007) > .6)) look = _hp.set((RS - .25) * roomGroup.scale.x, RH - .2, (RS - .25) * roomGroup.scale.z);
+  else if (HALL.mouse && camMode !== 'pov') look = HALL.mouse;
+  lookAtPoint(h, look, dtR, look ? 1 : 0);
+  if (kind === 'punch') {
+    const a = Math.sin(h.phase * 2.2);
+    if (a > .95 && impactPrev <= .95) { S.pain = clamp(S.pain + .012); S.hands = clamp(S.hands + .015); sfx('thud'); if (S.hands > .25 && R() < .35) addSmear(wallOf(b.target)); shake = .06; }
+    impactPrev = a;
+  }
+  // what you see follows him smoothly, even when the hours run fast
+  const vmax = fast ? 6 : 3.5, dv = Math.hypot(ROOM.pos.x - ROOM.vis.x, ROOM.pos.z - ROOM.vis.z);
+  if (dv > .02) { const st = Math.min(dv, vmax * dtR); ROOM.vis.x += (ROOM.pos.x - ROOM.vis.x) / dv * st; ROOM.vis.z += (ROOM.pos.z - ROOM.vis.z) / dv * st; if (dv > .3 && fast) { applyPose(h, pose('walk', (h.phase += st * 4.4), cond), k); } }
+  h.root.rotation.y = ROOM.yaw;
+  setMass(h, S.weight); setGrooming(h, S.daysGroomed, S.dirt);
+  const bruise = new THREE.Color(0x7d2f27);
+  h.handL.color.copy(h.skin).lerp(bruise, S.hands * .85); h.handR.color.copy(h.skin).lerp(bruise, S.hands);
+  if (ROOM.released) doorPivot.rotation.y = lerp(doorPivot.rotation.y, 1.4, dtR * 1.2);
+  roomGroup.userData.sf = sf;
+
+  // ----- what his mind adds -----
+  for (const m of memMats) m.opacity = lerp(m.opacity, M.memory * .55, Math.min(1, dtR * 1.5));
+  memory.visible = floorGrass.visible = M.memory > .01;
+  const dis = M.dissolve;
+  roomGroup.scale.setScalar(1);
+  const br = M.mind ? Math.sin(now * .0009) * .018 * Math.pow(1 - S.grip, 1.6) : 0;
+  roomGroup.scale.set((1 + br + dis * 1.8) * sf, 1 - br * .6 + dis * .6 - (1 - sf) * .5, (1 + br + dis * 1.8) * sf);
+  mindGroup.scale.copy(roomGroup.scale);
+  for (const w of WALLS) { w.mat.opacity = 1 - dis * .75 - M.memory * .25; }
+  const emo = S.fear > S.loneliness && S.fear > S.nostalgia ? 0x5a0d0d : S.nostalgia > S.loneliness ? 0x4a3410 : 0x0d1f4a;
+  for (const w of WALLS) { w.mat.emissive.setHex(emo); w.mat.emissiveIntensity = M.bleed * .35; }
+  // the double: a dark copy of him that does what he does, across the room
+  doppel.root.visible = dis > .05;
+  if (doppel.root.visible) {
+    for (const m of doppel.mats) m.opacity = dis * .7;
+    doppel.root.position.set(-ROOM.pos.x * 1.6, 0, -ROOM.pos.z * 1.6 - .8); doppel.root.rotation.y = ROOM.yaw + Math.PI;
+    for (const key of PK) doppel.pose[key] = h.pose[key]; applyPose(doppel, h.pose, 1);
+  }
+  renderGhosts(dtR, now, k, ROOM.pos, CORNERS.map(c => new THREE.Vector3(c.x * .9, 0, c.z * .9)), M.mind, mindGroup);
+  // shadow figures in the corners
+  if (M.shadows && R() < dtR * .15) {
+    const f = pick(ROOM.friends.length ? ROOM.friends : [{ c: vegaC }]).c, g = ghostOf(f, mindGroup, 'shadow'), cn = pick(CORNERS);
+    g.want = .8; g.flickUntil = now + 1400; g.root.position.set(cn.x * .95, 0, cn.z * .95);
+  }
+  if (ROOM.released) { roomScene.background = new THREE.Color(0x050505); }
+  else roomScene.background = ROOM.dark ? new THREE.Color(0x050505) : new THREE.Color(0xfafaf7).lerp(new THREE.Color(0xe9ecdf), clamp(ROOM.hours / 2000)).lerp(new THREE.Color(0xf3e4e0), M.bleed * .5);
+  const flicker = M.mind && S.grip < .4 && Math.random() < .015 ? .35 : 1;
+  const lit = !ROOM.dark;
+  rHemi.intensity = lit ? .78 * flicker : (ROOM.released ? .12 : .035); rLamp.intensity = lit ? .75 * flicker : 0; panelMat.color.setScalar(lit ? 1 : .05);
+  if (M.memory > .3 && M.mind) { rHemi.intensity = Math.max(rHemi.intensity, .5); roomScene.background.lerp(new THREE.Color(0xbcd3e6), M.memory * .6); }
+  renderer.domElement.style.filter = !lit && !(M.memory > .3) ? 'grayscale(1) brightness(3.2) contrast(1.15) sepia(1) hue-rotate(60deg) saturate(2.4)' : (M.bleed > .05 ? `saturate(${1 - M.bleed * .4}) contrast(${1 + M.bleed * .2})` : '');
+  $('#vig').style.opacity = (.08 + (M.mind ? Math.pow(1 - S.grip, 1.6) * .5 : 0) + (S.health < .4 ? (.4 - S.health) : 0)).toFixed(3);
+  $('#tint').style.opacity = '0';
+  grainLevel = (ROOM.noise ? .28 : 0) + (M.mind ? Math.pow(1 - S.grip, 1.6) * .12 : 0) + (!M.mind ? .06 : 0);
+  vegaC.h.root.position.set(ROOM.vis.x * roomGroup.scale.x, 0, ROOM.vis.z * roomGroup.scale.z);
+  if (camMode !== 'pov') tag('vgr', NAME(), new THREE.Vector3(vegaC.h.root.position.x, poseHeight(kind) - .05, vegaC.h.root.position.z), 'tag vega');
+  if (ROOM.bubble && now < ROOM.bubble.until && (M.mind || !/ghost/.test(ROOM.bubble.cls))) tag('bub', ROOM.bubble.text, ROOM.bubble.pos || new THREE.Vector3(vegaC.h.root.position.x, 2.55, vegaC.h.root.position.z), ROOM.bubble.cls);
+  // whispered words on the walls, and thoughts circling him as he dissolves
+  if (M.whisper && R() < dtR * .3 * (1 - S.grip)) {
+    const sp = wallSpot(Math.floor(R() * 4), rnd(-1, 1), .02);
+    ROOM.whispers.push({ key: 'w' + Math.random(), text: pick([fr(), fr2(), NAME().toLowerCase(), 'out', 'here', 'day ?', 'listen', homeName().toLowerCase()]), pos: new THREE.Vector3(sp.x, rnd(.8, RH - .4), sp.z), until: now + 2500 });
+  }
+  ROOM.whispers = ROOM.whispers.filter(wh => { if (now > wh.until || !M.mind) return false; const el = tag(wh.key, wh.text, wh.pos.clone().multiply(roomGroup.scale), 'whisper', 'center'); el.style.opacity = String(.25 + .5 * Math.sin((wh.until - now) / 2500 * Math.PI)); return true; });
+  if (dis > .2) {
+    const words = [fr(), 'home', 'why', `day ${ROOM.sleeps + 1}`, homeName(), 'white', NAME()];
+    words.forEach((w, i) => { const a = now * .0004 + i / words.length * TAU; const el = tag('orb' + i, w, new THREE.Vector3(vegaC.h.root.position.x + Math.cos(a) * 1.4, 1.2 + Math.sin(a * 2) * .4, vegaC.h.root.position.z + Math.sin(a) * 1.4), 'whisper', 'center'); el.style.opacity = String(dis); });
+  }
+  if (camMode === 'cctv') {
+    camera.fov = 70 + (M.mind ? Math.sin(now * .0007) * 3 * Math.pow(1 - S.grip, 1.6) : 0);
+    camera.position.set((RS - .25) * roomGroup.scale.x, RH - .18 + dis, (RS - .25) * roomGroup.scale.z); camera.updateProjectionMatrix();
+    _cam.set(vegaC.h.root.position.x * .75 - .2, .8, vegaC.h.root.position.z * .75 - .2); controls.target.lerp(_cam, Math.min(1, dtR * 1.5));
+  }
+  povCamera(dtR, h);
+  drawHall(now); sensorium(now, dtR, camMode === 'pov');
+  hazardVisuals(now);
+  if (shake > 0) { camera.position.x += (Math.random() - .5) * shake; camera.position.y += (Math.random() - .5) * shake; shake *= .85; }
+}
+function renderGhosts(dtR, now, k, center, spots, mind, parent) {
+  for (const [key, g] of ghosts) {
+    if (g.root.parent !== parent) { g.root.visible = false; continue; }
+    if (key.endsWith(':ghost') && S.grip < .3 && !g.want && R() < dtR * .05) { g.want = .6; g.flickUntil = now + 900; g.root.position.copy(pick(spots)); }
+    if (g.flickUntil && now > g.flickUntil) { g.want = 0; g.flickUntil = 0; }
+    g.op = lerp(g.op, mind ? g.want * (g.shadow ? .55 : (.2 + .35 * (1 - S.grip))) : 0, Math.min(1, dtR * 1.6));
+    g.root.visible = g.op > .01;
+    for (const m of g.mats) m.opacity = g.op;
+    if (!g.root.visible) continue;
+    if (g.walkTo) { const d = g.walkTo.clone().sub(g.root.position); d.y = 0; if (d.length() > .3) { d.normalize(); g.root.position.addScaledVector(d, dtR * 1.2); g.root.rotation.y = Math.atan2(d.x, d.z); g.phase += dtR * 5; applyPose(g, pose('walk', g.phase, {}), k); } else g.walkTo = null; }
+    else { g.root.rotation.y = Math.atan2(center.x - g.root.position.x, center.z - g.root.position.z); g.phase += dtR * 2; applyPose(g, pose(g.shadow ? 'stare' : 'talk', g.phase, {}), k); }
+    if (g.op > .08 && !g.shadow) tag('gh' + key, g.c.name + '?', new THREE.Vector3(g.root.position.x, g.root.position.y + 2.15, g.root.position.z), 'tag ghost');
+  }
+}
+// what he perceives right now, written out for the panel
+function perceptions() {
+  const out = [], M = mindLevels(), g = S.grip;
+  if (sim.phase === 'chamber') {
+    const b = ROOM.beh || {};
+    out.push({ t: ROOM.dark ? 'Darkness. He can\'t see his hands.' : 'White walls, white floor, one light he cannot turn off.' });
+    if (b.kind === 'sleep' && b.arrived) out.push({ t: S.fear > .6 ? `Dreaming: the corridor again, something behind him.` : `Dreaming of ${homeName()}: the market, ${fr()}, warm bread.`, u: 1 });
+    if (b.kind === 'remember' && b.arrived) out.push({ t: `Walking through ${homeName()} in memory. He can see the well.`, u: 1 });
+    if (g < .75) out.push({ t: 'Words seem to surface on the walls and fade.', u: 1 });
+    if (g < .6) out.push({ t: 'The walls breathe in and out.', u: 1 });
+    for (const [key, gh] of ghosts) if (gh.want > .1 && gh.root.parent === mindGroup) out.push({ t: gh.shadow ? 'A dark figure stands in the corner.' : `${gh.c.name} is in the room with him.`, u: 1 });
+    if (g < .4) out.push({ t: `Grass under his feet. The ${homeName()} plaza, faint, inside the room.`, u: 1 });
+    if (g < .16) out.push({ t: 'The walls are gone. White in every direction. Another him stands across the room.', u: 1 });
+    if (cfg.chamber.sound === 'hum') out.push({ t: 'A constant electric hum.' });
+    if (cfg.chamber.sound === 'voices') out.push({ t: 'Voices of people he knows, from inside the walls.', u: g < .7 ? 1 : 0 });
+    if (ROOM.noise) out.push({ t: 'Static hiss from everywhere.' });
+  } else {
+    const day = (sim.hours % 24) > 6 && (sim.hours % 24) < 20;
+    out.push({ t: `${day ? 'Daylight' : 'Night'} over ${VILL[nearestVillage(A.pos)].name}. ${WORLD.season[0].toUpperCase() + WORLD.season.slice(1)}, ${Math.round(tempAt(sim.hours))}°C.` });
+    for (const [key, gh] of ghosts) if (gh.want > .1 && gh.root.parent === scene) out.push({ t: gh.shadow ? 'A figure watching from between the houses.' : `${gh.c.name}, at ${gh.place || 'the well'}, as if nothing happened.`, u: 1 });
+    if (g < .35) out.push({ t: 'The village is full again: people walking, talking, ignoring him.', u: 1 });
+    for (const z of COMPANIONS) if (z.kind === 'zombie') out.push({ t: `${z.c.name} shuffles after him. Something of them is still in there.` });
+    if (A.ghostTown > .2) out.push({ t: 'He hears the market in full voice. It is silent.', u: 1 });
+  }
+  return out;
 }
