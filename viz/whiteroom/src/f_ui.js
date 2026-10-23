@@ -507,3 +507,12 @@ function renderFeed() {
   const ev = EVENTS.slice(-45).reverse();
   setHTML($('#feedList'), ev.map(e => `<li class="${e.cls}"><time>${fmtShort(e.h)}${Math.abs(e.bh - e.h) > .5 ? `<br><span style="color:var(--alarm)">feels ${fmtShort(e.bh)}</span>` : ''}</time><span>${escapeHtml(e.text)}</span></li>`).join(''));
 }
+
+// ---------- speed ----------
+function setSpeed(s) { speed = s; document.querySelectorAll('.speed button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.s === s)); }
+document.querySelector('.speed').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setSpeed(+b.dataset.s); });
+addEventListener('keydown', e => {
+  if (e.target.closest('input,select,textarea') || sim.phase === 'setup') return;
+  if (e.key === ' ') { e.preventDefault(); setSpeed(speed ? 0 : 1); }
+  const m = { '1': 1, '2': 10, '3': 60, '4': 300, '5': 1500 }[e.key]; if (m) setSpeed(m);
+});
