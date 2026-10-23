@@ -47,3 +47,47 @@ function segDist(px, pz, ax, az, bx, bz) {
 }
 const roadDist = (x, z) => { let d = 1e9; for (const r of ROADS) d = Math.min(d, segDist(x, z, r[0], r[1], r[2], r[3])); return d; };
 const villDist = (x, z) => { let d = 1e9, vi = -1; for (const v of VILL) { const e = Math.hypot(x - v.x, z - v.z); if (e < d) { d = e; vi = v.i; } } return [d, vi]; };
+
+// ---------- terrain ----------
+const TER_SIZE = 470, TER_SEG = 150;
+let terrainGeo, terColors, terInfo, water;
+const TERRAIN = { mesh: null };
+const TC = { grassA: new THREE.Color(0x667f3d), grassB: new THREE.Color(0x8c9550), lush: new THREE.Color(0x4f6a2e), dry: new THREE.Color(0x9a8f5a),
+  rock: new THREE.Color(0x7b776e), yard: new THREE.Color(0x8d8558), plaza: new THREE.Color(0xb7a98a), dirt: new THREE.Color(0x9a8566),
+  sand: new THREE.Color(0xbfb08a), mud: new THREE.Color(0x4f5444), snow: new THREE.Color(0xe9ecef), concrete: new THREE.Color(0x9a9a93), t: new THREE.Color() };
+function buildTerrain() {
+  terrainGeo = new THREE.PlaneGeometry(TER_SIZE, TER_SIZE, TER_SEG, TER_SEG);
+  terrainGeo.rotateX(-Math.PI / 2);
+  const pos = terrainGeo.attributes.position, n = pos.count;
+  terColors = new Float32Array(n * 3); terInfo = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = pos.getX(i), z = pos.getZ(i), h = heightAt(x, z);
+    pos.setY(i, h);
+    terInfo[i] = { h, road: roadDist(x, z), vil: villDist(x, z)[0], fac: Math.hypot(x - FAC.x, z - FAC.z), lake: Math.hypot(x - LAKE.x, z - LAKE.z), n1: fbm(x * .05 + 3, z * .05), n2: vnoise(x * .3, z * .3) };
+  }
+  terrainGeo.setAttribute('color', new THREE.BufferAttribute(terColors, 3));
+  terrainGeo.computeVertexNormals();
+  const ter = TERRAIN.mesh = new THREE.Mesh(terrainGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+  ter.receiveShadow = true; scene.add(ter);
+  water = new THREE.Mesh(new THREE.CircleGeometry(LAKE.r + 9, 56), new THREE.MeshStandardMaterial({ color: 0x3f5d68, roughness: .12, metalness: .15, transparent: true, opacity: .86 }));
+  water.rotation.x = -Math.PI / 2; water.position.set(LAKE.x, LAKE.level, LAKE.z); scene.add(water);
+}
+function recolorTerrain(rot, winter) {
+  const c = TC.t;
+  for (let i = 0; i < terInfo.length; i++) {
+    const b = terInfo[i];
+    c.copy(TC.grassA).lerp(TC.grassB, b.n1).lerp(TC.dry, b.n2 * .18);
+    if (rot > 0) c.lerp(TC.lush, rot * .55 * (1 - b.n2 * .5));
+    if (b.h > 13 + b.n1 * 8) c.lerp(TC.rock, smooth(13, 19, b.h - b.n1 * 8));
+    if (b.vil < 32) c.lerp(TC.yard, smooth(32, 14, b.vil) * (1 - rot * .75) * .8);
+    if (b.vil < 8) c.lerp(TC.plaza, smooth(8, 4, b.vil) * (1 - rot * .55));
+    if (b.fac < 18) c.lerp(TC.concrete, smooth(18, 12, b.fac) * (1 - rot * .4));
+    if (b.road < 2.8) c.lerp(TC.dirt, (1 - b.road / 2.8) * (1 - rot * .7));
+    if (b.lake < LAKE.r + 14 && b.h < LAKE.level + .9) c.lerp(TC.sand, .85);
+    if (b.h < LAKE.level - .3) c.copy(TC.mud);
+    if (winter > 0 && b.h > LAKE.level - .3) c.lerp(TC.snow, winter * .88);
+    terColors[i * 3] = c.r; terColors[i * 3 + 1] = c.g; terColors[i * 3 + 2] = c.b;
+  }
+  terrainGeo.attributes.color.needsUpdate = true;
+  water.material.color.set(0x3f5d68).lerp(new THREE.Color(0xc9d6dc), winter * .8);
+}
