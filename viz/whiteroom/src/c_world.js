@@ -127,7 +127,7 @@ function buildNature() {
     if (f < .45 || f > .56 || villDist(x, z)[0] < 30 || roadDist(x, z) < 4 || Math.hypot(x - LAKE.x, z - LAKE.z) < LAKE.r + 6) continue;
     const g = new THREE.Group(), y = heightAt(x, z);
     const b = new THREE.Mesh(GEO.sph(.7, 9, 7), bushMat); b.scale.set(1, .7, 1); b.position.y = .4; b.castShadow = true; g.add(b);
-    const berries = new THREE.Group(); for (let j = 0; j < 7; j++) { const be = new THREE.Mesh(GEO.sph(.06, 6, 5), berryMat); be.position.set(rnd(-.55, .55), rnd(.4, .8), rnd(-.55, .55)); berries.add(be); } g.add(berries);
+    const berries = new THREE.Group(); for (let j = 0; j < 7; j++) { const be = new THREE.Mesh(GEO.sph(.06, 6, 5), berryMat); be.position.set(rnd(-.55, .55), rnd(.4, .8), rnd(-.55, .55)); berries.add(be); } mergeStatic(berries); g.add(berries);
     g.position.set(x, y, z); scene.add(g);
     BUSHES.push({ x, z, y, g, berries, stock: 4 });
   }
@@ -184,6 +184,7 @@ function house(x, z, rotY, wallC, roofC, w = 4.6, d = 4, h = 2.6, opts = {}) {
   const g = new THREE.Group(), y = heightAt(x, z), F = .35;   // floor height above the slab
   const wallMat = new THREE.MeshStandardMaterial({ color: wallC, roughness: .9, map: SIDING });
   const roofMat = new THREE.MeshStandardMaterial({ color: roofC, roughness: .9, map: SHINGLE, side: THREE.DoubleSide });
+  const mats = {}, matOf = c => mats[c] || (mats[c] = stdMat(c, .8));   // shared per house, so its pieces can be merged
   const mk = (geo, m, px, py, pz, parent = g, shadow = true) => { const me = new THREE.Mesh(geo, m); me.position.set(px, py, pz); me.castShadow = shadow; me.receiveShadow = true; parent.add(me); return me; };
   mk(GEO.box(w + .4, F + .3, d + .4), FOUND_MAT, 0, (F - .3) / 2, 0);
   mk(tiledBox(w - .1, .04, d - .1, 1.6), new THREE.MeshStandardMaterial({ map: PLANKS, roughness: .85 }), 0, F + .02, 0, g, false);
@@ -200,11 +201,11 @@ function house(x, z, rotY, wallC, roofC, w = 4.6, d = 4, h = 2.6, opts = {}) {
   const glass = [];
   const windowOn = (pn, u) => {
     const fr = mk(GEO.box(.86, .92, .05), TRIM_MAT, u, 1.45, T / 2 + .02, pn.fx, false);
-    const gl = mk(GEO.box(.72, .78, .03), WIN_MAT, u, 1.45, T / 2 + .03, pn.fx, false);
-    const hole = mk(GEO.box(.72, .78, .03), DARK_MAT, u, 1.45, T / 2 + .028, pn.fx, false); hole.visible = false;
+    const gl = mk(GEO.box(.72, .78, .03), WIN_MAT, u, 1.45, T / 2 + .03, pn.fx, false); gl.userData.live = true;
+    const hole = mk(GEO.box(.72, .78, .03), DARK_MAT, u, 1.45, T / 2 + .028, pn.fx, false); hole.visible = false; hole.userData.live = true;
     mk(GEO.box(.04, .78, .04), TRIM_MAT, u, 1.45, T / 2 + .045, pn.fx, false); mk(GEO.box(.72, .04, .04), TRIM_MAT, u, 1.45, T / 2 + .045, pn.fx, false);
     mk(GEO.box(.95, .06, .12), TRIM_MAT, u, .97, T / 2 + .06, pn.fx, false);   // sill
-    if (opts.shutters) for (const s of [-1, 1]) mk(GEO.box(.3, .9, .03), stdMat(opts.shutters, .8), u + s * .6, 1.45, T / 2 + .03, pn.fx, false);
+    if (opts.shutters) for (const s of [-1, 1]) mk(GEO.box(.3, .9, .03), matOf(opts.shutters), u + s * .6, 1.45, T / 2 + .03, pn.fx, false);
     const boards = new THREE.Group(); boards.visible = false; pn.fx.add(boards);
     for (let k = 0; k < 3; k++) { const bd = mk(GEO.box(1, .14, .04), stdMat(0x8a6a48, .9), u, 1.2 + k * .25, T / 2 + .08, boards, false); bd.rotation.z = (k - 1) * .12 + rnd(-.05, .05); }
     glass.push({ gl, hole, boards, broken: false, brk: R() });
@@ -236,7 +237,7 @@ function house(x, z, rotY, wallC, roofC, w = 4.6, d = 4, h = 2.6, opts = {}) {
   }
   // inside: only drawn while the walls are cut away
   const inside = new THREE.Group(); inside.visible = false; g.add(inside);
-  const fm = (geo, c, px, py, pz, r) => { const me = mk(geo, stdMat(c, .8), px, F + py, pz, inside, false); if (r) me.rotation.y = r; return me; };
+  const fm = (geo, c, px, py, pz, r) => { const me = mk(geo, matOf(c), px, F + py, pz, inside, false); if (r) me.rotation.y = r; return me; };
   const W = w / 2 - T - .1, D = d / 2 - T - .1;
   fm(GEO.box(1.6, .02, 1.1), opts.rug || pick([0x7a3b30, 0x2f4f5f, 0x6b5a2e]), .2, .02, .1);
   if (opts.kind === 'store') { /* shelves are added by the store */ }
@@ -250,6 +251,7 @@ function house(x, z, rotY, wallC, roofC, w = 4.6, d = 4, h = 2.6, opts = {}) {
     fm(GEO.box(2, .08, .9), 0x7a5a3a, 0, .85, D - 1);
   }
   const bedPos = new THREE.Vector3(W - .5, 0, -D + 1);
+  for (const grp of [g, roof, inside, ...panels.map(pn => pn.fx)]) mergeStatic(grp);
   g.position.set(x, y, z); g.rotation.y = rotY; scene.add(g);
   const rec = { g, walls, wallMat, roof, roofMat, gMat, door, panels, glass, inside, roofY: roof.position.y, h, w, d, F, wallBase: new THREE.Color(wallC), roofBase: new THREE.Color(roofC),
     tx: rnd(-.3, .3), tz: rnd(-.25, .25), collapse: R() < .3, doorSwing: rnd(.6, 1.6), cut: false, chim,
@@ -286,9 +288,9 @@ function car(x, z, rotY, col) {
   mk(GEO.box(1.55, .4, .05), glassM, 0, 1.13, .82).rotation.x = -.35; mk(GEO.box(1.5, .38, .05), glassM, 0, 1.13, -1.31);
   for (const s of [-1, 1]) mk(GEO.box(.05, .36, 1.8), glassM, s * .8, 1.14, -.25);
   const wheels = [];
-  for (const [wx, wz] of [[-.82, 1.3], [.82, 1.3], [-.82, -1.35], [.82, -1.35]]) { const wh = mk(GEO.cyl(.34, .34, .24, 12), tire, wx, .34, wz); wh.rotation.z = Math.PI / 2; wheels.push(wh); }
+  for (const [wx, wz] of [[-.82, 1.3], [.82, 1.3], [-.82, -1.35], [.82, -1.35]]) { const wh = mk(GEO.cyl(.34, .34, .24, 12), tire, wx, .34, wz); wh.rotation.z = Math.PI / 2; wh.userData.live = true; wheels.push(wh); }
   for (const s of [-1, 1]) mk(GEO.box(.3, .15, .05), stdMat(0xf0ead0, .3), s * .6, .7, 2.11);
-  g.position.set(x, y, z); g.rotation.y = rotY; scene.add(g);
+  g.position.set(x, y, z); g.rotation.y = rotY; scene.add(g); mergeStatic(g);
   CARS.push({ g, body, base: new THREE.Color(col), wheels });
 }
 const CARS = [];
@@ -297,6 +299,7 @@ function fenceRun(x0, z0, x1, z1, col = 0xe6e1d6) {
   const g = new THREE.Group(); g.position.set(x0, heightAt(x0, z0), z0); g.rotation.y = a; scene.add(g);
   for (let i = 0; i <= n; i++) { const pk = new THREE.Mesh(GEO.box(.08, .8, .03), m); pk.position.set(0, .4, i / n * len); pk.castShadow = true; g.add(pk); }
   for (const h of [.25, .6]) { const r = new THREE.Mesh(GEO.box(.04, .06, len), m); r.position.set(0, h, len / 2); g.add(r); }
+  mergeStatic(g);
   FENCES.push({ g, m, base: new THREE.Color(col), lean: rnd(-.25, .25) });
 }
 const FENCES = [];

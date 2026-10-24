@@ -173,9 +173,11 @@ function buildStore(v, kind, dx, dz, rotY, w, d) {
   sign.position.set(0, rec.F + 2.75, d / 2 + .1); rec.g.add(sign); rec.sign = sign;
   // shelves of tins inside
   const W2 = w / 2 - .5, D2 = d / 2 - .6;
-  for (let r = 0; r < Math.floor(d / 1.6); r++) { const sh = new THREE.Mesh(GEO.box(w - 1.6, 1.5, .4), stdMat(0x8a8a86, .6)); sh.position.set(0, rec.F + .75, -D2 + .4 + r * 1.6); rec.inside.add(sh);
-    for (let k = 0; k < 10; k++) { const can = new THREE.Mesh(GEO.cyl(.06, .06, .14, 8), stdMat(pick([0xb5302a, 0x2e5a2e, 0xd8a64a, 0x2b4a7a, 0xe0d8c4]), .5)); can.position.set(-W2 + .5 + k * (w - 2) / 10, rec.F + 1.1, -D2 + .4 + r * 1.6); rec.inside.add(can); } }
-  if (kind === 'supermarket') { const lot = new THREE.Mesh(new THREE.PlaneGeometry(w + 6, 9), stdMat(0x4a4a4c, .95)); lot.rotation.x = -Math.PI / 2; rec.g.add(lot); lot.position.set(0, .04, d / 2 + 4.5); for (let k = -2; k <= 2; k++) { const ln = new THREE.Mesh(new THREE.PlaneGeometry(.08, 3), stdMat(0xe8e6dc)); ln.rotation.x = -Math.PI / 2; ln.position.set(k * 2.6, .05, d / 2 + 4.5); rec.g.add(ln); } }
+  const mats = {}, matOf = (c, r) => mats[c] || (mats[c] = stdMat(c, r));   // shared, so the shelves and tins merge into a few meshes
+  for (let r = 0; r < Math.floor(d / 1.6); r++) { const sh = new THREE.Mesh(GEO.box(w - 1.6, 1.5, .4), matOf(0x8a8a86, .6)); sh.position.set(0, rec.F + .75, -D2 + .4 + r * 1.6); rec.inside.add(sh);
+    for (let k = 0; k < 10; k++) { const can = new THREE.Mesh(GEO.cyl(.06, .06, .14, 8), matOf(pick([0xb5302a, 0x2e5a2e, 0xd8a64a, 0x2b4a7a, 0xe0d8c4]), .5)); can.position.set(-W2 + .5 + k * (w - 2) / 10, rec.F + 1.1, -D2 + .4 + r * 1.6); rec.inside.add(can); } }
+  if (kind === 'supermarket') { const lot = new THREE.Mesh(new THREE.PlaneGeometry(w + 6, 9), stdMat(0x4a4a4c, .95)); lot.rotation.x = -Math.PI / 2; rec.g.add(lot); lot.position.set(0, .04, d / 2 + 4.5); for (let k = -2; k <= 2; k++) { const ln = new THREE.Mesh(new THREE.PlaneGeometry(.08, 3), matOf(0xe8e6dc, .85)); ln.rotation.x = -Math.PI / 2; ln.position.set(k * 2.6, .05, d / 2 + 4.5); rec.g.add(ln); } }
+  mergeStatic(rec.inside); mergeStatic(rec.g);
   rec.g.updateMatrixWorld(true);
   const door = onGround(rec.g.localToWorld(new THREE.Vector3(0, 0, d / 2 + 1.2)));
   const st = { door, pos: P(v.x + dx, v.z + dz), v: v.i, stock: K.stock(), searched: false, store: kind, rec, label: K.label, trips: 0 };

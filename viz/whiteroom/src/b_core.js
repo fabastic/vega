@@ -32,7 +32,8 @@ function fbm(x, z, o = 4) { let s = 0, a = .5, f = 1, n = 0; for (let i = 0; i <
 
 // ---------- renderer ----------
 const stage = $('#stage');
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+// ask for the discrete GPU: on a laptop with two, the browser otherwise draws on the integrated one
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -206,6 +207,35 @@ const GEO = {
   box: (x, y, z) => new THREE.BoxGeometry(x, y, z),
 };
 const stdMat = (c, rough = .85) => new THREE.MeshStandardMaterial({ color: c, roughness: rough });
+// Fold the parts of a group that never change after they are built into one mesh per material. A house is
+// eighty little boxes; drawn one by one, the CPU spends the frame submitting them and the GPU waits. Meshes
+// marked userData.live (glass that breaks, walls that cut away) are left alone, and so are child groups.
+function mergeStatic(parent) {
+  const buckets = new Map();
+  for (const m of parent.children) {
+    if (!m.isMesh || m.isSkinnedMesh || m.userData.live || !m.visible || Array.isArray(m.material)) continue;
+    const key = m.material.uuid + (m.castShadow ? 'c' : '') + (m.receiveShadow ? 'r' : '');
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(m);
+  }
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    const parts = list.map(m => { m.updateMatrix(); const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrix); if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; });
+    const n = parts.reduce((s, g) => s + g.attributes.position.count, 0), out = new THREE.BufferGeometry();
+    for (const [name, size] of [['position', 3], ['normal', 3], ['uv', 2]]) {
+      const arr = new Float32Array(n * size); let o = 0;
+      for (const g of parts) { arr.set(g.attributes[name].array, o); o += g.attributes[name].array.length; }
+      out.setAttribute(name, new THREE.BufferAttribute(arr, size));
+    }
+    out.computeBoundingSphere();
+    const merged = new THREE.Mesh(out, list[0].material);
+    merged.castShadow = list[0].castShadow; merged.receiveShadow = list[0].receiveShadow; merged.userData.merged = true;
+    merged.matrixAutoUpdate = false; merged.updateMatrix();
+    for (const m of list) { parent.remove(m); m.geometry.dispose(); }
+    parts.forEach(g => g.dispose());
+    parent.add(merged);
+  }
+}
 const HAIR_STYLES = 6;   // 0 short, 1 long, 2 bald, 3 ponytail, 4 bun, 5 curly
 // People are rigged characters, built the way the Codrops interactive character is: one skinned mesh over
 // a skeleton of bones, so the body bends smoothly at the shoulders, elbows, hips and knees instead of
