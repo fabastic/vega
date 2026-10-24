@@ -18,9 +18,9 @@ import torch.nn.functional as F
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', '..', 'voice.bin')
 
-FEELS = ['Fear', 'Hope', 'Loneliness', 'Boredom', 'Anger', 'Grief', 'Curiosity', 'Calm', 'Dread', 'Joy', 'Longing', 'Shame', 'Love', 'Awe', 'Despair', 'Grip']
-SENSES = ['Light', 'Noise', 'Tray', 'Hunger', 'Thirst', 'Fatigue', 'Pain', 'Cold', 'Company', 'Books', 'Photo', 'Radio', 'Mirror', 'Seam', 'DoorOpen', 'Knock', 'Crowding', 'SinceMeal', 'Assault', 'Novelty', 'Outdoors', 'Ruin', 'Dead', 'Danger']
-DEEDS = ['Rest', 'Sleep', 'Pace', 'Search', 'Eat', 'Shout', 'Hug', 'Exercise', 'Tally', 'Remember', 'Read', 'Pound', 'Talk', 'Work', 'Explore', 'Forage', 'Build', 'Bury', 'Socialize']
+FEELS = ['Fear', 'Hope', 'Loneliness', 'Boredom', 'Anger', 'Grief', 'Curiosity', 'Calm', 'Dread', 'Joy', 'Longing', 'Shame', 'Love', 'Awe', 'Despair', 'Faith', 'Grip']
+SENSES = ['Light', 'Noise', 'Tray', 'Hunger', 'Thirst', 'Fatigue', 'Pain', 'Cold', 'Company', 'Books', 'Photo', 'Radio', 'Mirror', 'Seam', 'DoorOpen', 'Knock', 'Crowding', 'SinceMeal', 'Assault', 'Novelty', 'Outdoors', 'Ruin', 'Dead', 'Danger', 'Sign']
+DEEDS = ['Rest', 'Sleep', 'Pace', 'Search', 'Eat', 'Shout', 'Hug', 'Exercise', 'Tally', 'Remember', 'Read', 'Pound', 'Talk', 'Work', 'Explore', 'Forage', 'Build', 'Bury', 'Socialize', 'Pray']
 C = len(FEELS) + len(SENSES) + len(DEEDS)
 
 W = lambda s: set(s.split())
@@ -40,6 +40,7 @@ LEX = {
     'Love': W('love loved loving beloved dear darling tender affection'),
     'Awe': W('awe sublime wonderful magnificent vast infinite heaven glory majestic'),
     'Despair': W('despair despaired hopeless misery miserable wretched wretchedness ruin desolate'),
+    'Faith': W('god faith heaven lord providence soul blessed blessing mercy prayer believe believed almighty'),
     'Grip': W('mad madness dream dreamed dreaming unreal imagine imagined fancy fancied phantom ghost delusion vision visions'),
     'Light': W('light bright white sun lamp glare'),
     'Noise': W('noise sound sounds loud din roar'),
@@ -83,6 +84,8 @@ LEX = {
     'Forage': W('gathered berries fished hunted fruit corn'),
     'Build': W('built build building fence shelter'),
     'Bury': W('buried bury burial grave'),
+    'Sign': W('sign signs miracle omen sent'),
+    'Pray': W('pray prayed praying prayers knelt kneeling church'),
     'Socialize': W('visited danced supper company conversation'),
 }
 DIMS = FEELS + SENSES + DEEDS
@@ -98,8 +101,8 @@ def sentences():
         t = re.sub(r'[‘’]', "'", t); t = re.sub(r'[“”"_*]', ' ', t); t = re.sub(r'\s+', ' ', t)
         for s in re.split(r'(?<=[.!?])\s+', t):
             toks = TOK.findall(s.lower())
-            if 4 <= len(toks) <= 26 and FIRST & set(toks) and toks[-1] in '.!?':
-                yield toks
+            if 4 <= len(toks) <= 26 and toks[-1] in '.!?':
+                yield toks, bool(FIRST & set(toks))
 
 
 def label(toks):
@@ -127,7 +130,7 @@ class Block(nn.Module):
 
 
 class Voice(nn.Module):
-    def __init__(s, V, d=320, L=5, h=5, ctx=32):
+    def __init__(s, V, d=384, L=6, h=6, ctx=32):
         super().__init__(); s.ctx = ctx
         s.tok, s.pos = nn.Embedding(V, d), nn.Embedding(ctx, d)
         s.cond = nn.Linear(C, d)
@@ -151,7 +154,7 @@ def export(m, vocab, path):
         d = m.tok.weight.shape[1]
         f.write(struct.pack('<6i', len(vocab), d, len(m.blocks), m.blocks[0].h, m.ctx, C))
         for w in vocab: write_str(f, w)
-        def t(x): f.write(x.detach().float().cpu().contiguous().numpy().astype('<f4').tobytes())
+        def t(x): v = x.detach().float().cpu().flatten().tolist(); f.write(struct.pack(f'<{len(v)}f', *v))
         t(m.tok.weight); t(m.pos.weight); t(m.cond.weight); t(m.cond.bias)
         for b in m.blocks:
             for p in (b.ln1.weight, b.ln1.bias, b.qkv.weight, b.qkv.bias, b.proj.weight, b.proj.bias, b.ln2.weight, b.ln2.bias, b.fc.weight, b.fc.bias, b.fc2.weight, b.fc2.bias): t(p)
@@ -175,28 +178,29 @@ def generate(m, vocab, c, dev, temp=.8, n=1):
 def main():
     random.seed(7); torch.manual_seed(7)
     sents = list(sentences())
-    cnt = Counter(w for s in sents for w in s)
-    vocab = ['<pad>', '<s>', '</s>', '<unk>'] + [w for w, _ in cnt.most_common(9000 - 4)]
+    cnt = Counter(w for s, _ in sents for w in s)
+    vocab = ['<pad>', '<s>', '</s>', '<unk>'] + [w for w, _ in cnt.most_common(12000 - 4)]
     ix = {w: i for i, w in enumerate(vocab)}
     data = []
-    for s in sents:
+    for s, first in sents:
         ids = [ix.get(w, 3) for w in s]
         if ids.count(3) > 1: continue
-        data.append(([1] + ids + [2], label(s)))
-    labelled = sum(1 for _, l in data if any(l))
-    print(f'{len(sents)} first-person sentences, {len(data)} kept, {labelled} with at least one label, vocab {len(vocab)}', flush=True)
+        data.append(([1] + ids + [2], label(s), first))
+    labelled = sum(1 for _, l, _ in data if any(l))
+    print(f'{len(sents)} sentences ({sum(f for _, f in sents)} first-person), {len(data)} kept, {labelled} with at least one label, vocab {len(vocab)}', flush=True)
     random.shuffle(data); val, train = data[:2000], data[2000:]
+    firsts = [d for d in train if d[2]]
     dev = 'cuda' if torch.cuda.is_available() else 'cpu'
     m = Voice(len(vocab)).to(dev)
     print(f'{sum(p.numel() for p in m.parameters()) / 1e6:.1f}M parameters on {dev}', flush=True)
     opt = torch.optim.AdamW(m.parameters(), lr=4e-4, weight_decay=.05)
-    T, BS, STEPS = m.ctx, 192, int(os.environ.get('STEPS', 14000))
+    T, BS, STEPS = m.ctx, 192, int(os.environ.get('STEPS', 30000))
 
     def batch(src):
         bt = random.sample(src, BS)
         x = torch.zeros(BS, T + 1, dtype=torch.long)
-        for i, (ids, _) in enumerate(bt): ids = ids[:T + 1]; x[i, :len(ids)] = torch.tensor(ids)
-        c = torch.tensor([l for _, l in bt])
+        for i, (ids, _, _) in enumerate(bt): ids = ids[:T + 1]; x[i, :len(ids)] = torch.tensor(ids)
+        c = torch.tensor([l for _, l, _ in bt])
         c = c * (torch.rand(BS, 1) > .1)   # sometimes unconditioned, so it also learns plain speech
         return x.to(dev), c.to(dev)
 
@@ -204,7 +208,8 @@ def main():
     for step in range(STEPS + 1):
         lr = 4e-4 * min(1, step / 500) * (.1 + .9 * .5 * (1 + math.cos(math.pi * step / STEPS)))
         for g in opt.param_groups: g['lr'] = lr
-        x, c = batch(train)
+        # first the language, then his voice: the last 35% of steps are first-person sentences only
+        x, c = batch(train if step < STEPS * .65 else firsts)
         with torch.autocast(dev, dtype=torch.bfloat16, enabled=dev == 'cuda'):
             lg = m(x[:, :-1], c)
             loss = F.cross_entropy(lg.reshape(-1, lg.shape[-1]).float(), x[:, 1:].reshape(-1), ignore_index=0)

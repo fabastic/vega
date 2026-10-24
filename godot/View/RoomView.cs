@@ -9,7 +9,7 @@ namespace Vega.View;
 
 public partial class RoomView : Node3D
 {
-    Chamber c;
+    Chamber c; Run run;
     VegaFigure vega, phantom;
     OmniLight3D lamp; MeshInstance3D panel, tray, seam, door, books, photo, radio, mirror, rat, ghostTray;
     StandardMaterial3D panelMat, wallMat;
@@ -24,11 +24,13 @@ public partial class RoomView : Node3D
     }
     static StandardMaterial3D M(Color c, float rough = .9f) => new() { AlbedoColor = c, Roughness = rough };
 
-    public void Build(Chamber chamber)
+    public Chamber Built => c;
+    public Vector3 VegaAt => vis;
+    public void Build(Run r)
     {
         foreach (var ch in GetChildren()) ch.QueueFree();
         walls.Clear(); tallyShown = 0;
-        c = chamber; float R = c.RS, H = R > 3 ? 3.4f : 3f;
+        run = r; c = r.Chamber; float R = c.RS, H = R > 3 ? 3.4f : 3f;
         var white = M(new Color(.95f, .95f, .93f)); wallMat = M(new Color(.95f, .95f, .93f)); wallMat.CullMode = BaseMaterial3D.CullModeEnum.Back;
         var floor = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(R * 2, R * 2) }, MaterialOverride = M(new Color(.92f, .92f, .9f)) }; AddChild(floor);
         // four inward-facing walls and a ceiling; from outside, back-face culling makes them see-through
@@ -60,7 +62,7 @@ public partial class RoomView : Node3D
         books = new MeshInstance3D(); AddChild(books); books.Position = new Vector3(-R + .2f, 0, R - 1.5f);
         Box(books, new Vector3(.3f, 1.6f, 1.2f), new Vector3(0, .8f, 0), M(new Color(.85f, .82f, .77f)));
         var bookCols = new[] { new Color(.54f, .23f, .17f), new Color(.17f, .35f, .48f), new Color(.36f, .44f, .23f), new Color(.66f, .41f, .16f), new Color(.24f, .24f, .33f) };
-        for (int r = 0; r < 3; r++) for (int k = 0; k < 7; k++) Box(books, new Vector3(.2f, .26f, .1f), new Vector3(.1f, .45f + r * .45f, -.45f + k * .15f), M(bookCols[(r * 7 + k) % 5]));
+        for (int row = 0; row < 3; row++) for (int k = 0; k < 7; k++) Box(books, new Vector3(.2f, .26f, .1f), new Vector3(.1f, .45f + row * .45f, -.45f + k * .15f), M(bookCols[(row * 7 + k) % 5]));
 
         tray = new MeshInstance3D(); AddChild(tray); tray.Position = new Vector3(0, 0, R - .3f);
         Box(tray, new Vector3(.4f, .03f, .28f), new Vector3(0, .015f, 0), M(new Color(.6f, .6f, .58f)));
@@ -89,6 +91,7 @@ public partial class RoomView : Node3D
     public override void _Process(double delta)
     {
         if (c == null) return;
+        Visible = run.Phase == Phase.Chamber || run.DiedInRoom; if (!Visible) return;
         float dt = (float)delta, R = c.RS, t = (float)Time.GetTicksMsec() / 1000f;
         var s = c.Senses();
         float light = s[(int)Sense.Light];
@@ -116,7 +119,7 @@ public partial class RoomView : Node3D
         }
 
         // what his mind adds to the room: a figure, or a tray, made of his expectation
-        var (ps, str) = c.Phantom;
+        var (ps, str) = run.Phantom;
         bool showP = str > .15f && ps == Sense.Company; phantom.Visible = showP;
         if (showP) { phantom.Position = new Vector3(Mathf.Sin(t * .1f) * R * .4f, 0, -R * .4f); phantom.Rotation = new Vector3(0, Mathf.Atan2(vis.X - phantom.Position.X, vis.Z - phantom.Position.Z), 0); phantom.Animate("stand", false, dt); }
         ghostTray.Visible = ps == Sense.Tray && str > .15f && !c.Tray; ghostTray.Position = tray.Position;

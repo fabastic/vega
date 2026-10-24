@@ -9,12 +9,14 @@ using Vega.Mind;
 
 namespace Vega.Sim;
 
-public sealed class Village { public string Name; public Vector2 At; public List<House> Houses = new(); public Vector2 Plaza => At; }
+public sealed class Village { public string Name; public Vector2 At; public List<House> Houses = new(); public Vector2 Plaza => At; public Vector2 Chapel => At + new Vector2(0, -28); }
 public sealed class House { public Vector2 At; public float Yaw; public int Village; public bool Ruined; public float Tilt; }
 public sealed class Person
 {
     public string Name, Job; public int Village, Id; public House Home; public Vector2 Pos, Target, JobAt;
-    public string Doing = "sleep"; public bool Alive = true, Away, Survivor, Buried; public float Offset, Shirt, Height;
+    public string Doing = "sleep"; public bool Alive = true, Away, Survivor, Buried, Female; public float Offset, Shirt, Height, Faith;
+    public int Age;   // 0 child, 1 adult, 2 elder
+    public int Hair; public bool Beard, Dress;
 }
 public sealed class Structure { public string Kind; public Vector2 At; }
 
@@ -37,6 +39,7 @@ public sealed class World
     public string Companion;
 
     static readonly string[] Names = { "Ines", "Mira", "Kofi", "Tomas", "Hana", "Anaya", "Lena", "Luca", "Ravi", "Elif", "Jun", "Sana", "Ola", "Nils", "Pavel", "Noor", "Dario", "Felix", "Amara", "Yusuf", "Keiko", "Ade", "Rhea", "Bram", "Mateo", "Tess", "Ivy", "Omar", "Greta", "Sol" };
+    static readonly HashSet<string> Women = new() { "Ines", "Mira", "Hana", "Anaya", "Lena", "Elif", "Sana", "Ola", "Noor", "Amara", "Keiko", "Rhea", "Tess", "Ivy", "Greta" };
     static readonly string[] Jobs = { "farmer", "baker", "smith", "fisher", "teacher", "healer", "weaver", "miller" };
     static readonly string[] VillageNames = { "Ashford", "Lindhollow", "Marrow Creek" };
 
@@ -70,9 +73,12 @@ public sealed class World
                 for (int j = 0; j < per && id < Names.Length; j++)
                 {
                     var job = Jobs[(int)(R.Float() * Jobs.Length)];
+                    bool fem = Women.Contains(Names[id]); float ar = R.Float(); int age = ar < .1f ? 0 : ar < .8f ? 1 : 2;
+                    if (age == 0) job = "child";
                     People.Add(new Person { Id = id, Name = Names[id], Job = job, Village = Villages.IndexOf(vil), Home = h, Pos = h.At,
                         JobAt = job == "farmer" ? vil.At + Dir(R.Range(0, MathF.Tau)) * 32 : job == "fisher" ? vil.At + new Vector2(0, 34) : vil.At + Dir(R.Range(0, MathF.Tau)) * 8,
-                        Offset = R.Range(-1, 1), Shirt = R.Float(), Height = R.Range(.92f, 1.08f) });
+                        Offset = R.Range(-1, 1), Shirt = R.Float(), Height = age == 0 ? R.Range(.55f, .7f) : (fem ? R.Range(.9f, 1f) : R.Range(.97f, 1.08f)) * (age == 2 ? .96f : 1),
+                        Female = fem, Age = age, Faith = Math.Clamp(R.Range(0, 1) + (age == 2 ? .25f : 0), 0, 1), Hair = (int)(R.Float() * 4), Beard = !fem && age > 0 && R.Float() < .45f, Dress = fem && R.Float() < .6f });
                     id++;
                 }
             }
@@ -87,6 +93,7 @@ public sealed class World
     public void Begin() => StartDeed(Deed.Rest, 1);
 
     public int Hour => (int)(run.Hours % 24);
+    public bool Sunday => (int)(run.Hours / 24) % 7 == 6;
     public float Daylight { get { float h = run.Hours % 24; return Math.Clamp(MathF.Sin((h - 6) / 14f * MathF.PI), 0, 1); } }
 
     // ---------- the neighbours' day ----------
@@ -101,6 +108,8 @@ public sealed class World
                 StormT > 0 ? ("shelter", p.Home.At) :
                 FestivalT > 0 && t > 17 ? ("festival", Villages[p.Village].Plaza + Dir(p.Id * 1.7f) * 4) :
                 t < 6 || t >= 22 ? ("sleep", p.Home.At) :
+                Sunday && t >= 9 && t < 11 && p.Faith > .4f ? ("church", Villages[p.Village].Chapel + Dir(p.Id) * 1.5f) :
+                p.Age == 0 && t >= 8 && t < 17 ? ("play", Villages[p.Village].Plaza + Dir(run.Hours * .3f + p.Id) * 5) :
                 t < 8 ? ("home", p.Home.At) :
                 t < 12 || (t >= 13 && t < 17) ? ("work", p.JobAt) :
                 t < 13 ? ("eat", p.Home.At) :
@@ -134,6 +143,7 @@ public sealed class World
         float toVillage = Villages.Min(v => Vector2.Distance(v.At, Pos));
         s[(int)Sense.Ruin] = Ruined ? (toVillage < 30 ? .85f : .35f) : 0;
         s[(int)Sense.Dead] = Math.Clamp(People.Count(p => !p.Alive && !p.Buried && Vector2.Distance(p.Pos, Pos) < 12) * .45f, 0, 1);
+        s[(int)Sense.Sign] = run.SignT > 0 ? 1 : 0;
         s[(int)Sense.Danger] = Math.Clamp(Wolves.Count(w => Vector2.Distance(w, Pos) < 25) * .4f + (StormT > 0 && !Indoors ? .2f : 0), 0, 1);
         return s;
     }
@@ -151,6 +161,7 @@ public sealed class World
         a[(int)Deed.Forage] = Ruined || Hour > 8 && Hour < 18;
         a[(int)Deed.Build] = Ruined;
         a[(int)Deed.Bury] = People.Any(p => !p.Alive && !p.Buried);
+        a[(int)Deed.Pray] = true;
         return a;
     }
 
@@ -178,7 +189,7 @@ public sealed class World
     float Duration(Deed d) => d switch
     {
         Deed.Sleep => 2 + run.Body.Fatigue * 7, Deed.Work => R.Range(2, 4), Deed.Socialize => R.Range(1, 2), Deed.Explore => R.Range(1, 3),
-        Deed.Forage => R.Range(1, 2), Deed.Build => R.Range(2, 3), Deed.Bury => 1.5f, Deed.Eat => .5f, Deed.Talk => .7f, Deed.Exercise => .7f, _ => R.Range(.5f, 1.5f),
+        Deed.Forage => R.Range(1, 2), Deed.Build => R.Range(2, 3), Deed.Bury => 1.5f, Deed.Shout => .3f, Deed.Eat => .5f, Deed.Talk => .7f, Deed.Pray => R.Range(.5f, 1.2f), Deed.Exercise => .7f, _ => R.Range(.5f, 1.5f),
     };
 
     void StartDeed(Deed d, float dur)
@@ -189,6 +200,7 @@ public sealed class World
         {
             Deed.Sleep or Deed.Rest or Deed.Remember or Deed.Hug or Deed.Eat when !Ruined || Food <= 0 || d != Deed.Eat => Home.At,
             Deed.Work => Workshop,
+            Deed.Pray => Villages[0].Chapel + Dir(R.Range(0, MathF.Tau)) * 1.2f,
             Deed.Socialize => (nearest(p => p.Doing is "plaza" or "festival")?.Pos ?? Villages[0].Plaza) + Dir(R.Range(0, MathF.Tau)) * 1.2f,
             Deed.Talk => (nearest(p => !Ruined || p.Survivor)?.Pos ?? Pos) + Dir(R.Range(0, MathF.Tau)) * 1.1f,
             Deed.Explore => Home.At + Dir(R.Range(0, MathF.Tau)) * R.Range(25, 60),

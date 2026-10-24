@@ -51,7 +51,7 @@ public sealed class Run
     {
         Cfg = cfg.Clone(); Voice = voice;
         Rng = new Rng((ulong)Cfg.I("time.seed") * 2654435761UL);
-        var me = new Personality { Openness = Cfg["vega.open"], Neuroticism = Cfg["vega.neuro"], Sociability = Cfg["vega.social"], Resilience = Cfg["vega.resil"] };
+        var me = new Personality { Openness = Cfg["vega.open"], Neuroticism = Cfg["vega.neuro"], Sociability = Cfg["vega.social"], Resilience = Cfg["vega.resil"], Faith = Cfg["vega.faith"] };
         Brain = new Brain(me, (ulong)Cfg.I("time.seed"));
         World = new World(this);
         Hours = 7; PhaseStart = 7;   // the first morning
@@ -71,7 +71,8 @@ public sealed class Run
     {
         if (Phase == Phase.End) return;
         while (spoken.TryDequeue(out var s)) { Note("say", s); Lines++; }
-        Hours += dtH; Brain.Hour = Hours;
+        if (FaithAtStart < 0) FaithAtStart = Brain.F_(Feel.Faith);
+        Hours += dtH; Brain.Hour = Hours; SignT = Math.Max(0, SignT - dtH);
         if (Phase == Phase.Chamber) Chamber.Step(dtH); else World.Step(dtH);
         Phantom = Brain.Phantom();
         if (Phantom.strength > .1f && Rng.Float() < Phantom.strength * .3f * dtH) { Hallucinations++; Note("phantom", PhantomText(Phantom.sense)); }
@@ -90,7 +91,7 @@ public sealed class Run
         }
         else if (Phase == Phase.Chamber && Chamber.Done)
         {
-            if (Body.Health <= 0) { Note("end", "He dies in the white room."); Phase = Phase.End; return; }
+            if (Body.Health <= 0) { Note("end", "He dies in the white room."); Phase = Phase.End; DiedInRoom = true; return; }
             Note("out", Chamber.DoorOpen ? "He walks out through the door into the light." : "He wakes in the grass outside. The room is gone.");
             Phase = Phase.After; PhaseStart = Hours; World.Return();
         }
@@ -134,6 +135,7 @@ public sealed class Run
         if (!act.Allowed(this)) return;
         var before = (float[])Brain.Feelings.Clone();
         act.Apply(this); Note("god", act.Label);
+        SignT = 3;   // he may read it as a sign
         GodEffects.Add((Hours, act.Label, before, null)); pendingEffects.Add((Hours + 1, GodEffects.Count - 1));
     }
 
@@ -165,5 +167,6 @@ public sealed class Run
         new() { Key = "plague", Group = "World", When = new[] { Phase.Life }, Label = "Sickness in the village", Desc = "Two neighbours die. Bodies and grief before the room ever comes.", Apply = r => r.World.Sicken(2) },
         new() { Key = "skiplife", Group = "World", When = new[] { Phase.Life }, Label = "Take him now", Desc = "End his life in the village tonight and put him in the room.", Apply = r => r.Cfg["life.days"] = Math.Max(1, r.PhaseHours / 24 + .01f) },
     };
-    public float Chill;
+    public float Chill, SignT; public bool DiedInRoom;
+    public float FaithAtStart = -1;
 }

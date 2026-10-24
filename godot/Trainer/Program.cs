@@ -10,7 +10,7 @@ using Vega.Sim;
 var cmd = args.Length > 0 ? args[0] : "check";
 Voice voice = null;
 if (cmd == "speak") voice = Voice.Load(File.OpenRead(args.Length > 1 ? args[1] : "voice.bin"));
-var s = new Settings(); if (Environment.GetEnvironmentVariable("SEED") is string sd) s["time.seed"] = float.Parse(sd);
+var s = new Settings(); s["vega.faith"] = float.Parse(Environment.GetEnvironmentVariable("FAITH") ?? "0.55", System.Globalization.CultureInfo.InvariantCulture); if (Environment.GetEnvironmentVariable("SEED") is string sd) s["time.seed"] = float.Parse(sd);
 var t0 = DateTime.Now; var r = new Run(s, voice);
 var deeds = new int[Brain.A]; var phaseDeeds = new System.Collections.Generic.Dictionary<Phase, int[]>();
 for (int day = 1; !r.Done; day++)

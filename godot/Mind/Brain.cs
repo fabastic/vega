@@ -13,9 +13,9 @@ using System.Collections.Generic;
 
 namespace Vega.Mind;
 
-public enum Sense { Light, Noise, Tray, Hunger, Thirst, Fatigue, Pain, Cold, Company, Books, Photo, Radio, Mirror, Seam, DoorOpen, Knock, Crowding, SinceMeal, Assault, Novelty, Outdoors, Ruin, Dead, Danger }
-public enum Feel { Fear, Hope, Loneliness, Boredom, Anger, Grief, Curiosity, Calm, Dread, Joy, Longing, Shame, Love, Awe, Despair, Grip }
-public enum Deed { Rest, Sleep, Pace, Search, Eat, Shout, Hug, Exercise, Tally, Remember, Read, Pound, Talk, Work, Explore, Forage, Build, Bury, Socialize }
+public enum Sense { Light, Noise, Tray, Hunger, Thirst, Fatigue, Pain, Cold, Company, Books, Photo, Radio, Mirror, Seam, DoorOpen, Knock, Crowding, SinceMeal, Assault, Novelty, Outdoors, Ruin, Dead, Danger, Sign }
+public enum Feel { Fear, Hope, Loneliness, Boredom, Anger, Grief, Curiosity, Calm, Dread, Joy, Longing, Shame, Love, Awe, Despair, Faith, Grip }
+public enum Deed { Rest, Sleep, Pace, Search, Eat, Shout, Hug, Exercise, Tally, Remember, Read, Pound, Talk, Work, Explore, Forage, Build, Bury, Socialize, Pray }
 
 public sealed class Episode
 {
@@ -24,7 +24,7 @@ public sealed class Episode
 
 public sealed class Brain
 {
-    public const int S = 24, F = 16, A = 19, P = 32, H = 64, T = 48;
+    public const int S = 25, F = 17, A = 20, P = 32, H = 64, T = 48;
     public static readonly string[] SenseNames = Enum.GetNames<Sense>(), FeelNames = Enum.GetNames<Feel>(), DeedNames = Enum.GetNames<Deed>();
 
     public readonly Linear SenseNet, PredictHead, FeelPrior, FeelResidual, WillPrior, WillNet, ThoughtNet;
@@ -89,7 +89,7 @@ public sealed class Brain
         W(Deed.Rest, s(Sense.Pain), 1.5f); W(Deed.Rest, f(Feel.Calm), .8f);
         W(Deed.Pace, f(Feel.Boredom), 1.4f); W(Deed.Pace, f(Feel.Anger), .6f);
         W(Deed.Search, f(Feel.Curiosity), 1.2f); W(Deed.Search, f(Feel.Hope), .6f); W(Deed.Pound, s(Sense.Seam), 1.2f);
-        W(Deed.Shout, f(Feel.Loneliness), 1.2f); W(Deed.Shout, f(Feel.Anger), .8f); W(Deed.Shout, s(Sense.Knock), 1.5f);
+        W(Deed.Shout, f(Feel.Loneliness), .5f); W(Deed.Shout, f(Feel.Anger), .6f); W(Deed.Shout, s(Sense.Knock), 1.5f);
         W(Deed.Hug, f(Feel.Fear), 1.5f); W(Deed.Hug, f(Feel.Despair), 1.4f);
         W(Deed.Exercise, f(Feel.Anger), .7f); W(Deed.Exercise, f(Feel.Hope), .6f); W(Deed.Exercise, s(Sense.Fatigue), -2f);
         W(Deed.Tally, f(Feel.Grip), .6f);
@@ -104,6 +104,7 @@ public sealed class Brain
         W(Deed.Forage, s(Sense.Outdoors), .5f); W(Deed.Forage, s(Sense.Hunger), 3.5f); W(Deed.Forage, s(Sense.Thirst), 2f);
         W(Deed.Build, s(Sense.Ruin), 1.2f); W(Deed.Build, s(Sense.Danger), 1.2f); W(Deed.Build, f(Feel.Hope), .8f);
         W(Deed.Bury, s(Sense.Dead), 3f); W(Deed.Bury, f(Feel.Grief), 1.2f);
+        W(Deed.Pray, f(Feel.Faith), 1.3f); W(Deed.Pray, f(Feel.Fear), .5f); W(Deed.Pray, f(Feel.Despair), .6f); W(Deed.Pray, f(Feel.Grief), .6f); W(Deed.Pray, s(Sense.Sign), 1f);
         for (int a = 0; a < A; a++) WillPrior.B[a] = -1f;
     }
 
@@ -148,7 +149,7 @@ public sealed class Brain
         float rate = MathF.Min(1, .5f * dtH);
         for (int i = 0; i < F; i++)
         {
-            if (i == (int)Feel.Grip) continue;
+            if (i == (int)Feel.Grip || i == (int)Feel.Faith) continue;
             // what he has learned can shade a feeling but not erase it
             float target = Act.Sigmoid(pri[i] + 1.2f * MathF.Tanh(res[i] / 1.2f) + (Recall[i] - .3f) * .6f);
             Feelings[i] += (target - Feelings[i]) * rate;
@@ -157,6 +158,17 @@ public sealed class Brain
         float gripT = Math.Clamp(1.05f - Monotony * .55f - SurpriseAvg * 1.2f - F_(Feel.Despair) * .25f + F_(Feel.Calm) * .1f, 0, 1);
         float gRate = gripT > Feelings[(int)Feel.Grip] ? .015f + .06f * Me.Resilience : .03f;
         Feelings[(int)Feel.Grip] += (gripT - Feelings[(int)Feel.Grip]) * MathF.Min(1, gRate * dtH);
+        // Faith: what he was raised with, what his prayers have taught him, and how he reads a crisis. A believer
+        // turns toward God when afraid or grieving; a sceptic is pushed further away. A sign (God mode acting on his
+        // world) deepens faith in a believer and unsettles a sceptic.
+        float crisis = F_(Feel.Fear) + F_(Feel.Despair) + F_(Feel.Grief) * .7f;
+        float faithT = Act.Sigmoid(-2.2f + 4.2f * Me.Faith + FaithLearned + crisis * (Me.Faith - .45f) * 1.6f + Perceived[(int)Sense.Sign] * (Me.Faith - .3f) * 2.5f);
+        Feelings[(int)Feel.Faith] += (faithT - Feelings[(int)Feel.Faith]) * MathF.Min(1, .08f * dtH);
+        // faith steadies him: calmer, more hopeful, less despairing
+        float fa = F_(Feel.Faith) - .4f;
+        Feelings[(int)Feel.Calm] = Math.Clamp(Feelings[(int)Feel.Calm] + fa * .15f * MathF.Min(1, dtH), 0, 1);
+        Feelings[(int)Feel.Hope] = Math.Clamp(Feelings[(int)Feel.Hope] + fa * .12f * MathF.Min(1, dtH), 0, 1);
+        Feelings[(int)Feel.Despair] = Math.Clamp(Feelings[(int)Feel.Despair] - fa * .12f * MathF.Min(1, dtH), 0, 1);
 
         Wellbeing = -(senses[(int)Sense.Hunger] + senses[(int)Sense.Thirst] + senses[(int)Sense.Pain] * 1.5f + senses[(int)Sense.Cold]) * .5f
                     + senses[(int)Sense.Company] * .4f - F_(Feel.Fear) * .3f - F_(Feel.Despair) * .3f + F_(Feel.Joy) * .3f + F_(Feel.Calm) * .2f;
@@ -186,6 +198,7 @@ public sealed class Brain
         if (Memory.Count > MemoryCap) Memory.RemoveAt(0);
     }
     public float Hour;
+    public float FaithLearned;   // what his prayers have taught him
     public string Context;   // who is with him, set by the world; kept with each memory
 
     void RecallFrom(float[] q)
@@ -228,6 +241,8 @@ public sealed class Brain
     {
         if (chosen < 0 || willIn == null) return;
         float r = Wellbeing - startWell, adv = r - baseline; baseline += (r - baseline) * .05f;
+        // a prayer that was followed by things getting better feels answered; one followed by worse, unanswered
+        if (chosen == (int)Deed.Pray) FaithLearned = Math.Clamp(FaithLearned + Math.Clamp(adv, -.3f, .3f) * .8f, -2.5f, 2.5f);
         var dy = new float[A];
         for (int a = 0; a < A; a++) dy[a] = -adv * ((a == chosen ? 1 : 0) - chosenP[a]);
         WillNet.Learn(willIn, dy, .08f);
@@ -259,5 +274,5 @@ public sealed class Brain
 
 public sealed class Personality
 {
-    public float Openness = .6f, Neuroticism = .5f, Sociability = .6f, Resilience = .5f;
+    public float Openness = .6f, Neuroticism = .5f, Sociability = .6f, Resilience = .5f, Faith = .5f;
 }

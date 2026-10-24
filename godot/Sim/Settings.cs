@@ -81,6 +81,11 @@ public sealed class Settings
             Explain = s => "Raises his resting dread and despair, and how frightening novelty feels." },
         new() { Key = "vega.social", Group = "Vega", Label = "Sociability", Min = 0, Max = 1, Default = .6f,
             Explain = s => "How much loneliness and longing he carries at rest, and how vivid his remembered company is." },
+        new() { Key = "vega.faith", Group = "Vega", Label = "Faith", Min = 0, Max = 1, Default = .55f,
+            Explain = s => s["vega.faith"] switch {
+                < .3f => "A sceptic. He rarely prays; fear and grief push him further from God, and a strange sign unsettles him rather than comforts him.",
+                < .7f => "Raised in the faith, not sure of it. Prayers that seem answered will deepen it; unanswered ones wear it away.",
+                _ => "Devout. In fear and grief he turns to prayer, and faith steadies him: calmer, more hopeful, slower to despair. God mode's interventions read to him as signs." } },
         new() { Key = "vega.resil", Group = "Vega", Label = "Resilience", Min = 0, Max = 1, Default = .5f,
             Explain = s => "How fast his grip recovers when the room gives him something real to perceive." },
     };

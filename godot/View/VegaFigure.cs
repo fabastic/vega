@@ -12,6 +12,7 @@ public partial class VegaFigure : Node3D
     readonly Dictionary<string, float> cur = new(), tgt = new();
     float walkT;
     public bool Ghost;
+    public Color Shirt = new(.86f, .86f, .83f), Pants = new(.36f, .38f, .42f), Hair = new(.18f, .14f, .12f), Skin = new(.80f, .64f, .52f);
 
     public static StandardMaterial3D Mat(Color c, bool ghost = false, float rough = .8f)
     {
@@ -26,35 +27,66 @@ public partial class VegaFigure : Node3D
     }
     static Node3D Pivot(Node3D parent, Vector3 at) { var n = new Node3D { Position = at }; parent.AddChild(n); return n; }
 
+    // who this body is: women and men are built differently, and so are children and the old
+    public bool Female, Beard, Dress; public int Age = 1, HairStyle;   // Age: 0 child, 1 adult, 2 elder; HairStyle 0-3
+
     public override void _Ready()
     {
-        var skin = Mat(new Color(.80f, .64f, .52f), Ghost); var shirt = Mat(new Color(.86f, .86f, .83f), Ghost); var pants = Mat(new Color(.36f, .38f, .42f), Ghost); var hair = Mat(new Color(.18f, .14f, .12f), Ghost);
+        if (Age == 2) Hair = new Color(.72f, .7f, .68f);
+        var skin = Mat(Skin, Ghost); var shirt = Mat(Shirt, Ghost); var pants = Mat(Pants, Ghost); var hair = Mat(Hair, Ghost);
+        float shoulder = Female ? .185f : .225f, hip = Female ? .115f : .1f, chest = Female ? .155f : .175f;
         body = Pivot(this, new Vector3(0, .92f, 0));
         spine = Pivot(body, Vector3.Zero);
-        Part(new CapsuleMesh { Radius = .17f, Height = .62f }, shirt, new Vector3(0, .3f, 0), spine);
+        // torso: a waist and a chest, so the silhouette reads as a person rather than a pill
+        Part(new CapsuleMesh { Radius = Female ? .135f : .15f, Height = .42f }, shirt, new Vector3(0, .2f, 0), spine);
+        var ch = Part(new CapsuleMesh { Radius = chest, Height = .4f }, shirt, new Vector3(0, .42f, 0), spine);
+        ch.Scale = new Vector3(Female ? 1.05f : 1.22f, 1, .78f);
+        Part(new CapsuleMesh { Radius = hip + .05f, Height = .32f }, Dress ? shirt : pants, new Vector3(0, .02f, 0), spine).Scale = new Vector3(Female ? 1.25f : 1.05f, 1, .85f);
         head = Pivot(spine, new Vector3(0, .66f, 0));
-        Part(new SphereMesh { Radius = .12f, Height = .26f }, skin, new Vector3(0, .1f, 0), head);
-        Part(new SphereMesh { Radius = .125f, Height = .16f }, hair, new Vector3(0, .17f, -.015f), head);
-        Part(new CylinderMesh { TopRadius = .05f, BottomRadius = .05f, Height = .08f }, skin, new Vector3(0, -.01f, 0), head);
-        (lSh, lEl) = Arm(-1, shirt, skin); (rSh, rEl) = Arm(1, shirt, skin);
-        (lHip, lKn) = Leg(-1, pants, skin); (rHip, rKn) = Leg(1, pants, skin);
+        var hd = Part(new SphereMesh { Radius = .115f, Height = .25f }, skin, new Vector3(0, .1f, 0), head);
+        hd.Scale = new Vector3(Female ? .92f : 1, 1.08f, 1);
+        Part(new SphereMesh { Radius = .02f, Height = .04f }, skin, new Vector3(0, .085f, .11f), head);   // nose
+        var eye = Mat(new Color(.1f, .09f, .08f), Ghost);
+        for (int e = -1; e <= 1; e += 2) Part(new SphereMesh { Radius = .014f, Height = .028f }, eye, new Vector3(e * .042f, .12f, .1f), head);
+        Part(new CylinderMesh { TopRadius = .045f, BottomRadius = .055f, Height = .1f }, skin, new Vector3(0, -.02f, 0), head);
+        // hair
+        Part(new SphereMesh { Radius = .122f, Height = .17f }, hair, new Vector3(0, .17f, -.015f), head);
+        if (Female || HairStyle == 3)
+        {
+            switch (HairStyle)
+            {
+                case 0: case 3: Part(new CapsuleMesh { Radius = .11f, Height = .42f }, hair, new Vector3(0, .0f, -.06f), head).Scale = new Vector3(1.05f, 1, .6f); break;   // long
+                case 1: Part(new SphereMesh { Radius = .07f, Height = .14f }, hair, new Vector3(0, .2f, -.12f), head); break;   // bun
+                case 2: Part(new CapsuleMesh { Radius = .04f, Height = .3f }, hair, new Vector3(0, .02f, -.14f), head); break;   // ponytail
+            }
+        }
+        if (Beard && !Female) Part(new SphereMesh { Radius = .085f, Height = .12f }, hair, new Vector3(0, .02f, .05f), head).Scale = new Vector3(1.1f, 1, .9f);
+        (lSh, lEl) = Arm(-1, shoulder, shirt, skin); (rSh, rEl) = Arm(1, shoulder, shirt, skin);
+        (lHip, lKn) = Leg(-1, hip, pants, skin); (rHip, rKn) = Leg(1, hip, pants, skin);
+        if (Dress)
+        {
+            // a skirt that hangs from the hips over the thighs
+            Part(new CylinderMesh { TopRadius = .17f, BottomRadius = .3f, Height = .62f, RadialSegments = 16 }, shirt, new Vector3(0, -.28f, 0), body);
+        }
+        if (Age == 0) { Scale *= 1; head.Scale = Vector3.One * 1.25f; }
         Pose("stand"); foreach (var kv in tgt) cur[kv.Key] = kv.Value;
     }
-    (Node3D, Node3D) Arm(int s, Material shirt, Material skin)
+    (Node3D, Node3D) Arm(int s, float shoulder, Material shirt, Material skin)
     {
-        var sh = Pivot(spine, new Vector3(s * .22f, .55f, 0));
-        Part(new CapsuleMesh { Radius = .05f, Height = .32f }, shirt, new Vector3(0, -.14f, 0), sh);
+        var sh = Pivot(spine, new Vector3(s * shoulder, .55f, 0));
+        Part(new CapsuleMesh { Radius = Female ? .045f : .055f, Height = .32f }, shirt, new Vector3(0, -.14f, 0), sh);
         var el = Pivot(sh, new Vector3(0, -.29f, 0));
-        Part(new CapsuleMesh { Radius = .042f, Height = .3f }, skin, new Vector3(0, -.13f, 0), el);
+        Part(new CapsuleMesh { Radius = Female ? .036f : .043f, Height = .3f }, skin, new Vector3(0, -.13f, 0), el);
+        Part(new SphereMesh { Radius = .045f, Height = .09f }, skin, new Vector3(0, -.3f, 0), el);   // hand
         return (sh, el);
     }
-    (Node3D, Node3D) Leg(int s, Material pants, Material skin)
+    (Node3D, Node3D) Leg(int s, float hip, Material pants, Material skin)
     {
-        var hp = Pivot(body, new Vector3(s * .1f, 0, 0));
-        Part(new CapsuleMesh { Radius = .07f, Height = .48f }, pants, new Vector3(0, -.22f, 0), hp);
+        var hp = Pivot(body, new Vector3(s * hip, 0, 0));
+        Part(new CapsuleMesh { Radius = Female ? .072f : .075f, Height = .48f }, Dress ? skin : pants, new Vector3(0, -.22f, 0), hp);
         var kn = Pivot(hp, new Vector3(0, -.45f, 0));
-        Part(new CapsuleMesh { Radius = .06f, Height = .46f }, pants, new Vector3(0, -.2f, 0), kn);
-        Part(new BoxMesh { Size = new Vector3(.1f, .06f, .2f) }, Mat(new Color(.2f, .2f, .22f), Ghost), new Vector3(0, -.44f, .04f), kn);
+        Part(new CapsuleMesh { Radius = .058f, Height = .46f }, Dress ? skin : pants, new Vector3(0, -.2f, 0), kn);
+        Part(new BoxMesh { Size = new Vector3(.1f, .07f, .22f) }, Mat(new Color(.22f, .17f, .13f), Ghost), new Vector3(0, -.44f, .04f), kn);
         return (hp, kn);
     }
 
@@ -76,6 +108,7 @@ public partial class VegaFigure : Node3D
             case "read": tgt["y"] = .2f; tgt["lhip"] = tgt["rhip"] = -1.5f; tgt["lkn"] = tgt["rkn"] = 1.5f; tgt["head"] = .5f; tgt["lsh"] = tgt["rsh"] = -.8f; tgt["lel"] = tgt["rel"] = -1.1f; break;
             case "write": tgt["rsh"] = -1.6f; tgt["rel"] = -.3f; break;
             case "eat": tgt["y"] = .2f; tgt["lhip"] = tgt["rhip"] = -1.5f; tgt["lkn"] = tgt["rkn"] = 1.5f; tgt["rsh"] = -1.1f; tgt["rel"] = -1.9f; tgt["head"] = .25f; break;
+            case "kneel": tgt["y"] = .5f; tgt["lhip"] = tgt["rhip"] = -.2f; tgt["lkn"] = tgt["rkn"] = 1.55f; tgt["head"] = .45f; tgt["lsh"] = tgt["rsh"] = -1.2f; tgt["lel"] = tgt["rel"] = -1.4f; tgt["lshz"] = .25f; tgt["rshz"] = -.25f; break;
             case "talk": tgt["lsh"] = -.6f; tgt["lel"] = -.6f; tgt["rsh"] = -.3f; break;
         }
     }
@@ -83,7 +116,8 @@ public partial class VegaFigure : Node3D
     public static string PoseFor(Deed d, bool bed) => d switch
     {
         Deed.Sleep => bed ? "bed" : "lie", Deed.Rest or Deed.Remember => "sit", Deed.Hug => "hug", Deed.Search => "crouch", Deed.Pound => "pound",
-        Deed.Shout => "shout", Deed.Exercise => "push", Deed.Read => "read", Deed.Tally => "write", Deed.Eat => "eat", Deed.Talk => "talk", _ => "stand",
+        Deed.Shout => "shout", Deed.Exercise => "push", Deed.Read => "read", Deed.Tally => "write", Deed.Eat => "eat", Deed.Talk or Deed.Socialize => "talk",
+        Deed.Work or Deed.Build => "pound", Deed.Forage or Deed.Bury => "crouch", Deed.Pray => "kneel", _ => "stand",
     };
 
     public void Animate(string pose, bool walking, float dt)
@@ -101,7 +135,7 @@ public partial class VegaFigure : Node3D
         if (pose == "hug") cur["spine"] += Mathf.Sin(t * 1.2f) * .05f;
         body.Position = new Vector3(0, cur["y"] + bob, 0);
         body.Rotation = new Vector3(cur["lie"], 0, 0);
-        spine.Rotation = new Vector3(cur["spine"] + breathe, 0, 0);
+        spine.Rotation = new Vector3(cur["spine"] + breathe + (Age == 2 ? .14f : 0), 0, 0);
         head.Rotation = new Vector3(cur["head"], 0, 0);
         lSh.Rotation = new Vector3(cur["lsh"] + sw, 0, cur["lshz"]); rSh.Rotation = new Vector3(cur["rsh"] - sw, 0, cur["rshz"]);
         lEl.Rotation = new Vector3(cur["lel"], 0, 0); rEl.Rotation = new Vector3(cur["rel"], 0, 0);

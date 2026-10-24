@@ -7,7 +7,7 @@ namespace Vega.Sim;
 
 public sealed class Chamber
 {
-    readonly Run run; Settings Cfg => run.Cfg; Brain Brain => run.Brain; Body B => run.Body; Rng rng => run.Rng;
+    readonly Run run; public Settings Cfg => run.Cfg; Brain Brain => run.Brain; Body B => run.Body; Rng rng => run.Rng;
     public float RS;
     public float Hours => run.PhaseHours;
     public bool Done => Hours >= Cfg["time.days"] * 24 || DoorOpen && Hours - openedAt > 2 || B.Health <= 0;
@@ -50,6 +50,7 @@ public sealed class Chamber
         s[(int)Sense.SinceMeal] = Math.Clamp(B.SinceMeal / 30f, 0, 1);
         s[(int)Sense.Assault] = Strobe || Siren ? 1 : 0;
         s[(int)Sense.Novelty] = Novelty;
+        s[(int)Sense.Sign] = run.SignT > 0 ? 1 : 0;
         return s;
     }
 
@@ -57,7 +58,8 @@ public sealed class Chamber
     {
         var a = new bool[Brain.A]; Array.Fill(a, true);
         a[(int)Deed.Eat] = Tray; a[(int)Deed.Read] = Books;
-        for (var d = Deed.Work; d <= Deed.Socialize; d++) a[(int)d] = false;   // acts of the world outside
+        for (var d = Deed.Work; d <= Deed.Socialize; d++) a[(int)d] = false;
+        a[(int)Deed.Pray] = true;   // acts of the world outside
         a[(int)Deed.Talk] = Photo || Rat || VoiceT > 0 || Brain.Perceived[(int)Sense.Company] > .4f;
         a[(int)Deed.Sleep] = B.Fatigue > .35f;
         return a;
@@ -105,7 +107,7 @@ public sealed class Chamber
     {
         Deed.Sleep => 2 + B.Fatigue * 7, Deed.Rest => rng.Range(.5f, 1.5f), Deed.Pace => rng.Range(.4f, 1f), Deed.Search => rng.Range(.8f, 1.6f),
         Deed.Eat => .3f, Deed.Shout => .2f, Deed.Hug => rng.Range(.6f, 1.4f), Deed.Exercise => .5f, Deed.Tally => .1f,
-        Deed.Remember => rng.Range(.6f, 1.4f), Deed.Read => rng.Range(1, 2), Deed.Pound => .3f, Deed.Talk => .6f, _ => 1,
+        Deed.Remember => rng.Range(.6f, 1.4f), Deed.Pray => rng.Range(.4f, 1f), Deed.Read => rng.Range(1, 2), Deed.Pound => .3f, Deed.Talk => .6f, _ => 1,
     };
 
     void Begin(Deed d, float dur)
