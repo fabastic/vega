@@ -1,6 +1,10 @@
 const { chromium } = require('playwright');
-exports.open = async (file, w = 1440, h = 900) => {
-  const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });
+// gpu: run the installed Chrome on this machine's graphics card, for timing; otherwise software GL, for repeatable screenshots
+exports.open = async (file, w = 1440, h = 900, { gpu = false } = {}) => {
+  const soft = { args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] };
+  // without Playwright's own browser downloaded, fall back to the installed Chrome
+  const b = gpu ? await chromium.launch({ channel: 'chrome', args: ['--enable-gpu', '--use-angle=d3d11', '--ignore-gpu-blocklist', '--disable-gpu-vsync', '--disable-frame-rate-limit', ...(process.env.DGPU ? ['--force_high_performance_gpu'] : [])] })
+    : await chromium.launch(soft).catch(() => chromium.launch({ ...soft, channel: 'chrome' }));
   const p = await b.newPage({ viewport: { width: w, height: h } });
   await p.route('**/three.min.js', r => r.fulfill({ path: __dirname + '/three.min.js', contentType: 'text/javascript' }));
   await p.route('**/OrbitControls.js', r => r.fulfill({ path: __dirname + '/orbit.js', contentType: 'text/javascript' }));
