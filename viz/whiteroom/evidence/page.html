@@ -1,0 +1,922 @@
+<title>Vega Evidence</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Schibsted+Grotesk:wght@400;500;600&family=Martian+Mono:wght@400;500&family=Reenie+Beanie&display=swap">
+<style>
+/* The evidence view. One long scroll that sets what the white room measurably did to vega's two minds beside what
+   sensory deprivation does to people. The page speaks the White Room's visual language (paper, graphite ink, ochre
+   for the life he had, violet for what only exists in his head). Behind it runs one WebGL layer: the paper, his
+   eyes, and the hallucination that follows the cursor. Every number on the page carries where it comes from. */
+:root{
+  --paper:#f2f3f0; --white:#fcfcfa; --ink:#16181b; --ink2:#5b6168; --rule:#d8dbd6; --rule2:#e7e9e5;
+  --alarm:#c4321f; --civ:#a8692a; --calm:#2b6684; --moss:#5d6f3a; --mind:#6a4f9c;
+  --display:'Syne','Arial Narrow',system-ui,sans-serif;
+  --body:'Schibsted Grotesk','Segoe UI',system-ui,sans-serif;
+  --mono:'Martian Mono',ui-monospace,Consolas,monospace;
+  --hand:'Reenie Beanie','Comic Sans MS',cursive;
+  --gut:max(16px,env(safe-area-inset-left,0px));
+  --d:0;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:auto}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--body);overflow-x:hidden}
+[hidden]{display:none!important}
+a{color:inherit}
+button{font:500 12px var(--mono);color:var(--ink);background:var(--white);border:1px solid var(--rule);border-radius:999px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--ink2)}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--calm);outline-offset:3px}
+.lbl{font:500 10.5px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.dim{color:var(--ink2)}
+.num{font-variant-numeric:tabular-nums}
+
+/* where a claim comes from */
+.src{display:inline-flex;align-items:center;gap:6px;font:500 10px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase;padding:5px 8px 5px 7px;border-radius:999px;border:1px solid currentColor;white-space:nowrap;vertical-align:middle}
+.src::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.src.m{color:var(--calm)} .src.h{color:var(--civ)} .src.i{color:var(--mind)}
+
+/* the WebGL layer and the cursor */
+#gl{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:0}
+#cur{position:fixed;left:0;top:0;z-index:60;pointer-events:none;width:0;height:0}
+#cur i{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:var(--ink);transition:transform .25s}
+#cur svg{position:absolute;left:-22px;top:-22px;width:44px;height:44px;overflow:visible;transform:rotate(-90deg)}
+#cur circle{fill:none;stroke:var(--ink);stroke-width:1.2}
+#cur circle.p{stroke-width:2.2;stroke-dasharray:126;stroke-dashoffset:126}
+#cur span{position:absolute;left:26px;top:-7px;font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;opacity:0;transition:opacity .3s}
+#cur.hint span{opacity:.75}
+#cur.link i{transform:scale(3.2);opacity:.25}
+@media (pointer:coarse){#cur{display:none}}
+html.fine,html.fine *{cursor:none!important}
+
+/* loader */
+#loader{position:fixed;inset:0;z-index:90;background:var(--paper);display:flex;flex-direction:column;justify-content:center;padding:0 var(--gut);transition:opacity .9s ease}
+#loader .w{font:400 clamp(26px,4.2vw,54px)/1.1 var(--body);letter-spacing:-.02em;height:1.2em;overflow:hidden}
+#loader .w b{display:block;font-weight:400;animation:wup .5s cubic-bezier(.2,.8,.2,1)}
+#loader .n{font:400 clamp(56px,10vw,140px)/1 var(--body);letter-spacing:-.04em;margin-top:.4em}
+#loader.out{opacity:0;pointer-events:none}
+@keyframes wup{from{transform:translateY(100%)}to{transform:none}}
+
+/* header */
+.bar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;gap:14px;padding:16px var(--gut);pointer-events:none}
+.bar>*{pointer-events:auto}
+.brand{display:flex;align-items:baseline;gap:10px;text-decoration:none}
+.brand b{font:800 20px/1 var(--display);letter-spacing:-.01em}
+.brand span{font:600 20px/1 var(--display);color:var(--ink2)}
+.bar .sp{flex:1}
+.bar nav{display:flex;gap:16px}
+.bar nav a{font:500 13px var(--body);text-decoration:none;color:var(--ink)}
+.bar nav a:hover{text-decoration:underline}
+#snd{display:flex;align-items:center;gap:3px;height:38px;width:38px;justify-content:center;padding:0}
+#snd i{width:2px;height:5px;background:var(--ink);border-radius:1px}
+#snd[aria-pressed="true"] i{animation:eq 1s ease-in-out infinite}
+#snd i:nth-child(2){animation-delay:-.3s}#snd i:nth-child(3){animation-delay:-.6s}#snd i:nth-child(4){animation-delay:-.15s}
+@keyframes eq{0%,100%{height:4px}50%{height:15px}}
+#menuBtn{width:38px;height:38px;padding:0;background:var(--ink);border-color:var(--ink);display:grid;place-items:center}
+#menuBtn i{display:block;width:14px;height:1.5px;background:var(--white);box-shadow:0 5px 0 var(--white);transform:translateY(-2.5px);transition:transform .3s,box-shadow .3s}
+#menuBtn[aria-expanded="true"] i{transform:rotate(45deg);box-shadow:none}
+@media (max-width:760px){.bar nav{display:none}.brand span{display:none}}
+
+/* menu */
+#menu{position:fixed;inset:0;z-index:45;background:color-mix(in srgb,var(--paper) 94%,transparent);backdrop-filter:blur(6px);display:flex;flex-direction:column;justify-content:center;padding:80px var(--gut) 40px;gap:4px}
+#menu a{font:800 clamp(28px,6vw,72px)/1.05 var(--display);letter-spacing:-.02em;text-decoration:none;display:flex;gap:18px;align-items:baseline}
+#menu a small{font:500 12px var(--mono);color:var(--ink2)}
+#menu a:hover{color:var(--mind)}
+
+/* main column, which scatters while he is held under */
+main{position:relative;z-index:2}
+html.held main{filter:blur(calc(var(--d)*10px));opacity:calc(1 - var(--d)*.92);transform:scale(calc(1 + var(--d)*.05));transform-origin:50% calc(var(--sy,0px) + 40vh)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 var(--gut)}
+section{position:relative}
+
+/* line reveals */
+.rv{display:block;overflow:hidden}
+.rv>span{display:block;transform:translateY(105%);transition:transform 1.1s cubic-bezier(.16,1,.3,1)}
+.in .rv>span,.rv.in>span{transform:none}
+.fd{opacity:0;transform:translateY(24px);transition:opacity .9s,transform 1.1s cubic-bezier(.16,1,.3,1)}
+.in .fd,.fd.in{opacity:1;transform:none}
+
+/* hero */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding-top:80px}
+.hero h1{font:800 clamp(52px,13vw,200px)/.86 var(--display);letter-spacing:-.045em;margin:0;text-align:center}
+.hero p.lede{max-width:640px;margin:34px auto 0;text-align:center;font-size:clamp(16px,1.6vw,19px)}
+.hero .cue{margin:42px auto 0;text-align:center}
+.hero .cue span{display:inline-block;padding:9px 16px;border:1px solid var(--rule);border-radius:999px;background:color-mix(in srgb,var(--white) 70%,transparent)}
+
+/* honesty strip */
+.honest{padding:40px 0 120px}
+.honest .box{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.honest .box>div{background:color-mix(in srgb,var(--white) 82%,transparent);border:1px solid var(--rule);border-radius:14px;padding:20px}
+.honest h3{margin:12px 0 6px;font:600 17px/1.25 var(--body)}
+.honest p{margin:0;font-size:14.5px;color:var(--ink2)}
+@media (max-width:860px){.honest .box{grid-template-columns:1fr}}
+
+/* his eyes: the long first-person passage */
+.eyes{height:560vh}
+.eyes .stick{position:sticky;top:0;height:100vh;pointer-events:none}
+.cap{position:absolute;left:var(--gut);bottom:9vh;max-width:min(540px,calc(100vw - 32px));opacity:0;transform:translateY(20px);transition:opacity .6s,transform .8s cubic-bezier(.16,1,.3,1)}
+.cap.on{opacity:1;transform:none}
+.cap h2{font:800 clamp(30px,4.6vw,64px)/.95 var(--display);letter-spacing:-.03em;margin:12px 0 12px;color:var(--ink);text-shadow:0 0 24px var(--paper),0 0 2px var(--paper)}
+.cap p{margin:0;font-size:16px;background:color-mix(in srgb,var(--white) 84%,transparent);border:1px solid var(--rule);padding:12px 14px;border-radius:12px;backdrop-filter:blur(4px)}
+.cap .live{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;pointer-events:auto}
+.meter{font:500 12px var(--mono);background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:9px 12px}
+.meter b{font:600 18px var(--mono);display:block;margin-top:3px}
+.eyes .tag{position:absolute;right:var(--gut);top:84px}
+.eyes .prog{position:absolute;right:var(--gut);bottom:9vh;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.eyes .prog i{display:block;height:2px;width:34px;background:var(--rule);transition:width .4s,background .4s}
+.eyes .prog i.on{width:64px;background:var(--ink)}
+@media (max-width:640px){.eyes .prog{display:none}.cap{bottom:6vh}}
+
+/* the four effects at a glance */
+.glance{padding:140px 0 40px}
+.kicker{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+h2.big{font:800 clamp(40px,7.5vw,112px)/.9 var(--display);letter-spacing:-.04em;margin:18px 0 26px}
+.glance .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.vcard{background:color-mix(in srgb,var(--white) 88%,transparent);border:1px solid var(--rule);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px;text-decoration:none;transition:transform .5s cubic-bezier(.16,1,.3,1),border-color .3s}
+.vcard:hover{transform:translateY(-4px);border-color:var(--ink2)}
+.vcard .q{font:600 18px/1.2 var(--body)}
+.vcard .v{font:800 34px/1 var(--display);letter-spacing:-.02em}
+.vcard .v.yes{color:var(--moss)} .vcard .v.part{color:var(--civ)} .vcard .v.no{color:var(--alarm)} .vcard .v.na{color:var(--ink2)}
+.vcard p{margin:0;font-size:14px;color:var(--ink2)}
+@media (max-width:980px){.glance .grid{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.glance .grid{grid-template-columns:1fr}}
+
+/* an effect */
+.effect{padding:120px 0 60px}
+.effect .head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:end}
+.effect .no{font:500 12px var(--mono);color:var(--ink2)}
+.effect h2{font:800 clamp(36px,6vw,88px)/.92 var(--display);letter-spacing:-.035em;margin:10px 0 0}
+.cols{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:14px;margin-top:30px}
+.panel{background:color-mix(in srgb,var(--white) 90%,transparent);border:1px solid var(--rule);border-radius:16px;padding:20px;min-width:0}
+.panel h3{font:600 17px/1.3 var(--body);margin:12px 0 8px}
+.panel p{margin:0 0 10px;font-size:15px}
+.panel p:last-child{margin-bottom:0}
+.panel .cite{font-size:13px;color:var(--ink2);border-top:1px solid var(--rule2);padding-top:10px;margin-top:12px}
+.panel.human{background:color-mix(in srgb,#f6efe6 92%,transparent)}
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.verdict{border-left:3px solid var(--ink);padding:4px 0 4px 16px;margin-top:22px;max-width:860px}
+.verdict b.w{font:800 22px var(--display);letter-spacing:-.01em;margin-right:8px}
+.verdict.part b.w{color:var(--civ)} .verdict.no b.w{color:var(--alarm)} .verdict.na b.w{color:var(--ink2)}
+.verdict p{margin:6px 0 0}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+
+/* charts */
+.ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.pill{position:relative;display:inline-flex;background:var(--rule2);border-radius:999px;padding:3px}
+.pill button{position:relative;z-index:1;border:0;background:transparent;padding:7px 13px;font:500 11px var(--mono)}
+.pill button[aria-pressed="true"]{color:var(--ink)}
+.pill .knob{position:absolute;top:3px;bottom:3px;left:3px;border-radius:999px;background:var(--white);box-shadow:0 1px 2px rgba(0,0,0,.12);transition:left .45s cubic-bezier(.16,1,.3,1),width .45s cubic-bezier(.16,1,.3,1)}
+.chart{width:100%;margin-top:12px;position:relative}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart .ax{font:500 9.5px var(--mono);fill:var(--ink2)}
+.chart .arm{font:500 10px var(--mono);fill:var(--ink);text-transform:uppercase;letter-spacing:.04em}
+.chart .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--white);font:500 11px/1.4 var(--mono);padding:6px 9px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-120%);opacity:0;transition:opacity .15s}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font:500 11px var(--mono);color:var(--ink2);margin-top:6px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+table.ct{width:100%;border-collapse:collapse;margin-top:14px;font:500 12px/1.4 var(--mono)}
+table.ct th{text-align:left;font:500 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);padding:6px 6px 6px 0;border-bottom:1px solid var(--rule)}
+table.ct td{padding:7px 6px 7px 0;border-bottom:1px solid var(--rule2);vertical-align:top}
+table.ct td.ex{font-weight:600}
+table.ct td .ci{color:var(--ink2);font-weight:400;display:block;font-size:11px}
+table.ct td.nul{color:var(--ink2)}
+.spark{margin-top:12px}
+details{margin-top:12px}
+summary{font:500 11px var(--mono);letter-spacing:.05em;color:var(--ink2);cursor:pointer}
+.note{font-size:13.5px;color:var(--ink2);margin-top:10px}
+
+/* mechanism */
+.mech{padding:140px 0 60px}
+.mech .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:20px}
+.mech svg{width:100%;height:auto}
+.breaks{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.breaks li{background:color-mix(in srgb,var(--white) 90%,transparent);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;font-size:15px}
+.breaks li b{display:block;margin-bottom:2px}
+@media (max-width:900px){.mech .two{grid-template-columns:1fr}}
+
+/* sources and the end */
+.sources{padding:120px 0 40px}
+.sources ol{margin:18px 0 0;padding-left:20px;display:grid;gap:10px;font-size:15px}
+.sources .data li{list-style:square}
+.end{position:relative;z-index:2;padding:160px 0 70px;text-align:center}
+.end a.go{display:block;font:800 clamp(44px,10vw,160px)/.88 var(--display);letter-spacing:-.045em;text-decoration:none}
+.end a.go:hover{color:var(--mind)}
+.end p{margin:30px auto 0;max-width:560px;color:var(--ink2);font-size:14px}
+
+/* inside: 168 hours, as measured */
+#inside{position:fixed;inset:0;z-index:40;pointer-events:none}
+#inside .hud{position:absolute;left:var(--gut);right:var(--gut);top:76px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;pointer-events:auto}
+#inside .hud h2{font:800 clamp(24px,3.2vw,44px)/1 var(--display);letter-spacing:-.02em;margin:10px 0 0}
+#inside .clocks{position:absolute;left:var(--gut);bottom:28px;display:flex;gap:10px;flex-wrap:wrap;pointer-events:auto;max-width:calc(100vw - 32px)}
+#inside .clocks .meter{min-width:150px;background:color-mix(in srgb,var(--white) 88%,transparent)}
+#inside .tl{position:absolute;left:var(--gut);right:var(--gut);bottom:120px;height:44px;pointer-events:auto}
+#inside .tl canvas{width:100%;height:44px;display:block}
+#inside .said{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);font:400 clamp(26px,3.4vw,46px)/1.1 var(--hand);color:var(--mind);text-align:center;opacity:0;transition:opacity .5s;max-width:80vw;text-shadow:0 0 12px var(--paper)}
+#exitBtn{width:46px;height:46px;padding:0;font-size:18px;background:var(--ink);color:var(--white);border-color:var(--ink)}
+#inside .arms{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+#inside .arms button[aria-pressed="true"]{background:var(--ink);color:var(--white);border-color:var(--ink)}
+@media (max-width:640px){#inside .tl{bottom:150px}#inside .clocks .meter{min-width:120px}}
+@media (prefers-reduced-motion:reduce){.rv>span,.fd,.cap{transition:none}#snd i{animation:none!important}}
+</style>
+
+<div id="loader" aria-hidden="true"><div class="w"><b>Sealing the room</b></div><div class="n num">0</div></div>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="cur" aria-hidden="true"><i></i><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="20" opacity=".25"></circle><circle class="p" cx="22" cy="22" r="20"></circle></svg><span>Hold to go inside</span></div>
+
+<header class="bar">
+  <a class="brand" href="whiteroom.html" title="Back to the White Room"><b>VEGA</b><span>Evidence</span></a>
+  <span class="sp"></span>
+  <nav aria-label="Sections"><a href="#eyes">His eyes</a><a href="#glance">Findings</a><a href="#mech">Mechanism</a><a href="#sources">Sources</a></nav>
+  <button type="button" id="snd" aria-pressed="false" aria-label="Ambient sound"><i></i><i></i><i></i><i></i></button>
+  <button type="button" id="menuBtn" aria-expanded="false" aria-controls="menu" aria-label="Index"><i></i></button>
+</header>
+<nav id="menu" hidden aria-label="Index">
+  <a href="#top"><small>00</small>Start</a><a href="#eyes"><small>01</small>His eyes</a><a href="#glance"><small>02</small>Four findings</a>
+  <a href="#e-phantom"><small>03</small>Things that are not there</a><a href="#e-time"><small>04</small>Losing track of time</a>
+  <a href="#e-inward"><small>05</small>Turning inward</a><a href="#e-cap"><small>06</small>Capability</a><a href="#mech"><small>07</small>Mechanism</a><a href="#sources"><small>08</small>Sources</a>
+</nav>
+
+<main id="main">
+  <section class="hero wrap" id="top">
+    <h1><span class="rv"><span>The white</span></span><span class="rv"><span>room</span></span></h1>
+    <p class="lede fd">What sensory deprivation did to vega's two artificial minds, set beside what it does to people. The measurements come from the round-2 experiments in this repository, not from the simulation's scripted breakdown.</p>
+    <p class="cue lbl fd"><span>Move to see what he fills in · scroll to look through his eyes</span></p>
+  </section>
+
+  <section class="honest wrap" aria-label="How to read this page">
+    <div class="box">
+      <div class="fd"><span class="src m">measured in vega</span><h3>Numbers from the experiments</h3><p>Means and 95% bootstrap intervals over 10 seeds, from <code>results_round2/</code>. Exploratory: many contrasts, no multiplicity correction. Nulls and reversals are shown as prominently as the rest.</p></div>
+      <div class="fd"><span class="src h">from human studies</span><h3>Published findings in people</h3><p>Each one is cited. Where no comparable human finding exists, the page says so and does not compare.</p></div>
+      <div class="fd"><span class="src i">illustration</span><h3>Pictures, not evidence</h3><p>The hand, the world and the hallucination around the cursor are drawn. They are a way of seeing the idea. They are functional state variables at most, never a claim of felt experience.</p></div>
+    </div>
+  </section>
+
+  <section class="eyes" id="eyes" aria-label="Through his eyes">
+    <div class="stick">
+      <span class="tag src i">illustration</span>
+      <div class="cap" data-c="0"><span class="lbl dim">01 · his eyes</span><h2>This is the world, through his eyes.</h2><p>Light, sound, people, a road home. Move the cursor and his hand follows it. Wherever it goes, his model is busy predicting what is there.</p></div>
+      <div class="cap" data-c="1"><span class="lbl dim">02 · his model</span><h2>He sees what he expects, and the world corrects him.</h2><p>The colour that blooms under the cursor is his prediction showing through. While the world keeps answering, the error is caught and the bloom fades.</p></div>
+      <div class="cap" data-c="2"><span class="lbl dim">03 · exteroception removed</span><h2>Take the world away.</h2><p>Now nothing answers back. The figures that appear are drawn at the rate the learned mind (v2) acted on people who were not there, tick by tick, in this arm of the experiment.</p>
+        <div class="live"><div class="meter"><span class="src m">measured in vega</span><b class="num" id="mExt">–</b>phantoms per tick, v2</div><div class="meter"><span class="src m">measured in vega</span><b class="num" id="mFur">–</b>same mind, furnished room</div></div></div>
+      <div class="cap" data-c="3"><span class="lbl dim">04 · full deprivation</span><h2>Nothing left to correct him.</h2><p>Sight, sound and the feel of his own body are gone. Hold anywhere on the page to go inside for 168 hours, as the learned mind lived them.</p></div>
+      <div class="prog" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </section>
+
+  <section class="glance wrap" id="glance">
+    <div class="kicker fd"><span class="lbl dim">02 · four findings</span><span class="src m">measured in vega</span><span class="src h">from human studies</span></div>
+    <h2 class="big"><span class="rv"><span>How close is it</span></span><span class="rv"><span>to a human mind?</span></span></h2>
+    <div class="grid">
+      <a class="vcard fd" href="#e-phantom"><span class="q">Perceiving things that are not there</span><span class="v part">Partly</span><p>The learned mind keeps acting on absent people when nothing corrects it. Its phantoms are actions, not images.</p></a>
+      <a class="vcard fd" href="#e-time"><span class="q">Losing track of time</span><span class="v no">Mostly no</span><p>He underestimates elapsed time, as Siffre did, but in every arm. Silence made his clock more accurate, not less.</p></a>
+      <a class="vcard fd" href="#e-inward"><span class="q">Turning inward</span><span class="v na">No comparison</span><p>Self-discovery scores rise sharply. There is no established human measure to set them against.</p></a>
+      <a class="vcard fd" href="#e-cap"><span class="q">Capability</span><span class="v no">Opposite</span><p>Isolated students did worse on tests. vega's capability score went up, partly by construction.</p></a>
+    </div>
+  </section>
+
+  <section class="effect wrap" id="e-phantom">
+    <div class="head"><div><span class="no">03 · effect one</span><h2><span class="rv"><span>Things that are</span></span><span class="rv"><span>not there</span></span></h2></div></div>
+    <div class="cols">
+      <div class="panel fd">
+        <div class="ctl"><span class="src m">measured in vega</span>
+          <div class="pill" role="group" aria-label="Phantom metric"><span class="knob"></span><button type="button" data-pm="phantom_per_tick" aria-pressed="true">per tick</button><button type="button" data-pm="phantom_rate" aria-pressed="false">share of acts</button></div></div>
+        <h3 id="phTitle">Phantoms per tick, by arm</h3>
+        <div class="chart" id="chPhantom"></div>
+        <div class="legend"><span><i style="background:var(--civ)"></i>v1 rule-based</span><span><i style="background:var(--mind)"></i>v2 learned (RSSM)</span><span>dots: seeds · bar: 95% CI of the mean</span></div>
+        <p class="note" id="phNote"></p>
+        <table class="ct" id="tPhantom"></table>
+        <div class="spark"><h3>Over the 168 hours (v2)</h3><div class="chart" id="spPhantom"></div><p class="note">Share of seeds acting on an absent entity at each tick, smoothed over 12 ticks. In the furnished room the phantoms die away as the room keeps contradicting them. Without exteroception they persist and grow.</p></div>
+      </div>
+      <div class="stack">
+        <div class="panel human fd"><span class="src h">from human studies</span>
+          <h3>Ganzfeld</h3><p>A uniform, featureless visual field with steady noise reliably produces visual imagery and hallucination-like experiences in healthy people, with EEG closer to a drowsy, hypnagogic state than to sleep.</p>
+          <p class="cite">Wackermann, Pütz &amp; Allefeld (2008). Ganzfeld-induced hallucinatory experience, its phenomenology and cerebral electrophysiology. <i>Cortex</i> 44(10), 1364–1378.</p>
+          <h3>The McGill isolation studies</h3><p>Paid student volunteers lay in a cubicle with translucent goggles, cuffed hands and masking noise. Many reported vivid imagery and hallucinations, and few could stand it for more than two or three days.</p>
+          <p class="cite">Bexton, Heron &amp; Scott (1954). Effects of decreased variation in the sensory environment. <i>Canadian Journal of Psychology</i> 8(2), 70–76.</p>
+          <h3>Charles Bonnet syndrome</h3><p>People who lose sight but are otherwise well can see vivid, detailed things that are not there, and usually know they are not real. In one Dutch hospital sample of 505 visually impaired patients, about 60 met the criteria.</p>
+          <p class="cite">Teunisse, Cruysberg, Hoefnagels, Verbeek &amp; Zitman (1996). Visual hallucinations in psychologically normal people: Charles Bonnet's syndrome. <i>The Lancet</i> 347, 794–797.</p>
+        </div>
+      </div>
+    </div>
+    <div class="verdict part fd"><b class="w">Partly.</b><span>In the learned mind, removing outside input raises phantoms and keeps them from fading, which is the shape of the human finding. But a vega phantom is an action aimed at a remembered entity that is not observed, not an image. The rule-based mind shows it only with exteroception removed; under full deprivation and noise its phantoms per tick do not change. The share-of-acts measure hits its ceiling of 1.0 in every arm with nothing to perceive, so it cannot tell those arms apart.</span></div>
+  </section>
+
+  <section class="effect wrap" id="e-time">
+    <div class="head"><div><span class="no">04 · effect two</span><h2><span class="rv"><span>Losing track</span></span><span class="rv"><span>of time</span></span></h2></div></div>
+    <div class="cols">
+      <div class="panel fd"><span class="src m">measured in vega</span>
+        <h3>Mean absolute clock error, by arm</h3>
+        <div class="chart" id="chTime"></div>
+        <div class="legend"><span><i style="background:var(--civ)"></i>v1 rule-based</span><span><i style="background:var(--mind)"></i>v2 learned (RSSM)</span><span>error as a share of the time that passed</span></div>
+        <table class="ct" id="tTime"></table>
+        <div class="spark"><h3>His clock against the real one (v2)</h3><div class="chart" id="spTime"></div><p class="note">Signed error: below zero, he feels less time has passed than really has. That holds in every arm, the furnished room included. In full deprivation the error shrinks towards zero.</p></div>
+      </div>
+      <div class="stack">
+        <div class="panel human fd"><span class="src h">from human studies</span>
+          <h3>Siffre in the Scarasson cave, 1962</h3><p>Michel Siffre lived alone underground with no clock or daylight from 16 July. When his team called him up on 14 September, he thought it was 20 August. Counting to 120 at one per second took him about five minutes.</p>
+          <p class="cite">Foer, J. (2008). Interview with Michel Siffre. <i>Cabinet</i> 30, "The Underground".</p>
+        </div>
+        <div class="panel fd"><span class="src i">illustration</span><p>The White Room simulation's "lost time" jump cuts are authored to match accounts like Siffre's. They are not measured.</p></div>
+      </div>
+    </div>
+    <div class="verdict no fd"><b class="w">Mostly no.</b><span>The direction is shared: vega underestimates elapsed time, as Siffre did. But it does so in every arm, so the room's emptiness is not what causes it. Silence made both minds' clocks more accurate than in the furnished room; only noise and the slow fade made them worse. Siffre's error grew over two months; vega's shrank over seven simulated days.</span></div>
+  </section>
+
+  <section class="effect wrap" id="e-inward">
+    <div class="head"><div><span class="no">05 · effect three</span><h2><span class="rv"><span>Turning</span></span><span class="rv"><span>inward</span></span></h2></div></div>
+    <div class="cols">
+      <div class="panel fd"><span class="src m">measured in vega</span>
+        <h3>Change in the self-discovery composite (SD1–SD5)</h3>
+        <div class="chart" id="chSd"></div>
+        <div class="legend"><span><i style="background:var(--civ)"></i>v1 rule-based</span><span><i style="background:var(--mind)"></i>v2 learned (RSSM)</span><span>change from handoff to the end of the room</span></div>
+        <table class="ct" id="tSd"></table>
+      </div>
+      <div class="stack">
+        <div class="panel fd"><span class="src h">from human studies</span><h3>No comparison made</h3><p>"Self-discovery" here means five operational measures of the agent's self-model, such as how well it predicts its own next action. We know of no established human measure of the same thing under deprivation, so the page does not set one beside it.</p></div>
+        <div class="panel fd"><h3>Read with care</h3><p>Some of the rise is the furnished room falling: the learned mind's composite drops there by itself. The self-model probes are scored against each arm's own environment, so part of the change is the self-model adapting to the room. Reflective queries are scripted by design in both minds.</p><p class="cite">DECISIONS_OVERNIGHT.md; SPEC.md, artifact 8; RESULTS_ROUND2.md, honesty note.</p></div>
+      </div>
+    </div>
+    <div class="verdict na fd"><b class="w">Large, but not comparable.</b><span>Full deprivation raises the composite in both minds. The slow fade-out lowers it in both, the reverse of round 1 for the rule-based mind. Neither result says anything about inner life.</span></div>
+  </section>
+
+  <section class="effect wrap" id="e-cap">
+    <div class="head"><div><span class="no">06 · effect four</span><h2><span class="rv"><span>Capability</span></span></h2></div></div>
+    <div class="cols">
+      <div class="panel fd"><span class="src m">measured in vega</span>
+        <h3>Change in the capability score on a fixed held-out battery</h3>
+        <div class="chart" id="chCap"></div>
+        <div class="legend"><span><i style="background:var(--civ)"></i>v1 rule-based</span><span><i style="background:var(--mind)"></i>v2 learned (RSSM)</span><span>a capability score, never "IQ"</span></div>
+        <table class="ct" id="tCap"></table>
+      </div>
+      <div class="stack">
+        <div class="panel human fd"><span class="src h">from human studies</span><h3>The McGill students</h3><p>The same isolation study reported that the students' thinking suffered: their scores on intellectual tests fell during the isolation.</p>
+          <p class="cite">Bexton, Heron &amp; Scott (1954). <i>Canadian Journal of Psychology</i> 8(2), 70–76.</p></div>
+        <div class="panel fd"><h3>Read with care</h3><p>The battery includes self-model probes (F5) scored against each arm's true environment, so the score at handoff already differs between arms although the mind is the same. In the furnished room, the learned mind's score falls by itself.</p><p class="cite">DECISIONS_OVERNIGHT.md</p></div>
+      </div>
+    </div>
+    <div class="verdict no fd"><b class="w">Opposite.</b><span>Deprivation raised vega's capability score in full deprivation and with exteroception removed, while it lowered human test scores. The slow fade lowered it in both minds; noise left the rule-based mind unchanged. Part of the rise comes from how the score is built.</span></div>
+  </section>
+
+  <section class="mech wrap" id="mech">
+    <span class="lbl dim">07 · the shared mechanism</span>
+    <h2 class="big"><span class="rv"><span>A model with no input</span></span><span class="rv"><span>fills in from its priors</span></span></h2>
+    <div class="two">
+      <div class="panel fd"><span class="src i">illustration</span>
+        <svg viewBox="0 0 520 300" role="img" aria-label="With input, the world corrects the model's predictions. Without input, nothing corrects them.">
+          <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#16181b"/></marker></defs>
+          <g font-family="Schibsted Grotesk,sans-serif" font-size="14" fill="#16181b">
+            <rect x="20" y="40" width="130" height="64" rx="12" fill="#fcfcfa" stroke="#16181b"/><text x="85" y="78" text-anchor="middle">the world</text>
+            <rect x="370" y="40" width="130" height="64" rx="12" fill="#fcfcfa" stroke="#6a4f9c"/><text x="435" y="70" text-anchor="middle">his model</text><text x="435" y="88" text-anchor="middle" font-size="11" fill="#5b6168">priors, memory</text>
+            <path d="M150 62 H368" stroke="#16181b" marker-end="url(#ar)"/><text x="259" y="54" text-anchor="middle" font-size="12">input</text>
+            <path d="M368 86 H152" stroke="#6a4f9c" stroke-dasharray="5 4" marker-end="url(#ar)"/><text x="259" y="104" text-anchor="middle" font-size="12" fill="#6a4f9c">prediction, checked</text>
+            <text x="20" y="22" font-family="Martian Mono,monospace" font-size="10" letter-spacing="1" fill="#5b6168">FURNISHED ROOM</text>
+            <rect x="20" y="196" width="130" height="64" rx="12" fill="none" stroke="#d8dbd6" stroke-dasharray="4 4"/><text x="85" y="234" text-anchor="middle" fill="#5b6168">nothing</text>
+            <rect x="370" y="196" width="130" height="64" rx="12" fill="#fcfcfa" stroke="#6a4f9c"/><text x="435" y="226" text-anchor="middle">his model</text><text x="435" y="244" text-anchor="middle" font-size="11" fill="#5b6168">priors, memory</text>
+            <path d="M368 228 C300 228 300 168 250 168 C200 168 200 228 160 228" stroke="#6a4f9c" fill="none" marker-end="url(#ar)"/><text x="250" y="160" text-anchor="middle" font-size="12" fill="#6a4f9c">prediction, unchecked</text>
+            <text x="20" y="182" font-family="Martian Mono,monospace" font-size="10" letter-spacing="1" fill="#5b6168">WHITE ROOM</text>
+          </g>
+        </svg>
+      </div>
+      <div class="panel fd">
+        <p>Both kinds of mind run ahead of their senses. They predict what is out there and let the input correct them. Take the input away and nothing catches the mistakes, so the predictions start to stand in for perception.</p>
+        <p>In people, this is one account of why hallucinations come with strong priors, and why losing sight can bring vivid false images. In vega, the learned mind keeps steering towards people it remembers but cannot observe.</p>
+        <p class="cite"><span class="src h">from human studies</span> Corlett, Horga, Fletcher, Alderson-Day, Schmack &amp; Powers (2019). Hallucinations and strong priors. <i>Trends in Cognitive Sciences</i> 23(2), 114–127. · Reichert, Seriès &amp; Storkey (2013). Charles Bonnet syndrome: evidence for a generative model in the cortex? <i>PLoS Computational Biology</i> 9(7), e1003134.</p>
+      </div>
+    </div>
+    <h3 class="fd" style="font:800 clamp(26px,3.4vw,44px)/1 var(--display);letter-spacing:-.02em;margin:70px 0 18px">Where the analogy breaks</h3>
+    <ul class="breaks">
+      <li class="fd"><b>Phantoms are acts, not sights.</b>A vega phantom is an action aimed at a remembered entity that is not observed. Nothing in either mind draws a picture. The colours on this page are illustration.</li>
+      <li class="fd"><b>The rule-based mind's phantoms come from a rule.</b>v1 has no learned prior to fill in with. It shows the effect only when exteroception is removed, and not under full deprivation.</li>
+      <li class="fd"><b>Time goes the other way.</b>People in caves and cells lose more track of time the longer they stay. vega's clock error is smaller in silence than in a furnished room.</li>
+      <li class="fd"><b>A tiny world, a short stay.</b>168 ticks, 16 perceptual channels, one simulated body. The humans were real people over days or months.</li>
+      <li class="fd"><b>No felt experience.</b>Every quantity here is a functional state variable. Nothing on this page shows that vega feels anything.</li>
+      <li class="fd"><b>Exploratory statistics.</b>10 seeds, many contrasts, no correction for multiple comparisons. Round 2 also reversed several round-1 results, such as fade-out.</li>
+      <li class="fd"><b>The simulation is not evidence.</b>The White Room's breakdown was written to match human accounts, so it cannot confirm them.</li>
+    </ul>
+  </section>
+
+  <section class="sources wrap" id="sources">
+    <span class="lbl dim">08 · sources</span>
+    <h2 class="big" style="font-size:clamp(36px,5vw,72px)">What this page rests on</h2>
+    <div class="cols">
+      <div class="panel"><span class="src h">from human studies</span>
+        <ol>
+          <li>Bexton, W. H., Heron, W. &amp; Scott, T. H. (1954). Effects of decreased variation in the sensory environment. <i>Canadian Journal of Psychology</i>, 8(2), 70–76.</li>
+          <li>Wackermann, J., Pütz, P. &amp; Allefeld, C. (2008). Ganzfeld-induced hallucinatory experience, its phenomenology and cerebral electrophysiology. <i>Cortex</i>, 44(10), 1364–1378.</li>
+          <li>Teunisse, R. J., Cruysberg, J. R., Hoefnagels, W. H., Verbeek, A. L. &amp; Zitman, F. G. (1996). Visual hallucinations in psychologically normal people: Charles Bonnet's syndrome. <i>The Lancet</i>, 347, 794–797.</li>
+          <li>Foer, J. (2008). Interview with Michel Siffre. <i>Cabinet</i>, 30.</li>
+          <li>Corlett, P. R., Horga, G., Fletcher, P. C., Alderson-Day, B., Schmack, K. &amp; Powers, A. R. (2019). Hallucinations and strong priors. <i>Trends in Cognitive Sciences</i>, 23(2), 114–127.</li>
+          <li>Reichert, D. P., Seriès, P. &amp; Storkey, A. J. (2013). Charles Bonnet syndrome: evidence for a generative model in the cortex? <i>PLoS Computational Biology</i>, 9(7), e1003134.</li>
+        </ol></div>
+      <div class="panel"><span class="src m">measured in vega</span>
+        <ol class="data">
+          <li><code>results_round2/summary_table.csv</code>: one row per run. The headline settings used here are growth on, reflection on, and replay plus imagination for v2.</li>
+          <li><code>results_round2/contrasts.json</code>: the deprivation-minus-furnished contrasts. Every contrast on this page is recomputed and checked against it.</li>
+          <li><code>runs_round2/…/ticks.csv</code>: the per-tick logs behind the trajectories and the inside view. They are git-ignored and regenerable, and summarised in <code>results_round2/figures/time_error_trajectories.png</code>.</li>
+          <li><code>viz/whiteroom/evidence/build_evidence.py</code> builds <code>evidence.json</code>, which this page embeds.</li>
+          <li>Phantoms per tick are the round-3 primary phantom metric (<code>DECISIONS_ROUND3.md</code>), derived here from the committed round-2 counts.</li>
+        </ol></div>
+    </div>
+  </section>
+
+  <footer class="end">
+    <span class="lbl dim">the simulation</span>
+    <a class="go" href="whiteroom.html">Back to the<br>White Room</a>
+    <p>The White Room is an illustration: its breakdown is written to match the human literature. This page is the evidence, and it shows where the two agree, where they disagree, and where there is nothing to compare.</p>
+  </footer>
+</main>
+
+<div id="inside" hidden>
+  <div class="hud">
+    <div><span class="src m">measured in vega</span> <span class="src i">illustration</span><h2 id="inTitle">Inside · full deprivation</h2>
+      <div class="arms" role="group" aria-label="Arm">
+        <button type="button" data-arm="furnished_room">furnished room</button><button type="button" data-arm="exteroception_removed">exteroception removed</button><button type="button" data-arm="full_deprivation" aria-pressed="true">full deprivation</button><button type="button" data-arm="fade_out">fade out</button><button type="button" data-arm="noise_only">noise only</button>
+      </div></div>
+    <button type="button" id="exitBtn" aria-label="Leave the room">✕</button>
+  </div>
+  <div class="said" id="said"></div>
+  <div class="tl"><canvas id="tlC" height="88"></canvas></div>
+  <div class="clocks">
+    <div class="meter"><span class="lbl dim">hours that passed</span><b class="num" id="cReal">0</b></div>
+    <div class="meter"><span class="lbl dim">hours he thinks passed</span><b class="num" id="cHim">0</b></div>
+    <div class="meter"><span class="lbl dim">phantoms so far</span><b class="num" id="cPh">0</b></div>
+    <div class="meter" style="max-width:360px"><span class="lbl dim">source</span><span style="display:block;margin-top:4px;font-size:11px">v2 learned mind, mean of <span id="cSeeds">10</span> seeds, runs_round2 tick logs. The room and figures are drawn.</span></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const DATA = /*EVIDENCE_JSON*/null;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x)), lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fine = matchMedia('(pointer: fine)').matches;
+if (fine) document.documentElement.classList.add('fine');
+const ARM_NAME = { furnished_room: 'furnished', exteroception_removed: 'exteroception removed', full_deprivation: 'full deprivation', fade_out: 'fade out', noise_only: 'noise only' };
+const ARM_SHORT = { furnished_room: 'furnished', exteroception_removed: 'extero. removed', full_deprivation: 'full depriv.', fade_out: 'fade out', noise_only: 'noise only' };
+const MIND_COL = { v1: '#a8692a', v2: '#6a4f9c' };
+const f3 = (x, sign) => x == null ? '–' : (sign && x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toFixed(3);
+
+// ---------------------------------------------------------------- tweens (the hold uses gsap-like eases, by hand)
+const EASE = { linear: t => t, p4out: t => 1 - Math.pow(1 - t, 4), p2out: t => 1 - (1 - t) * (1 - t), p3io: t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2 };
+let tweens = [];
+function tween(obj, key, to, dur, ease = 'p4out', done) {
+  tweens = tweens.filter(w => !(w.obj === obj && w.key === key));
+  if (reduceMotion) dur = Math.min(dur, .15);
+  tweens.push({ obj, key, from: obj[key], to, dur: Math.max(.001, dur), t: 0, ease: EASE[ease], done });
+}
+function stepTweens(dt) {
+  for (const w of tweens) { w.t = Math.min(1, w.t + dt / w.dur); w.obj[w.key] = lerp(w.from, w.to, w.ease(w.t)); }
+  const fin = tweens.filter(w => w.t >= 1); tweens = tweens.filter(w => w.t < 1); fin.forEach(w => w.done && w.done());
+}
+
+// ---------------------------------------------------------------- pointer
+const P = { x: innerWidth * .5, y: innerHeight * .5, sx: innerWidth * .5, sy: innerHeight * .5, vx: 0, vy: 0, moved: false, down: false };
+const isEmpty = el => !(el && el.closest && el.closest('a,button,input,select,summary,details,.chart,.panel,.vcard,.meter,.bar,#menu,.cap p'));
+addEventListener('pointermove', e => { P.x = e.clientX; P.y = e.clientY; P.moved = true; const c = $('#cur'); c.classList.toggle('link', !!(e.target.closest && e.target.closest('a,button,summary'))); }, { passive: true });
+
+// ---------------------------------------------------------------- renderer and the layers it draws
+const canvas = $('#gl');
+let renderer = null;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' }); } catch (e) { renderer = null; }
+const DPR = Math.min(devicePixelRatio || 1, 1.5);
+const U = {
+  uTime: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) }, uMouse: { value: new THREE.Vector2(.5, .5) }, uTrail: { value: null }, uWorld: { value: null },
+  uWorldMix: { value: 0 }, uCard: { value: new THREE.Vector4(.1, .14, .04, 0) }, uDep: { value: 0 }, uMask: { value: new THREE.Vector3(0, 0, 0) }, uHold: { value: 0 },
+  uHoldPos: { value: new THREE.Vector2(.5, .5) }, uImm: { value: 0 }, uTunnel: { value: 0 }, uHall: { value: 0 }, uIntro: { value: 1 }, uMotion: { value: reduceMotion ? .25 : 1 }
+};
+const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }';
+const NOISE = `
+float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+  return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p){ float a = .5, s = 0.; mat2 m = mat2(1.6, 1.2, -1.2, 1.6); for (int i = 0; i < 5; i++){ s += a * vn(p); p = m * p; a *= .5; } return s; }
+vec3 film(float t){ return .5 + .5 * cos(6.2831 * (t + vec3(0., .33, .67))); }`;
+
+// the cursor's trail: a decaying intensity with the velocity that made it, at low resolution
+const TR = 192;
+const rtOpt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, depthBuffer: false };
+let trA, trB, trailMat, trailScene, quadCam, compMat, compScene, worldRT;
+if (renderer) {
+  trA = new THREE.WebGLRenderTarget(TR, TR, rtOpt); trB = new THREE.WebGLRenderTarget(TR, TR, rtOpt);
+  quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  trailMat = new THREE.ShaderMaterial({
+    uniforms: { uPrev: { value: null }, uMouse: { value: new THREE.Vector2(.5, .5) }, uVel: { value: new THREE.Vector2() }, uAspect: { value: 1 }, uStr: { value: 0 }, uRad: { value: .06 }, uDecay: { value: .965 } },
+    vertexShader: VERT,
+    fragmentShader: `uniform sampler2D uPrev; uniform vec2 uMouse, uVel; uniform float uAspect, uStr, uRad, uDecay; varying vec2 vUv;
+      void main(){ vec2 v0 = texture2D(uPrev, vUv).gb - .5; vec4 p = texture2D(uPrev, vUv - v0 * .012);
+        float i = p.r * uDecay; vec2 v = (p.gb - .5) * .96;
+        vec2 d = vUv - uMouse; d.x *= uAspect; float s = exp(-dot(d, d) / (uRad * uRad));
+        i = min(1., i + s * uStr); v = mix(v, clamp(uVel, -.45, .45), s * .6);
+        gl_FragColor = vec4(i, v + .5, 1.); }`
+  });
+  trailScene = new THREE.Scene(); trailScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), trailMat));
+  worldRT = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
+  U.uWorld.value = worldRT.texture;
+  compMat = new THREE.ShaderMaterial({ uniforms: U, vertexShader: VERT, fragmentShader: `precision highp float;
+uniform float uTime, uWorldMix, uDep, uHold, uImm, uTunnel, uHall, uIntro, uMotion; uniform vec2 uRes, uMouse, uHoldPos; uniform vec3 uMask; uniform vec4 uCard;
+uniform sampler2D uTrail, uWorld; varying vec2 vUv;
+${NOISE}
+// the warped field everything hallucinated is cut from
+float warp(vec2 p, float t){ vec2 q = vec2(fbm(p + vec2(0., t * .05)), fbm(p + vec2(5.2, 1.3) - t * .04));
+  vec2 r = vec2(fbm(p + 3.6 * q + vec2(1.7, 9.2) + t * .06), fbm(p + 3.6 * q + vec2(8.3, 2.8))); return fbm(p + 4. * r); }
+// oil-slick contours with a chromatic split
+vec3 irid(vec2 p, float t, float split){ vec3 c;
+  for (int k = 0; k < 3; k++){ float o = (float(k) - 1.) * split; float w = warp(p + o, t); float l = abs(fract(w * 9. + t * .05) - .5);
+    float line = smoothstep(.18, .0, l); vec3 f = film(w * 3. + float(k) * .02 + t * .03);
+    if (k == 0) c.r = mix(.93, f.r, line); else if (k == 1) c.g = mix(.92, f.g, line); else c.b = mix(.9, f.b, line); }
+  return c; }
+// fur: strands combed along a slow flow field, ochre with violet threads
+vec3 fur(vec2 p, float t){ float a = fbm(p * 1.3 + t * .03) * 6.2831 * 1.4; vec2 dir = vec2(cos(a), sin(a)), n = vec2(-dir.y, dir.x);
+  float al = dot(p, dir), ac = dot(p, n); float s = vn(vec2(al * 3. + t * .2, ac * 70.)) * vn(vec2(al * 9., ac * 24.));
+  float tone = fbm(p * 2.2 - t * .02); vec3 base = mix(vec3(.55, .22, .12), vec3(.93, .47, .24), tone);
+  vec3 c = mix(base, vec3(.98, .64, .38), smoothstep(.35, .8, s)); c = mix(c, vec3(.33, .22, .5), smoothstep(.62, .9, vn(vec2(al * 2., ac * 40.) + 7.)) * .7); return c; }
+float rbox(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
+void main(){
+  vec2 uv = vUv; float asp = uRes.x / uRes.y; float t = uTime * uMotion;
+  vec2 P = (uv - .5) * vec2(asp, 1.);
+  vec4 tr = texture2D(uTrail, uv); float trail = tr.r; vec2 vel = tr.gb - .5;
+  // holding: rings of ripples from where he was held, and three masks opening at different speeds
+  vec2 hp = (uv - uHoldPos) * vec2(asp, 1.); float hd = length(hp);
+  float rip = sin(hd * 46. - uTime * 9.) * exp(-hd * 2.6) * uHold * .012;
+  uv += normalize(hp + 1e-4) * rip;
+  float edge = fbm(P * 3. + t * .1) * .18;
+  float m1 = smoothstep(uMask.x * 1.9 + .02, uMask.x * 1.9 - .14, hd + edge);
+  float m2 = smoothstep(uMask.y * 1.4 + .02, uMask.y * 1.4 - .1, hd + edge * .7);
+  float m3 = smoothstep(uMask.z * .55 + .02, uMask.z * .55 - .08, hd + edge * .5);
+  // paper with a faint marble in it
+  float mw = warp(P * 1.6, t * .4);
+  vec3 paper = vec3(.949, .953, .941) - smoothstep(.0, .05, abs(fract(mw * 7.) - .5) - .44) * .035 - (mw - .5) * .03;
+  // his eyes: the world, warped where his attention has just been, fading to white as the senses go
+  vec2 wuv = uv + vel * trail * .08 + (vec2(fbm(P * 3. + t * .2), fbm(P * 3. + 4. - t * .2)) - .5) * trail * .05 * (.4 + uDep);
+  vec3 world = texture2D(uWorld, wuv).rgb;
+  float card = 1. - smoothstep(-.002, .002, rbox(P, vec2(asp * .5 - uCard.x * asp, .5 - uCard.y), uCard.z));
+  vec3 base = mix(paper, world, uWorldMix * card);
+  // the hallucination: how strongly his priors show through here
+  float hall = clamp(trail * (.55 + uHall * 1.4) + m1 * .55 + m2 * .35 + uDep * uWorldMix * card * .18 * (.6 + .4 * fbm(P * 2. + t * .1)), 0., 1.);
+  hall = max(hall, uIntro * (1. - smoothstep(.0, 1.1 - uIntro * .4, hd)));
+  float split = .006 + .02 * (length(vel) * 4. + uHold + uImm * .5);
+  vec3 ir = irid(P * 1.25 + vel * 2., t, split);
+  vec3 fr = fur(P * 2.2, t);
+  vec3 col = base;
+  col = mix(col, ir * mix(vec3(1.), base, .25), smoothstep(.06, .45, hall) * .85);
+  col = mix(col, fr, smoothstep(.5, .92, hall + m3 * .6));
+  // inside: a tunnel of shards around where he was held, then the room at the measured intensity
+  if (uTunnel > .001){ vec2 q = hp; float ang = atan(q.y, q.x), rad = length(q) + 1e-4;
+    vec2 cell = vec2(floor(ang / 6.2831 * 38.), floor(log(rad) * 9. + uTime * 3.)); float rnd = h21(cell);
+    float shard = smoothstep(.45, 1., rnd) * smoothstep(1.2, .0, rad);
+    vec3 sh = mix(vec3(.96, .85, .74), vec3(.83, .52, .34), rnd) * (.75 + .25 * sin(cell.y));
+    col = mix(col, sh, shard * uTunnel); col = mix(col, ir, (1. - smoothstep(.0, .9, rad)) * uTunnel * .35); }
+  // grain and a soft vignette
+  col += (h21(uv * uRes + fract(uTime) * 91.) - .5) * .045;
+  col *= 1. - smoothstep(.55, 1.25, length(P * vec2(.85, 1.))) * (.08 + uDep * uWorldMix * .1);
+  gl_FragColor = vec4(col, 1.); }` });
+  compScene = new THREE.Scene(); compScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat));
+} else {
+  canvas.remove();
+}
+
+// ---------------------------------------------------------------- the world seen through his eyes (illustration)
+const W = {};
+if (renderer) {
+  const scene = W.scene = new THREE.Scene();
+  const sky = new THREE.Color('#cfdde0');
+  scene.background = sky; scene.fog = new THREE.Fog(sky.clone(), 18, 90);
+  const cam = W.cam = new THREE.PerspectiveCamera(62, 1, .03, 200); cam.position.set(0, 1.65, 8); scene.add(cam);
+  scene.add(new THREE.HemisphereLight(0xf4f1e6, 0x5d6f3a, .75));
+  const sun = new THREE.DirectionalLight(0xffe2bd, .95); sun.position.set(-20, 30, 14); scene.add(sun);
+  const M = c => new THREE.MeshLambertMaterial({ color: new THREE.Color(c).convertSRGBToLinear(), flatShading: true });
+  const world = W.world = new THREE.Group(); scene.add(world);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(260, 260, 40, 40), M('#8f9b62')); ground.rotation.x = -Math.PI / 2;
+  const gp = ground.geometry.attributes.position; for (let i = 0; i < gp.count; i++) gp.setZ(i, (Math.sin(gp.getX(i) * .21) + Math.cos(gp.getY(i) * .17)) * .12);
+  ground.geometry.computeVertexNormals(); world.add(ground);
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 260), M('#c8ad7c')); road.rotation.x = -Math.PI / 2; road.position.y = .03; world.add(road);
+  let seed = 7; const rr = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const siding = ['#d9cdb0', '#a9b3ad', '#b8644a', '#e7e1cf', '#8e9fae', '#c9a46a'];
+  for (let i = 0; i < 18; i++) {
+    const side = i % 2 ? 1 : -1, z = 4 - i * 7 - rr() * 2, x = side * (6 + rr() * 5), w = 3.4 + rr() * 2, d = 3.6 + rr() * 2, h = 2.4 + rr() * 1.2;
+    const house = new THREE.Group(); house.position.set(x, 0, z); house.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    const walls = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(siding[i % siding.length])); walls.position.y = h / 2; house.add(walls);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * .78, 1.6 + rr(), 4), M(i % 3 ? '#4b4744' : '#7a3b2a')); roof.position.y = h + .75; roof.rotation.y = Math.PI / 4; house.add(roof);
+    const win = new THREE.MeshBasicMaterial({ color: new THREE.Color('#f3d9a0').convertSRGBToLinear() });
+    for (const wx of [-w * .25, w * .25]) { const pane = new THREE.Mesh(new THREE.PlaneGeometry(.6, .7), win); pane.position.set(wx, h * .55, d / 2 + .01); house.add(pane); }
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(.8, 1.6), M('#3d3a36')); door.position.set(0, .8, d / 2 + .012); house.add(door);
+    world.add(house);
+  }
+  for (let i = 0; i < 46; i++) {
+    const side = rr() < .5 ? -1 : 1, x = side * (3 + rr() * 26), z = 6 - rr() * 130;
+    if (Math.abs(x) < 12 && Math.abs(x) > 4.5 && rr() < .6) continue;
+    const t = new THREE.Group(); t.position.set(x, 0, z); const s = .7 + rr() * .9;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.09 * s, .14 * s, 1.4 * s, 6), M('#6b4a32')); trunk.position.y = .7 * s; t.add(trunk);
+    const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1.05 * s, 0), M(['#5d6f3a', '#6f8445', '#4f6132'][i % 3])); crown.position.y = 1.9 * s; t.add(crown);
+    world.add(t);
+  }
+  // villagers: a body, a head, swaying where they stand
+  const person = (shirt, mat) => { const g = new THREE.Group(); const skin = mat || M('#d29b7c'), cloth = mat || M(shirt);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(.22, .26, .9, 8), cloth); body.position.y = 1.15; g.add(body);
+    const legs = new THREE.Mesh(new THREE.CylinderGeometry(.2, .16, .75, 8), mat || M('#3b4a5c')); legs.position.y = .38; g.add(legs);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.18, 12, 10), skin); head.position.y = 1.8; g.add(head); return g; };
+  W.people = [['#c4321f', -1.2, -6], ['#2b6684', 2.4, -14], ['#e3b04b', -2.8, -24], ['#6a4f9c', 1.1, -34], ['#5d6f3a', -1.6, -46]].map(([c, x, z], i) => { const p = person(c); p.position.set(x, 0, z); p.userData.ph = i * 1.7; world.add(p); return p; });
+  // the white room he is sealed in; it closes around wherever he stands
+  const room = W.room = new THREE.Mesh(new THREE.BoxGeometry(7, 3.2, 7), new THREE.MeshLambertMaterial({ color: 0xf6f6f2, side: THREE.BackSide, transparent: true, opacity: 0 }));
+  room.position.y = 1.6; scene.add(room);
+  const seams = new THREE.LineSegments(new THREE.EdgesGeometry(room.geometry), new THREE.LineBasicMaterial({ color: 0xc9ccc6, transparent: true, opacity: 0 })); room.add(seams); W.seams = seams;
+  // phantoms: remembered people who are not there, iridescent and unsteady
+  const phMat = () => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uT: { value: 0 }, uA: { value: 0 } },
+    vertexShader: 'varying vec3 vN, vP; uniform float uT; void main(){ vN = normalize(normalMatrix * normal); vec3 p = position; p.x += sin(p.y * 9. + uT * 3.) * .025; vP = p; gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.); }',
+    fragmentShader: 'varying vec3 vN, vP; uniform float uT, uA; vec3 film(float t){ return .5 + .5 * cos(6.2831 * (t + vec3(0., .33, .67))); } void main(){ float fr = pow(1. - abs(vN.z), 1.6); vec3 c = film(vP.y * .8 + fr * .6 + uT * .1); gl_FragColor = vec4(mix(c, vec3(1.), .25), uA * (.35 + .65 * fr)); }' });
+  W.phantoms = [0, 1, 2, 3, 4, 5].map(() => { const m = phMat(); const p = person(null, m); p.visible = false; p.userData = { mat: m, life: 0, a: 0 }; scene.add(p); return p; });
+  // his hand, from the wrist forward, in camera space
+  const skin = new THREE.MeshStandardMaterial({ color: new THREE.Color('#d6a084').convertSRGBToLinear(), roughness: .62, metalness: 0 });
+  const sleeveM = new THREE.MeshStandardMaterial({ color: new THREE.Color('#3f5670').convertSRGBToLinear(), roughness: .9 });
+  const hand = W.hand = new THREE.Group(); const palmPivot = new THREE.Group(); hand.add(palmPivot);
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), skin); palm.scale.set(.095, .034, .11); palmPivot.add(palm);
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(.06, .075, .5, 14), sleeveM); sleeve.rotation.x = Math.PI / 2; sleeve.position.set(0, -.01, .34); palmPivot.add(sleeve);
+  const wrist = new THREE.Mesh(new THREE.CylinderGeometry(.045, .055, .16, 12), skin); wrist.rotation.x = Math.PI / 2; wrist.position.set(0, -.004, .12); palmPivot.add(wrist);
+  W.fingers = [];
+  const finger = (x, len, r, base) => { const segs = []; let parent = palmPivot; const lens = [len * .45, len * .32, len * .26];
+    lens.forEach((l, k) => { const g = new THREE.Group(); g.position.set(k ? 0 : x, k ? 0 : .004, k ? -lens[k - 1] : base); parent.add(g);
+      const seg = new THREE.Mesh(new THREE.CylinderGeometry(r * (1 - k * .1), r * (1 - k * .06), l, 9), skin); seg.rotation.x = Math.PI / 2; seg.position.z = -l / 2; g.add(seg);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(r * (1 - k * .1), 9, 7), skin); tip.position.z = -l; g.add(tip);
+      segs.push(g); parent = g; }); return segs; };
+  [[-.066, .13, .0155], [-.022, .155, .0165], [.024, .16, .0165], [.066, .135, .015]].forEach(([x, l, r]) => W.fingers.push(finger(x, l, r, -.088)));
+  const thumb = finger(.0, .1, .019, 0); const tg = thumb[0]; tg.position.set(.085, -.006, -.02); tg.rotation.y = -.95; tg.rotation.z = -.5; W.thumb = thumb;
+  hand.position.set(.2, -.7, -.45); cam.add(hand);
+  const key = new THREE.PointLight(0xfff0dd, .55, 3); key.position.set(-.3, .4, .3); cam.add(key);
+}
+
+// ---------------------------------------------------------------- sizing
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  if (!renderer) return;
+  renderer.setPixelRatio(DPR); renderer.setSize(w, h, false);
+  U.uRes.value.set(w * DPR, h * DPR);
+  worldRT.setSize(Math.round(w * DPR * .75), Math.round(h * DPR * .75));
+  W.cam.aspect = w / h; W.cam.updateProjectionMatrix();
+  trailMat.uniforms.uAspect.value = w / h;
+}
+addEventListener('resize', resize); resize();
+
+// ---------------------------------------------------------------- the measured trajectories
+const TRJ = DATA && DATA.v2_trajectory ? DATA.v2_trajectory.arms : null;
+const rolling = (a, k) => a.map((_, i) => { let s = 0, n = 0; for (let j = Math.max(0, i - k + 1); j <= i; j++) { s += a[j]; n++; } return s / n; });
+const ROLL = {}; if (TRJ) for (const a in TRJ) ROLL[a] = rolling(TRJ[a].phantom, 12);
+const level = (mind, arm, met) => DATA.cells[mind][arm][met].level.mean;
+if (DATA) { $('#mExt').textContent = level('v2', 'exteroception_removed', 'phantom_per_tick').toFixed(2); $('#mFur').textContent = level('v2', 'furnished_room', 'phantom_per_tick').toFixed(2); }
+// phantoms are spawned with an accumulator over the measured per-tick share, so their count follows the data exactly
+function phantomTick(arm, tick, acc) { if (!TRJ || !TRJ[arm]) return acc; acc += TRJ[arm].phantom[Math.min(167, tick)]; return acc; }
+function spawnPhantom(near) {
+  const p = W.phantoms && W.phantoms.find(q => !q.visible); if (!p) return;
+  const c = W.cam, ang = (Math.random() - .5) * 1.5, dist = near ? 2 + Math.random() * 1.2 : 2.5 + Math.random() * 5;
+  const dir = new THREE.Vector3(Math.sin(ang), 0, -Math.cos(ang)).applyAxisAngle(new THREE.Vector3(0, 1, 0), c.rotation.y);
+  p.position.copy(c.position).addScaledVector(dir, dist); p.position.y = 0; p.lookAt(c.position.x, 0, c.position.z);
+  p.visible = true; p.userData.life = 0; p.userData.a = 0;
+}
+
+// ---------------------------------------------------------------- scroll state
+let scrollY0 = scrollY;
+const eyes = $('#eyes'), caps = $$('.cap'), progs = $$('.eyes .prog i');
+let eyesP = 0, extAcc = 0, extTick = 0;
+function onScroll() {
+  const r = eyes.getBoundingClientRect(), span = r.height - innerHeight;
+  eyesP = clamp(-r.top / span);
+  const inside = r.top < innerHeight && r.bottom > 0;
+  const stage = eyesP < .27 ? 0 : eyesP < .5 ? 1 : eyesP < .76 ? 2 : 3;
+  caps.forEach((c, i) => c.classList.toggle('on', inside && r.top <= 1 && i === stage && r.bottom > innerHeight * .5));
+  progs.forEach((p, i) => p.classList.toggle('on', i === stage));
+}
+addEventListener('scroll', onScroll, { passive: true });
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -12% 0px' });
+$$('.rv,.fd').forEach(el => io.observe(el));
+
+// ---------------------------------------------------------------- holding him under (hold on empty space)
+const H = { state: 'idle', p: 0, m1: 0, m2: 0, m3: 0, d: 0, imm: 0, tun: 0, id: null };
+const cur = $('#cur'), ring = $('#cur circle.p');
+function holdStart(e) {
+  if (H.state !== 'idle' || e.button > 0 || !isEmpty(e.target)) return;
+  H.state = 'holding'; H.id = e.pointerId; U.uHoldPos.value.set(e.clientX / innerWidth, 1 - e.clientY / innerHeight);
+  tween(H, 'm1', 1, 2.5); tween(H, 'm2', 1, 1.5); tween(H, 'm3', 1, .75); tween(H, 'd', .6, 1.2, 'p2out');
+  H.p = 0; tween(H, 'p', 1, 1.4, 'linear', () => { if (H.state === 'holding') enterInside(); });
+  startAudio();
+}
+function holdEnd(e) {
+  if (H.state !== 'holding' || (H.id != null && e && e.pointerId !== H.id)) return;
+  H.state = 'idle'; H.id = null;
+  tween(H, 'm1', 0, 1, 'p2out'); tween(H, 'm2', 0, .25); tween(H, 'm3', 0, .25); tween(H, 'p', 0, .3, 'p2out'); tween(H, 'd', 0, .6, 'p2out');
+}
+addEventListener('pointerdown', holdStart);
+addEventListener('pointerup', holdEnd); addEventListener('pointercancel', holdEnd);
+addEventListener('keydown', e => { if (e.key === 'Escape') { if (H.state === 'inside') exitInside(); else if (!$('#menu').hidden) toggleMenu(false); } });
+
+// ---------------------------------------------------------------- inside: 168 hours at the measured rate
+const IN = { arm: 'full_deprivation', tick: 0, acc: 0, count: 0, saidT: 0 };
+const inside = $('#inside'), tlC = $('#tlC');
+const SAY = ['Someone is in the corner.', 'I heard my name.', 'There is a door. There was a door.', 'She was standing right there.', 'Nothing there.'];
+function setArm(a) { IN.arm = a; IN.tick = 0; IN.acc = 0; IN.count = 0; $$('#inside [data-arm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.arm === a)); $('#inTitle').textContent = 'Inside · ' + ARM_NAME[a]; if (TRJ && TRJ[a]) $('#cSeeds').textContent = TRJ[a].n_seeds; }
+$$('#inside [data-arm]').forEach(b => b.addEventListener('click', () => setArm(b.dataset.arm)));
+function enterInside() {
+  if (!TRJ) { holdEnd(); return; }
+  H.state = 'inside'; H.id = null; inside.hidden = false; setArm(IN.arm); cur.classList.remove('hint');
+  tween(H, 'd', 1, .6); tween(H, 'tun', 1, .4, 'p2out', () => tween(H, 'tun', 0, 2.2, 'p3io')); tween(H, 'imm', 1, 1.2, 'p3io');
+  tween(H, 'm1', 0, 1.6, 'p3io'); tween(H, 'm2', 0, 1.2, 'p3io'); tween(H, 'm3', 0, .8, 'p3io'); H.p = 0;
+  $('#exitBtn').focus({ preventScroll: true });
+}
+function exitInside() {
+  H.state = 'exiting'; tween(H, 'imm', 0, 1.1, 'p2out'); tween(H, 'd', 0, 1.1, 'p2out', () => { H.state = 'idle'; inside.hidden = true; });
+  W.phantoms && W.phantoms.forEach(p => { p.userData.life = 99; });
+}
+$('#exitBtn').addEventListener('click', exitInside);
+function drawTimeline() {
+  const ctx = tlC.getContext('2d'), w = tlC.width = tlC.clientWidth * DPR, h = tlC.height = 44 * DPR, a = TRJ[IN.arm], r = ROLL[IN.arm];
+  ctx.clearRect(0, 0, w, h); ctx.fillStyle = 'rgba(22,24,27,.08)'; ctx.fillRect(0, h - 2 * DPR, w, 2 * DPR);
+  ctx.beginPath(); r.forEach((v, i) => { const x = i / 167 * w, y = h - 2 * DPR - v * (h - 6 * DPR); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  ctx.strokeStyle = '#6a4f9c'; ctx.lineWidth = 1.5 * DPR; ctx.stroke();
+  const x = IN.tick / 167 * w; ctx.fillStyle = '#16181b'; ctx.fillRect(x - DPR, 0, 2 * DPR, h);
+  ctx.font = `${10 * DPR}px Martian Mono, monospace`; ctx.fillStyle = '#5b6168'; ctx.fillText('phantoms, rolling share of seeds', 4 * DPR, 11 * DPR);
+}
+function stepInside(dt) {
+  if (H.state !== 'inside' || !TRJ) return;
+  const a = TRJ[IN.arm], prev = Math.floor(IN.tick);
+  IN.tick = Math.min(167, IN.tick + dt * 6);
+  for (let k = prev + 1; k <= Math.floor(IN.tick); k++) { IN.acc += a.phantom[k]; while (IN.acc >= 1) { IN.acc -= 1; IN.count++; spawnPhantom(true); if (performance.now() - IN.saidT > 2600) { IN.saidT = performance.now(); const s = $('#said'); s.textContent = SAY[(IN.count * 7) % SAY.length]; s.style.opacity = 1; setTimeout(() => { s.style.opacity = 0; }, 1400); } } }
+  const hrs = Math.floor(IN.tick) + 1, te = a.time_error[Math.floor(IN.tick)];
+  $('#cReal').textContent = hrs; $('#cHim').textContent = Math.max(0, Math.round(hrs * (1 + te))); $('#cPh').textContent = IN.count;
+  drawTimeline();
+}
+
+// ---------------------------------------------------------------- menu and sound
+function toggleMenu(open) { const m = $('#menu'), b = $('#menuBtn'); open = open == null ? m.hidden : open; m.hidden = !open; b.setAttribute('aria-expanded', open); }
+$('#menuBtn').addEventListener('click', () => toggleMenu());
+$$('#menu a').forEach(a => a.addEventListener('click', () => toggleMenu(false)));
+let AC = null, droneG = null, tinG = null, soundOn = false;
+function startAudio() { if (!soundOn || AC) return; try {
+  AC = new (window.AudioContext || window.webkitAudioContext)(); const out = AC.createGain(); out.gain.value = .0; out.connect(AC.destination); droneG = out;
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.connect(out);
+  [55, 82.4, 110.3].forEach((f, i) => { const o = AC.createOscillator(); o.type = i === 1 ? 'triangle' : 'sine'; o.frequency.value = f; o.detune.value = i * 4; const g = AC.createGain(); g.gain.value = .22 / (i + 1); o.connect(g); g.connect(lp); o.start(); });
+  const tin = AC.createOscillator(); tin.frequency.value = 6800; tinG = AC.createGain(); tinG.gain.value = 0; tin.connect(tinG); tinG.connect(AC.destination); tin.start();
+} catch (e) { AC = null; } }
+$('#snd').addEventListener('click', () => { soundOn = !soundOn; $('#snd').setAttribute('aria-pressed', soundOn); if (soundOn) startAudio(); if (AC) AC[soundOn ? 'resume' : 'suspend'](); });
+
+// ---------------------------------------------------------------- charts (measured in vega)
+const SVGNS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs, parent) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+function chart(host, met) {
+  host.innerHTML = ''; const W0 = 640, H0 = 250, L = 44, R = 8, T = 12, B = 34;
+  const svg = el('svg', { viewBox: `0 0 ${W0} ${H0}`, role: 'img', 'aria-label': `${met} by arm and mind, per-seed values and 95% intervals` }, host);
+  const tip = document.createElement('div'); tip.className = 'tip'; host.appendChild(tip);
+  let lo = 0, hi = 0; for (const m of ['v1', 'v2']) for (const a of DATA.arms) { const c = DATA.cells[m][a][met]; c.points.forEach(v => { if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }); }
+  const pad = (hi - lo) * .08 || .1; lo -= pad; hi += pad;
+  const y = v => T + (hi - v) / (hi - lo) * (H0 - T - B), bw = (W0 - L - R) / DATA.arms.length;
+  const ticks = 5; for (let i = 0; i <= ticks; i++) { const v = lo + (hi - lo) * i / ticks; el('line', { x1: L, x2: W0 - R, y1: y(v), y2: y(v), stroke: '#e7e9e5' }, svg); el('text', { x: L - 6, y: y(v) + 3, 'text-anchor': 'end', class: 'ax' }, svg).textContent = v.toFixed(2); }
+  if (lo < 0 && hi > 0) el('line', { x1: L, x2: W0 - R, y1: y(0), y2: y(0), stroke: '#5b6168', 'stroke-dasharray': '3 3' }, svg);
+  DATA.arms.forEach((a, i) => {
+    const cx = L + bw * (i + .5);
+    el('text', { x: cx, y: H0 - 12, 'text-anchor': 'middle', class: 'arm' }, svg).textContent = ARM_SHORT[a];
+    ['v1', 'v2'].forEach((m, j) => {
+      const c = DATA.cells[m][a][met], x = cx + (j ? 1 : -1) * bw * .18, col = MIND_COL[m], lv = c.level;
+      c.points.forEach((v, k) => { if (v == null) return; el('circle', { cx: x + ((k * 37) % 11 - 5) * 1.6, cy: y(v), r: 2.3, fill: col, opacity: .32 }, svg); });
+      if (lv.lo != null) el('line', { x1: x, x2: x, y1: y(lv.lo), y2: y(lv.hi), stroke: col, 'stroke-width': 2.2 }, svg);
+      const g = el('g', { tabindex: 0, 'aria-label': `${m} ${ARM_NAME[a]}: mean ${f3(lv.mean)}, 95% CI ${f3(lv.lo)} to ${f3(lv.hi)}` }, svg);
+      el('rect', { x: x - 9, y: y(lv.mean) - 1.6, width: 18, height: 3.2, fill: col, rx: 1.5 }, g);
+      el('rect', { x: x - 12, y: T, width: 24, height: H0 - T - B, fill: 'transparent' }, g);
+      const show = () => { const box = host.getBoundingClientRect(), sx = box.width / W0; tip.style.left = x * sx + 'px'; tip.style.top = y(lv.mean) * sx + 'px'; tip.innerHTML = `${m} · ${ARM_NAME[a]}<br>mean ${f3(lv.mean)} [${f3(lv.lo)}, ${f3(lv.hi)}] · n=${lv.n}`; tip.style.opacity = 1; };
+      g.addEventListener('pointerenter', show); g.addEventListener('focus', show);
+      g.addEventListener('pointerleave', () => { tip.style.opacity = 0; }); g.addEventListener('blur', () => { tip.style.opacity = 0; });
+    });
+  });
+}
+function contrastTable(tbl, met) {
+  let h = '<thead><tr><th>arm minus furnished room</th><th>v1 rule-based</th><th>v2 learned</th></tr></thead><tbody>';
+  for (const a of DATA.arms.slice(1)) {
+    h += `<tr><td>${ARM_NAME[a]}</td>`;
+    for (const m of ['v1', 'v2']) { const c = DATA.cells[m][a][met].vs_furnished; const ex = c.excludes_zero;
+      h += `<td class="${ex ? 'ex' : 'nul'}">${f3(c.mean, true)}<span class="ci">[${f3(c.lo, true)}, ${f3(c.hi, true)}]${ex ? '' : ' · CI includes 0'}</span></td>`; }
+    h += '</tr>';
+  }
+  const fur = m => DATA.cells[m].furnished_room[met].level;
+  h += `<tr><td class="nul">furnished room itself</td>${['v1', 'v2'].map(m => `<td class="nul">${f3(fur(m).mean)}<span class="ci">[${f3(fur(m).lo)}, ${f3(fur(m).hi)}]</span></td>`).join('')}</tr></tbody>`;
+  tbl.innerHTML = h;
+}
+function spark(host, key, arms, opts) {
+  host.innerHTML = ''; const W0 = 640, H0 = 170, L = 44, R = 110, T = 10, B = 24;
+  const series = arms.map(a => ({ a, v: key === 'phantom' ? ROLL[a] : TRJ[a].time_error }));
+  let lo = opts.lo, hi = opts.hi; const y = v => T + (hi - v) / (hi - lo) * (H0 - T - B), x = i => L + i / 167 * (W0 - L - R);
+  const svg = el('svg', { viewBox: `0 0 ${W0} ${H0}`, role: 'img', 'aria-label': opts.label }, host);
+  for (let i = 0; i <= 4; i++) { const v = lo + (hi - lo) * i / 4; el('line', { x1: L, x2: W0 - R, y1: y(v), y2: y(v), stroke: '#e7e9e5' }, svg); el('text', { x: L - 6, y: y(v) + 3, 'text-anchor': 'end', class: 'ax' }, svg).textContent = opts.fmt(v); }
+  if (lo < 0 && hi > 0) el('line', { x1: L, x2: W0 - R, y1: y(0), y2: y(0), stroke: '#5b6168', 'stroke-dasharray': '3 3' }, svg);
+  [0, 48, 96, 144, 167].forEach(i => { el('text', { x: x(i), y: H0 - 6, 'text-anchor': 'middle', class: 'ax' }, svg).textContent = i === 167 ? '168 h' : i + ' h'; });
+  const cols = { furnished_room: '#5b6168', exteroception_removed: '#2b6684', full_deprivation: '#6a4f9c', fade_out: '#a8692a', noise_only: '#c4321f' };
+  series.forEach(s => { el('path', { d: s.v.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(''), fill: 'none', stroke: cols[s.a], 'stroke-width': s.a === 'furnished_room' ? 1.6 : 2, 'stroke-dasharray': s.a === 'furnished_room' ? '4 3' : '' }, svg);
+    el('text', { x: W0 - R + 6, y: y(s.v[167]) + 3, class: 'ax', fill: cols[s.a] }, svg).textContent = ARM_SHORT[s.a]; });
+}
+function renderCharts() {
+  if (!DATA) return;
+  const pm = $$('[data-pm]').find(b => b.getAttribute('aria-pressed') === 'true').dataset.pm;
+  chart($('#chPhantom'), pm); contrastTable($('#tPhantom'), pm);
+  $('#phTitle').textContent = pm === 'phantom_rate' ? 'Share of targeted acts that were phantoms, by arm' : 'Phantoms per tick, by arm';
+  $('#phNote').textContent = pm === 'phantom_rate' ? 'This measure is exactly 1.0 whenever nothing is perceivable, so exteroception removed, full deprivation and noise only all sit at the ceiling and look identical. That is why it was replaced in round 3.' : 'Phantoms per tick: acts aimed at an absent entity, divided by the 168 ticks of the room. The round-3 primary phantom metric.';
+  chart($('#chTime'), 'abs_time_error_mean'); contrastTable($('#tTime'), 'abs_time_error_mean');
+  chart($('#chSd'), 'sd_change'); contrastTable($('#tSd'), 'sd_change');
+  chart($('#chCap'), 'capability_change'); contrastTable($('#tCap'), 'capability_change');
+  if (TRJ) {
+    spark($('#spPhantom'), 'phantom', ['furnished_room', 'exteroception_removed', 'full_deprivation'], { lo: 0, hi: .7, fmt: v => v.toFixed(2), label: 'Phantom share over time for three arms, v2' });
+    spark($('#spTime'), 'time', ['furnished_room', 'full_deprivation', 'noise_only'], { lo: -.4, hi: .1, fmt: v => Math.round(v * 100) + '%', label: 'Signed clock error over time for three arms, v2' });
+  } else { $$('.spark').forEach(s => { s.hidden = true; }); }
+}
+function placeKnob(pill) { const on = pill.querySelector('[aria-pressed="true"]'), k = pill.querySelector('.knob'); k.style.left = on.offsetLeft + 'px'; k.style.width = on.offsetWidth + 'px'; }
+$$('.pill').forEach(pill => { pill.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { pill.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); placeKnob(pill); renderCharts(); })); });
+renderCharts();
+addEventListener('load', () => $$('.pill').forEach(placeKnob)); setTimeout(() => $$('.pill').forEach(placeKnob), 300);
+
+// ---------------------------------------------------------------- the loader
+const WORDS = ['Sealing the room', 'Removing the light', 'Removing the sound', 'Removing his body', 'Leaving his memories'];
+const LD = { n: 0, intro: 1 };
+(function load() {
+  const n = $('#loader .n'), w = $('#loader .w');
+  if (reduceMotion) { $('#loader').classList.add('out'); LD.intro = 0; return; }
+  let wi = 0; const tick = setInterval(() => { wi = (wi + 1) % WORDS.length; w.innerHTML = `<b>${WORDS[wi]}</b>`; }, 520);
+  const t0 = performance.now(), dur = 1900;
+  (function step() { const k = clamp((performance.now() - t0) / dur); n.textContent = Math.round(EASE.p3io(k) * 100);
+    if (k < 1) return requestAnimationFrame(step); clearInterval(tick); $('#loader').classList.add('out'); tween(LD, 'intro', 0, 2.4, 'p3io'); $$('.hero .rv,.hero .fd').forEach(e => e.classList.add('in')); })();
+})();
+
+// ---------------------------------------------------------------- the loop
+let last = performance.now(), T0 = last, ping = true;
+const ndc = new THREE.Vector2(), tmpV = new THREE.Vector3();
+let hallAmt = 0;
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now; const t = (now - T0) / 1000;
+  stepTweens(dt); stepInside(dt);
+  // pointer smoothing and speed
+  const ox = P.sx, oy = P.sy; P.sx = lerp(P.sx, P.x, 1 - Math.pow(.0009, dt)); P.sy = lerp(P.sy, P.y, 1 - Math.pow(.0009, dt));
+  P.vx = lerp(P.vx, (P.sx - ox) / innerWidth / Math.max(dt, 1e-3), .3); P.vy = lerp(P.vy, -(P.sy - oy) / innerHeight / Math.max(dt, 1e-3), .3);
+  const speed = Math.hypot(P.vx, P.vy);
+  cur.style.transform = `translate(${P.x}px,${P.y}px)`;
+  ring.style.strokeDashoffset = 126 * (1 - H.p);
+  document.documentElement.style.setProperty('--d', (H.d * (H.state === 'inside' || H.state === 'exiting' ? 1 : .55)).toFixed(3));
+  cur.classList.toggle('hint', H.state === 'holding' || (eyesP > .78 && eyesP < 1 && H.state === 'idle'));
+
+  if (renderer) {
+    // how much of his eyes is on screen, and how much of the world is left
+    const r = eyes.getBoundingClientRect(), vis = clamp(1 - r.top / innerHeight) * clamp(r.bottom / innerHeight);
+    const enter = smooth(0, .12, eyesP), leave = 1 - smooth(.94, 1, eyesP);
+    let worldMix = clamp(vis * 1.6) * (eyesP > 0 ? 1 : smooth(.0, 1, vis)) * leave, dep = smooth(.5, .74, eyesP);
+    const insideK = H.imm; worldMix = Math.max(worldMix, insideK); dep = lerp(dep, 1, insideK);
+    U.uCard.value.set(lerp(.1, 0, enter), lerp(.16, 0, enter), lerp(.05, 0, enter), 0);
+    if (insideK > .001) U.uCard.value.set(0, 0, 0, 0);
+    U.uWorldMix.value = worldMix; U.uDep.value = dep;
+    // the measured phantom share sets how strongly his priors show inside; outside it follows the caption's arm
+    const arm = H.state === 'inside' ? IN.arm : 'exteroception_removed';
+    const measured = TRJ && ROLL[arm] ? ROLL[arm][Math.floor(H.state === 'inside' ? IN.tick : clamp((eyesP - .5) / .26) * 167)] : .4;
+    hallAmt = lerp(hallAmt, lerp(smooth(.28, .5, eyesP) * .3, measured * 1.5, Math.max(dep, insideK)), .05);
+    U.uHall.value = hallAmt;
+
+    // phantoms during "take the world away", at the measured exteroception-removed rate
+    if (H.state !== 'inside' && eyesP > .5 && eyesP < .78 && TRJ) { const tk = Math.floor(clamp((eyesP - .5) / .26) * 167); while (extTick < tk) { extTick++; extAcc = phantomTick('exteroception_removed', extTick, extAcc); if (extAcc >= 1) { extAcc -= 1; spawnPhantom(false); } } }
+    else if (eyesP < .5) { extTick = 0; extAcc = 0; }
+
+    // his walk and his gaze
+    const c = W.cam; const walk = eyesP * 30;
+    c.position.set(Math.sin(t * .4) * .05, 1.65 + Math.sin(t * 1.6 + walk) * .012, 8 - walk);
+    ndc.set(P.sx / innerWidth * 2 - 1, -(P.sy / innerHeight) * 2 + 1);
+    c.rotation.set(ndc.y * .07, -ndc.x * .12, 0, 'YXZ');
+    W.people.forEach(p => { p.rotation.z = Math.sin(t * 1.2 + p.userData.ph) * .03; p.rotation.y = Math.sin(t * .3 + p.userData.ph) * .6; });
+    // the world sinks into white as the senses go; the room closes in around him
+    const near = lerp(18, .4, dep), far = lerp(90, 3.2, dep); W.scene.fog.near = near; W.scene.fog.far = far;
+    W.scene.fog.color.setRGB(lerp(.81, .96, dep), lerp(.87, .96, dep), lerp(.88, .95, dep)); W.scene.background.copy(W.scene.fog.color);
+    W.room.position.x = c.position.x; W.room.position.z = c.position.z - .6; W.room.material.opacity = smooth(.55, .95, dep); W.room.visible = dep > .5; W.seams.material.opacity = W.room.material.opacity * .8;
+    W.world.visible = dep < .995;
+    // phantoms live a few seconds and vanish when his hand reaches them
+    W.phantoms.forEach(p => { if (!p.visible) return; const u = p.userData; u.life += dt; u.a = u.life < .5 ? u.life / .5 : u.life < 2.6 ? 1 : Math.max(0, 1 - (u.life - 2.6) / .9);
+      tmpV.copy(p.position).setY(1.2).project(c); if (Math.hypot(tmpV.x - ndc.x, tmpV.y - ndc.y) < .12 && u.life > .4 && u.life < 2.6) u.life = 2.6;
+      u.mat.uniforms.uA.value = u.a * .9; u.mat.uniforms.uT.value = t; if (u.life > 3.5) p.visible = false; });
+    // his hand comes up as you scroll in, and follows the cursor with a little lag and weight
+    const arrive = smooth(.04, .2, eyesP) * leave + insideK, hd = W.hand;
+    const tx = ndc.x * .34 + .04, ty = ndc.y * .2 - .2 - (1 - Math.min(1, arrive)) * .55 + Math.sin(t * 1.6) * .006, tz = -.5 - (H.state === 'holding' ? H.p * .12 : 0);
+    hd.position.x = lerp(hd.position.x, tx, 1 - Math.pow(.004, dt)); hd.position.y = lerp(hd.position.y, ty, 1 - Math.pow(.004, dt)); hd.position.z = lerp(hd.position.z, tz, 1 - Math.pow(.01, dt));
+    hd.rotation.set(.35 + ndc.y * .25 - P.vy * .04, -ndc.x * .5 - .15, clamp(-P.vx * .08, -.5, .5) - .2, 'YXZ');
+    hd.visible = arrive > .01;
+    const open = clamp(speed * .5 + (H.state === 'holding' ? H.p : 0) + insideK * .3), curl = lerp(.42 + Math.sin(t * .9) * .06, .05, open);
+    W.fingers.forEach((f, i) => f.forEach((s, k) => { s.rotation.x = -curl * (1 + k * .35) * (1 + i * .06); s.rotation.y = k ? 0 : (i - 1.5) * .06 * (1 + open * 2); }));
+    W.thumb.forEach((s, k) => { if (k) s.rotation.x = -curl * .5; });
+
+    // render: trail, the world into a texture, then everything composited
+    const mx = P.sx / innerWidth, my = 1 - P.sy / innerHeight;
+    trailMat.uniforms.uPrev.value = (ping ? trA : trB).texture; trailMat.uniforms.uMouse.value.set(mx, my); trailMat.uniforms.uVel.value.set(P.vx * .05, P.vy * .05);
+    trailMat.uniforms.uStr.value = P.moved ? clamp(.05 + speed * .22, 0, .35) * (reduceMotion ? .4 : 1) : 0;
+    trailMat.uniforms.uRad.value = .05 + hallAmt * .05 + dep * worldMix * .03;
+    renderer.setRenderTarget(ping ? trB : trA); renderer.render(trailScene, quadCam);
+    U.uTrail.value = (ping ? trB : trA).texture; ping = !ping;
+    if (worldMix > .001) { renderer.setRenderTarget(worldRT); renderer.render(W.scene, W.cam); }
+    renderer.setRenderTarget(null);
+    U.uTime.value = t; U.uMouse.value.set(mx, my);
+    U.uMask.value.set(H.m1, H.m2, H.m3); U.uHold.value = H.state === 'holding' ? H.p : 0; U.uImm.value = insideK; U.uTunnel.value = H.tun; U.uIntro.value = LD.intro;
+    renderer.render(compScene, quadCam);
+  }
+  if (AC && droneG) { droneG.gain.value = lerp(droneG.gain.value, soundOn ? .05 + U.uDep.value * .04 : 0, .05); tinG.gain.value = soundOn && H.state === 'inside' ? .003 : 0; }
+  requestAnimationFrame(frame);
+}
+onScroll();
+requestAnimationFrame(frame);
+})();
+</script>
