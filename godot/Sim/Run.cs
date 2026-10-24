@@ -122,7 +122,7 @@ public sealed class Run
     // Called whenever he starts an act: sometimes his voice puts the moment into words, off the main thread.
     public void Began(Deed d)
     {
-        if (Voice == null || voiceCooldown > Hours || Rng.Float() > .35f) return;
+        if (Voice == null || d == Deed.Sleep || voiceCooldown > Hours || Rng.Float() > .35f) return;
         voiceCooldown = Hours + 1.2f;
         var cond = Brain.VoiceCond(d); var r = new Rng(Rng.Next());
         System.Threading.Tasks.Task.Run(() => { var line = Voice.Speak(cond, r); if (line != null) spoken.Enqueue(line); });

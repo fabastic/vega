@@ -6,3 +6,4 @@ obj/
 Trainer/bin/
 Trainer/obj/
 Trainer/voice/corpus/
+build/

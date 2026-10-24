@@ -86,8 +86,8 @@ public partial class VillageView : Node3D
             f.AddChild(l); names[p] = l;
         }
         vega = new VegaFigure { Shirt = new Color(.86f, .86f, .83f), Beard = true }; AddChild(vega);
-        bubble = new Label3D { FontSize = 44, PixelSize = .007f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, OutlineSize = 0, Modulate = new Color(.1f, .1f, .12f), Position = new Vector3(0, 2.75f, .01f), Width = 520, AutowrapMode = TextServer.AutowrapMode.WordSmart, NoDepthTest = true, RenderPriority = 10 };
-        bubbleBg = new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(3.8f, .9f) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(1, 1, 1, .92f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, RenderPriority = 9 }, Position = new Vector3(0, 2.75f, 0) };
+        bubble = new Label3D { FontSize = 40, PixelSize = .0032f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, OutlineSize = 0, Modulate = new Color(.1f, .1f, .12f), Position = new Vector3(0, 2.75f, .01f), Width = 560, AutowrapMode = TextServer.AutowrapMode.WordSmart, NoDepthTest = true, RenderPriority = 10 };
+        bubbleBg = new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(1.9f, .4f) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(1, 1, 1, .92f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, RenderPriority = 9 }, Position = new Vector3(0, 2.75f, 0) };
         vega.AddChild(bubbleBg); vega.AddChild(bubble);
         vega.AddChild(new Label3D { Text = "Vega", FontSize = 36, PixelSize = .006f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, OutlineSize = 10, Position = new Vector3(0, 2.2f, 0), Modulate = new Color(1, .95f, .8f) });
         lanterns = new Node3D(); AddChild(lanterns);
@@ -212,9 +212,9 @@ void fragment(){
         }
         lanterns.Visible = w.FestivalT > 0;
         // what he last said hangs over his head for a few seconds
-        for (; lastLog < r.Log.Count; lastLog++) if (r.Log[lastLog].Kind == "say") { bubble.Text = r.Log[lastLog].Text; bubbleT = 7; }
+        for (; lastLog < r.Log.Count; lastLog++) if (r.Log[lastLog].Kind == "say" && r.Phase != Phase.Chamber) { bubble.Text = r.Log[lastLog].Text; bubbleT = 6; }
         bubbleT -= dt; bubble.Visible = bubbleBg.Visible = bubbleT > 0;
-        if (bubbleT > 0) bubbleBg.Scale = new Vector3(1, 1 + bubble.Text.Length / 70, 1);
+        if (bubbleT > 0) bubbleBg.Scale = new Vector3(1, 1 + bubble.Text.Length / 45, 1); bubbleBg.Position = bubble.Position + new Vector3(0, (bubbleBg.Scale.Y - 1) * -.1f, -.01f);
     }
 
     void Grave(Person p)

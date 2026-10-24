@@ -42,14 +42,14 @@ public sealed class Voice
     }
 
     // Writes one sentence. Keys and values are cached per layer, so each word costs one pass over the network.
-    public string Speak(float[] cond, Rng rng, float temperature = .8f)
+    public string Speak(float[] cond, Rng rng, float temperature = .7f)
     {
         var cv = new float[D]; MatVec(condW, condB, cond, cv, D, C);
         var K = new float[L][]; var Vv = new float[L][];
         for (int l = 0; l < L; l++) { K[l] = new float[Ctx * D]; Vv[l] = new float[Ctx * D]; }
         int hd = D / Hn; float scale = 1f / MathF.Sqrt(hd);
         var x = new float[D]; var h = new float[D]; var qkv = new float[3 * D]; var att = new float[D]; var tmp = new float[D]; var ff = new float[4 * D]; var logits = new float[V]; var sc = new float[Ctx];
-        int w = 1; var sb = new StringBuilder();
+        int w = 1; var sb = new StringBuilder(); var said = new System.Collections.Generic.HashSet<int>(); var sorted = new float[V];
         for (int t = 0; t < Ctx - 1; t++)
         {
             for (int i = 0; i < D; i++) x[i] = tok[w * D + i] + pos[t * D + i] + cv[i];
@@ -73,7 +73,12 @@ public sealed class Voice
             Norm(x, lnfW, lnfB, h);
             for (int v = 0; v < V; v++) { float s = 0; int r = v * D; for (int i = 0; i < D; i++) s += tok[r + i] * h[i]; logits[v] = s; }
             logits[0] = logits[3] = -1e9f;
-            w = rng.Pick(Act.Softmax(logits, temperature));
+            // a word already said is pushed down (so he doesn't stutter), and only the likeliest forty are considered
+            foreach (var u in said) logits[u] -= logits[u] > 0 ? logits[u] * .35f + 1.5f : 1.5f;
+            if (t < 3) logits[2] = -1e9f;
+            Array.Copy(logits, sorted, V); Array.Sort(sorted); float cut = sorted[V - 40];
+            for (int v = 0; v < V; v++) if (logits[v] < cut) logits[v] = -1e9f;
+            w = rng.Pick(Act.Softmax(logits, temperature)); said.Add(w);
             if (w == 2) break;
             var word = Vocab[w];
             if (sb.Length > 0 && !(word is "." or "," or "!" or "?" or ";")) sb.Append(' ');

@@ -19,5 +19,6 @@ project/assembly_name="Vega"
 
 [rendering]
 
+textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
