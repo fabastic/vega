@@ -1,0 +1,7 @@
+.godot/
+.vs/
+bin/
+obj/
+*.user
+Trainer/bin/
+Trainer/obj/
