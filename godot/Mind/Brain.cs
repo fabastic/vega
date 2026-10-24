@@ -13,18 +13,18 @@ using System.Collections.Generic;
 
 namespace Vega.Mind;
 
-public enum Sense { Light, Noise, Tray, Hunger, Thirst, Fatigue, Pain, Cold, Company, Books, Photo, Radio, Mirror, Seam, DoorOpen, Knock, Crowding, SinceMeal, Assault, Novelty }
+public enum Sense { Light, Noise, Tray, Hunger, Thirst, Fatigue, Pain, Cold, Company, Books, Photo, Radio, Mirror, Seam, DoorOpen, Knock, Crowding, SinceMeal, Assault, Novelty, Outdoors, Ruin, Dead, Danger }
 public enum Feel { Fear, Hope, Loneliness, Boredom, Anger, Grief, Curiosity, Calm, Dread, Joy, Longing, Shame, Love, Awe, Despair, Grip }
-public enum Deed { Rest, Sleep, Pace, Search, Eat, Shout, Hug, Exercise, Tally, Remember, Read, Pound, Talk }
+public enum Deed { Rest, Sleep, Pace, Search, Eat, Shout, Hug, Exercise, Tally, Remember, Read, Pound, Talk, Work, Explore, Forage, Build, Bury, Socialize }
 
 public sealed class Episode
 {
-    public float[] Key, Feel; public float Valence, Hour; public Deed Deed; public float[] Senses;
+    public float[] Key, Feel; public float Valence, Hour; public Deed Deed; public float[] Senses; public string Who;
 }
 
 public sealed class Brain
 {
-    public const int S = 20, F = 16, A = 13, P = 32, H = 64, T = 48;
+    public const int S = 24, F = 16, A = 19, P = 32, H = 64, T = 48;
     public static readonly string[] SenseNames = Enum.GetNames<Sense>(), FeelNames = Enum.GetNames<Feel>(), DeedNames = Enum.GetNames<Deed>();
 
     public readonly Linear SenseNet, PredictHead, FeelPrior, FeelResidual, WillPrior, WillNet, ThoughtNet;
@@ -35,7 +35,7 @@ public sealed class Brain
     // live state, read by the views
     public float[] Senses = new float[S], Perceived = new float[S], Predicted = new float[S], Percept = new float[P];
     public float[] World = new float[H], Feelings = new float[F], Recall = new float[F], Thought = new float[T], Intent = new float[A];
-    public float Surprise, SurpriseAvg = .2f, Monotony, Wellbeing, RecallValence; public int Recalled = -1;
+    public float Surprise, SurpriseAvg = .2f, Monotony, Variety = .1f, Wellbeing, RecallValence; public int Recalled = -1;
     public float[] LastAction = new float[A];
     public readonly Personality Me;
     readonly Rng rng;
@@ -62,21 +62,21 @@ public sealed class Brain
     {
         void W(Feel f, Sense s, float w) => FeelPrior[(int)f, (int)s] = w;
         float n = Me.Neuroticism, so = Me.Sociability, op = Me.Openness;
-        FeelPrior.B[(int)Feel.Fear] = -1.6f; W(Feel.Fear, Sense.Pain, 2.2f); W(Feel.Fear, Sense.Assault, 2.6f); W(Feel.Fear, Sense.Knock, .8f); W(Feel.Fear, Sense.Light, -.3f); W(Feel.Fear, Sense.Novelty, .8f + n);
+        FeelPrior.B[(int)Feel.Fear] = -1.6f; W(Feel.Fear, Sense.Pain, 2.2f); W(Feel.Fear, Sense.Assault, 2.6f); W(Feel.Fear, Sense.Knock, .8f); W(Feel.Fear, Sense.Light, -.3f); W(Feel.Fear, Sense.Novelty, .8f + n); W(Feel.Fear, Sense.Danger, 2.4f); W(Feel.Fear, Sense.Dead, 1f);
         FeelPrior.B[(int)Feel.Hope] = -.7f; W(Feel.Hope, Sense.Tray, .9f); W(Feel.Hope, Sense.Seam, 1f); W(Feel.Hope, Sense.DoorOpen, 3f); W(Feel.Hope, Sense.Radio, .7f); W(Feel.Hope, Sense.SinceMeal, -1.2f);
         FeelPrior.B[(int)Feel.Loneliness] = -.3f + so; W(Feel.Loneliness, Sense.Company, -2.5f); W(Feel.Loneliness, Sense.Photo, -.5f); W(Feel.Loneliness, Sense.Radio, -.4f);
         FeelPrior.B[(int)Feel.Boredom] = .2f; W(Feel.Boredom, Sense.Books, -1.6f); W(Feel.Boredom, Sense.Novelty, -2f); W(Feel.Boredom, Sense.Company, -1f); W(Feel.Boredom, Sense.Radio, -.7f);
         FeelPrior.B[(int)Feel.Anger] = -2f; W(Feel.Anger, Sense.Hunger, 1.2f); W(Feel.Anger, Sense.Assault, 1.6f); W(Feel.Anger, Sense.Crowding, .9f); W(Feel.Anger, Sense.Noise, .8f);
-        FeelPrior.B[(int)Feel.Grief] = -2.2f; W(Feel.Grief, Sense.Photo, .9f);
+        FeelPrior.B[(int)Feel.Grief] = -2.2f; W(Feel.Grief, Sense.Photo, .9f); W(Feel.Grief, Sense.Dead, 2.8f); W(Feel.Grief, Sense.Ruin, 1f);
         FeelPrior.B[(int)Feel.Curiosity] = -1f + 2f * op; W(Feel.Curiosity, Sense.Novelty, 2.2f); W(Feel.Curiosity, Sense.Books, .6f); W(Feel.Curiosity, Sense.Seam, 1f); W(Feel.Curiosity, Sense.Fatigue, -1f);
-        FeelPrior.B[(int)Feel.Calm] = .2f; W(Feel.Calm, Sense.Noise, -1.2f); W(Feel.Calm, Sense.Assault, -2.5f); W(Feel.Calm, Sense.Pain, -1.5f); W(Feel.Calm, Sense.Hunger, -.8f);
+        FeelPrior.B[(int)Feel.Calm] = .2f; W(Feel.Calm, Sense.Noise, -1.2f); W(Feel.Calm, Sense.Assault, -2.5f); W(Feel.Calm, Sense.Pain, -1.5f); W(Feel.Calm, Sense.Hunger, -.8f); W(Feel.Calm, Sense.Outdoors, .6f); W(Feel.Calm, Sense.Danger, -2f);
         FeelPrior.B[(int)Feel.Dread] = -1.2f + n; W(Feel.Dread, Sense.SinceMeal, 1.4f); W(Feel.Dread, Sense.Crowding, .8f); W(Feel.Dread, Sense.Light, .3f);
         FeelPrior.B[(int)Feel.Joy] = -1.5f; W(Feel.Joy, Sense.Tray, .9f); W(Feel.Joy, Sense.Company, 1.6f); W(Feel.Joy, Sense.DoorOpen, 2.5f); W(Feel.Joy, Sense.Hunger, -1f);
         FeelPrior.B[(int)Feel.Longing] = -1f + so * .8f; W(Feel.Longing, Sense.Photo, 1.4f); W(Feel.Longing, Sense.Company, -1f);
         FeelPrior.B[(int)Feel.Shame] = -2.4f; W(Feel.Shame, Sense.Mirror, 1.4f);
         FeelPrior.B[(int)Feel.Love] = -1.4f; W(Feel.Love, Sense.Photo, 1.6f); W(Feel.Love, Sense.Company, 1f);
         FeelPrior.B[(int)Feel.Awe] = -2.5f + op; W(Feel.Awe, Sense.Novelty, 1f); W(Feel.Awe, Sense.Books, .5f);
-        FeelPrior.B[(int)Feel.Despair] = -2f + n; W(Feel.Despair, Sense.SinceMeal, 1.2f); W(Feel.Despair, Sense.Hunger, .8f); W(Feel.Despair, Sense.Company, -1f);
+        FeelPrior.B[(int)Feel.Despair] = -2f + n; W(Feel.Despair, Sense.SinceMeal, 1.2f); W(Feel.Despair, Sense.Hunger, .8f); W(Feel.Despair, Sense.Company, -1f); W(Feel.Despair, Sense.Ruin, 1f); W(Feel.Despair, Sense.Dead, 1f);
     }
 
     // innate drives: the obvious act for a pressing need, before experience reshapes it
@@ -97,11 +97,18 @@ public sealed class Brain
         W(Deed.Read, s(Sense.Books), 1.5f); W(Deed.Read, f(Feel.Boredom), 1.2f); W(Deed.Read, f(Feel.Curiosity), .6f);
         W(Deed.Pound, f(Feel.Anger), 1.8f);
         W(Deed.Talk, f(Feel.Loneliness), 1.5f); W(Deed.Talk, s(Sense.Company), 1.6f);
+        // outside: life in the village, and the world after
+        W(Deed.Work, s(Sense.Outdoors), 1.2f); W(Deed.Work, f(Feel.Calm), .8f); W(Deed.Work, s(Sense.Fatigue), -1.5f);
+        W(Deed.Socialize, s(Sense.Company), 2.2f); W(Deed.Socialize, f(Feel.Joy), 1f); W(Deed.Socialize, f(Feel.Love), .8f);
+        W(Deed.Explore, s(Sense.Outdoors), .8f); W(Deed.Explore, f(Feel.Curiosity), 1.4f); W(Deed.Explore, s(Sense.Danger), -1.5f);
+        W(Deed.Forage, s(Sense.Outdoors), .5f); W(Deed.Forage, s(Sense.Hunger), 3.5f); W(Deed.Forage, s(Sense.Thirst), 2f);
+        W(Deed.Build, s(Sense.Ruin), 1.2f); W(Deed.Build, s(Sense.Danger), 1.2f); W(Deed.Build, f(Feel.Hope), .8f);
+        W(Deed.Bury, s(Sense.Dead), 3f); W(Deed.Bury, f(Feel.Grief), 1.2f);
         for (int a = 0; a < A; a++) WillPrior.B[a] = -1f;
     }
 
     public float F_(Feel f) => Feelings[(int)f];
-    static readonly Sense[] Outside = { Sense.Light, Sense.Noise, Sense.Tray, Sense.Company, Sense.Books, Sense.Photo, Sense.Radio, Sense.Mirror, Sense.Knock, Sense.DoorOpen, Sense.Novelty };
+    static readonly Sense[] Outside = { Sense.Light, Sense.Noise, Sense.Tray, Sense.Company, Sense.Books, Sense.Photo, Sense.Radio, Sense.Mirror, Sense.Knock, Sense.DoorOpen, Sense.Novelty, Sense.Outdoors, Sense.Ruin, Sense.Dead, Sense.Danger };
     readonly float[] lastOutside = new float[S];
 
     // One tick of perception, world-modelling and feeling.
@@ -117,13 +124,15 @@ public sealed class Brain
         Surprise = MathF.Sqrt(err / S);
         SurpriseAvg += (Surprise - SurpriseAvg) * MathF.Min(1, .15f * dtH);
         // monotony: how little the senses have changed, slowly integrated. A white room drives it up.
-        Monotony += ((var < .04f ? 1f : 0f) - Monotony) * MathF.Min(1, .02f * dtH);
+        // variety is how much the world has been changing over the last hours; monotony is its absence, slowly felt
+        Variety += (var - Variety) * MathF.Min(1, .25f * dtH);
+        Monotony += (Math.Clamp(1.1f - Variety * 5, 0, 1) - Monotony) * MathF.Min(1, .02f * dtH);
         // the prediction head learns the world from what actually came
         var dPred = new float[S]; for (int i = 0; i < S; i++) dPred[i] = Predicted[i] - senses[i];
         PredictHead.Learn(World, dPred, .02f * MathF.Min(1, dtH * 4));
         // what he expects: the model's prediction, and, the flatter the room, the senses of whatever he is remembering
         RecallFrom(World);
-        float grip = F_(Feel.Grip), blend = Math.Clamp((1 - grip) * .8f, 0, .7f);
+        float grip = F_(Feel.Grip), blend = Math.Clamp((1 - grip) * 1.2f, 0, .8f);
         float topDown = Recalled >= 0 ? Math.Clamp(Monotony * (1.2f - grip), 0, .8f) : 0;
         for (int i = 0; i < S; i++)
         {
@@ -173,10 +182,11 @@ public sealed class Brain
 
     void Remember(float valence)
     {
-        Memory.Add(new Episode { Key = (float[])World.Clone(), Feel = (float[])Feelings.Clone(), Valence = valence, Deed = chosen < 0 ? Deed.Rest : (Deed)chosen, Senses = (float[])Senses.Clone(), Hour = Hour });
+        Memory.Add(new Episode { Key = (float[])World.Clone(), Feel = (float[])Feelings.Clone(), Valence = valence, Deed = chosen < 0 ? Deed.Rest : (Deed)chosen, Senses = (float[])Senses.Clone(), Hour = Hour, Who = Context });
         if (Memory.Count > MemoryCap) Memory.RemoveAt(0);
     }
     public float Hour;
+    public string Context;   // who is with him, set by the world; kept with each memory
 
     void RecallFrom(float[] q)
     {
@@ -223,10 +233,24 @@ public sealed class Brain
         WillNet.Learn(willIn, dy, .08f);
     }
 
+    // What VoiceNet is conditioned on, in the layout it was trained with (train_voice.py): his strongest feelings,
+    // with unreality (1 - grip) in the Grip slot, then what he perceives, then what he is doing.
+    public float[] VoiceCond(Deed doing)
+    {
+        var c = new float[F + S + A];
+        var top = new List<int>(); for (int i = 0; i < F - 1; i++) top.Add(i);
+        top.Sort((a, b) => Feelings[b].CompareTo(Feelings[a]));
+        for (int k = 0; k < 3; k++) { int i = top[k]; c[i] = Math.Clamp((Feelings[i] - .3f) / .4f, 0, 1); }
+        c[(int)Feel.Grip] = Math.Clamp((.8f - F_(Feel.Grip)) / .4f, 0, 1);
+        for (int i = 0; i < S; i++) if (i != (int)Sense.Light && Perceived[i] > .5f) c[F + i] = Math.Clamp(Perceived[i], 0, 1);
+        c[F + S + (int)doing] = 1;
+        return c;
+    }
+
     // a sense he perceives strongly that isn't there: the material of a hallucination
     public (Sense sense, float strength) Phantom()
     {
-        int best = -1; float bv = .15f;
+        int best = -1; float bv = .1f;
         foreach (var s in new[] { Sense.Company, Sense.Knock, Sense.Tray, Sense.DoorOpen, Sense.Radio, Sense.Novelty })
         { float v = Perceived[(int)s] - Senses[(int)s]; if (v > bv) { bv = v; best = (int)s; } }
         return best < 0 ? (Sense.Light, 0) : ((Sense)best, bv);
