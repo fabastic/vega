@@ -429,7 +429,8 @@ function fbm(x, z, o = 4) { let s = 0, a = .5, f = 1, n = 0; for (let i = 0; i <
 
 // ---------- renderer ----------
 const stage = $('#stage');
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+// ask for the discrete GPU: on a laptop with two, the browser otherwise draws on the integrated one
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -603,6 +604,35 @@ const GEO = {
   box: (x, y, z) => new THREE.BoxGeometry(x, y, z),
 };
 const stdMat = (c, rough = .85) => new THREE.MeshStandardMaterial({ color: c, roughness: rough });
+// Fold the parts of a group that never change after they are built into one mesh per material. A house is
+// eighty little boxes; drawn one by one, the CPU spends the frame submitting them and the GPU waits. Meshes
+// marked userData.live (glass that breaks, walls that cut away) are left alone, and so are child groups.
+function mergeStatic(parent) {
+  const buckets = new Map();
+  for (const m of parent.children) {
+    if (!m.isMesh || m.isSkinnedMesh || m.userData.live || !m.visible || Array.isArray(m.material)) continue;
+    const key = m.material.uuid + (m.castShadow ? 'c' : '') + (m.receiveShadow ? 'r' : '');
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(m);
+  }
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    const parts = list.map(m => { m.updateMatrix(); const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrix); if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; });
+    const n = parts.reduce((s, g) => s + g.attributes.position.count, 0), out = new THREE.BufferGeometry();
+    for (const [name, size] of [['position', 3], ['normal', 3], ['uv', 2]]) {
+      const arr = new Float32Array(n * size); let o = 0;
+      for (const g of parts) { arr.set(g.attributes[name].array, o); o += g.attributes[name].array.length; }
+      out.setAttribute(name, new THREE.BufferAttribute(arr, size));
+    }
+    out.computeBoundingSphere();
+    const merged = new THREE.Mesh(out, list[0].material);
+    merged.castShadow = list[0].castShadow; merged.receiveShadow = list[0].receiveShadow; merged.userData.merged = true;
+    merged.matrixAutoUpdate = false; merged.updateMatrix();
+    for (const m of list) { parent.remove(m); m.geometry.dispose(); }
+    parts.forEach(g => g.dispose());
+    parent.add(merged);
+  }
+}
 const HAIR_STYLES = 6;   // 0 short, 1 long, 2 bald, 3 ponytail, 4 bun, 5 curly
 // People are rigged characters, built the way the Codrops interactive character is: one skinned mesh over
 // a skeleton of bones, so the body bends smoothly at the shoulders, elbows, hips and knees instead of
@@ -1279,7 +1309,7 @@ function buildNature() {
     if (f < .45 || f > .56 || villDist(x, z)[0] < 30 || roadDist(x, z) < 4 || Math.hypot(x - LAKE.x, z - LAKE.z) < LAKE.r + 6) continue;
     const g = new THREE.Group(), y = heightAt(x, z);
     const b = new THREE.Mesh(GEO.sph(.7, 9, 7), bushMat); b.scale.set(1, .7, 1); b.position.y = .4; b.castShadow = true; g.add(b);
-    const berries = new THREE.Group(); for (let j = 0; j < 7; j++) { const be = new THREE.Mesh(GEO.sph(.06, 6, 5), berryMat); be.position.set(rnd(-.55, .55), rnd(.4, .8), rnd(-.55, .55)); berries.add(be); } g.add(berries);
+    const berries = new THREE.Group(); for (let j = 0; j < 7; j++) { const be = new THREE.Mesh(GEO.sph(.06, 6, 5), berryMat); be.position.set(rnd(-.55, .55), rnd(.4, .8), rnd(-.55, .55)); berries.add(be); } mergeStatic(berries); g.add(berries);
     g.position.set(x, y, z); scene.add(g);
     BUSHES.push({ x, z, y, g, berries, stock: 4 });
   }
@@ -1336,6 +1366,7 @@ function house(x, z, rotY, wallC, roofC, w = 4.6, d = 4, h = 2.6, opts = {}) {
   const g = new THREE.Group(), y = heightAt(x, z), F = .35;   // floor height above the slab
   const wallMat = new THREE.MeshStandardMaterial({ color: wallC, roughness: .9, map: SIDING });
   const roofMat = new THREE.MeshStandardMaterial({ color: roofC, roughness: .9, map: SHINGLE, side: THREE.DoubleSide });
+  const mats = {}, matOf = c => mats[c] || (mats[c] = stdMat(c, .8));   // shared per house, so its pieces can be merged
   const mk = (geo, m, px, py, pz, parent = g, shadow = true) => { const me = new THREE.Mesh(geo, m); me.position.set(px, py, pz); me.castShadow = shadow; me.receiveShadow = true; parent.add(me); return me; };
   mk(GEO.box(w + .4, F + .3, d + .4), FOUND_MAT, 0, (F - .3) / 2, 0);
   mk(tiledBox(w - .1, .04, d - .1, 1.6), new THREE.MeshStandardMaterial({ map: PLANKS, roughness: .85 }), 0, F + .02, 0, g, false);
@@ -1352,11 +1383,11 @@ function house(x, z, rotY, wallC, roofC, w = 4.6, d = 4, h = 2.6, opts = {}) {
   const glass = [];
   const windowOn = (pn, u) => {
     const fr = mk(GEO.box(.86, .92, .05), TRIM_MAT, u, 1.45, T / 2 + .02, pn.fx, false);
-    const gl = mk(GEO.box(.72, .78, .03), WIN_MAT, u, 1.45, T / 2 + .03, pn.fx, false);
-    const hole = mk(GEO.box(.72, .78, .03), DARK_MAT, u, 1.45, T / 2 + .028, pn.fx, false); hole.visible = false;
+    const gl = mk(GEO.box(.72, .78, .03), WIN_MAT, u, 1.45, T / 2 + .03, pn.fx, false); gl.userData.live = true;
+    const hole = mk(GEO.box(.72, .78, .03), DARK_MAT, u, 1.45, T / 2 + .028, pn.fx, false); hole.visible = false; hole.userData.live = true;
     mk(GEO.box(.04, .78, .04), TRIM_MAT, u, 1.45, T / 2 + .045, pn.fx, false); mk(GEO.box(.72, .04, .04), TRIM_MAT, u, 1.45, T / 2 + .045, pn.fx, false);
     mk(GEO.box(.95, .06, .12), TRIM_MAT, u, .97, T / 2 + .06, pn.fx, false);   // sill
-    if (opts.shutters) for (const s of [-1, 1]) mk(GEO.box(.3, .9, .03), stdMat(opts.shutters, .8), u + s * .6, 1.45, T / 2 + .03, pn.fx, false);
+    if (opts.shutters) for (const s of [-1, 1]) mk(GEO.box(.3, .9, .03), matOf(opts.shutters), u + s * .6, 1.45, T / 2 + .03, pn.fx, false);
     const boards = new THREE.Group(); boards.visible = false; pn.fx.add(boards);
     for (let k = 0; k < 3; k++) { const bd = mk(GEO.box(1, .14, .04), stdMat(0x8a6a48, .9), u, 1.2 + k * .25, T / 2 + .08, boards, false); bd.rotation.z = (k - 1) * .12 + rnd(-.05, .05); }
     glass.push({ gl, hole, boards, broken: false, brk: R() });
@@ -1388,7 +1419,7 @@ function house(x, z, rotY, wallC, roofC, w = 4.6, d = 4, h = 2.6, opts = {}) {
   }
   // inside: only drawn while the walls are cut away
   const inside = new THREE.Group(); inside.visible = false; g.add(inside);
-  const fm = (geo, c, px, py, pz, r) => { const me = mk(geo, stdMat(c, .8), px, F + py, pz, inside, false); if (r) me.rotation.y = r; return me; };
+  const fm = (geo, c, px, py, pz, r) => { const me = mk(geo, matOf(c), px, F + py, pz, inside, false); if (r) me.rotation.y = r; return me; };
   const W = w / 2 - T - .1, D = d / 2 - T - .1;
   fm(GEO.box(1.6, .02, 1.1), opts.rug || pick([0x7a3b30, 0x2f4f5f, 0x6b5a2e]), .2, .02, .1);
   if (opts.kind === 'store') { /* shelves are added by the store */ }
@@ -1402,6 +1433,7 @@ function house(x, z, rotY, wallC, roofC, w = 4.6, d = 4, h = 2.6, opts = {}) {
     fm(GEO.box(2, .08, .9), 0x7a5a3a, 0, .85, D - 1);
   }
   const bedPos = new THREE.Vector3(W - .5, 0, -D + 1);
+  for (const grp of [g, roof, inside, ...panels.map(pn => pn.fx)]) mergeStatic(grp);
   g.position.set(x, y, z); g.rotation.y = rotY; scene.add(g);
   const rec = { g, walls, wallMat, roof, roofMat, gMat, door, panels, glass, inside, roofY: roof.position.y, h, w, d, F, wallBase: new THREE.Color(wallC), roofBase: new THREE.Color(roofC),
     tx: rnd(-.3, .3), tz: rnd(-.25, .25), collapse: R() < .3, doorSwing: rnd(.6, 1.6), cut: false, chim,
@@ -1438,9 +1470,9 @@ function car(x, z, rotY, col) {
   mk(GEO.box(1.55, .4, .05), glassM, 0, 1.13, .82).rotation.x = -.35; mk(GEO.box(1.5, .38, .05), glassM, 0, 1.13, -1.31);
   for (const s of [-1, 1]) mk(GEO.box(.05, .36, 1.8), glassM, s * .8, 1.14, -.25);
   const wheels = [];
-  for (const [wx, wz] of [[-.82, 1.3], [.82, 1.3], [-.82, -1.35], [.82, -1.35]]) { const wh = mk(GEO.cyl(.34, .34, .24, 12), tire, wx, .34, wz); wh.rotation.z = Math.PI / 2; wheels.push(wh); }
+  for (const [wx, wz] of [[-.82, 1.3], [.82, 1.3], [-.82, -1.35], [.82, -1.35]]) { const wh = mk(GEO.cyl(.34, .34, .24, 12), tire, wx, .34, wz); wh.rotation.z = Math.PI / 2; wh.userData.live = true; wheels.push(wh); }
   for (const s of [-1, 1]) mk(GEO.box(.3, .15, .05), stdMat(0xf0ead0, .3), s * .6, .7, 2.11);
-  g.position.set(x, y, z); g.rotation.y = rotY; scene.add(g);
+  g.position.set(x, y, z); g.rotation.y = rotY; scene.add(g); mergeStatic(g);
   CARS.push({ g, body, base: new THREE.Color(col), wheels });
 }
 const CARS = [];
@@ -1449,6 +1481,7 @@ function fenceRun(x0, z0, x1, z1, col = 0xe6e1d6) {
   const g = new THREE.Group(); g.position.set(x0, heightAt(x0, z0), z0); g.rotation.y = a; scene.add(g);
   for (let i = 0; i <= n; i++) { const pk = new THREE.Mesh(GEO.box(.08, .8, .03), m); pk.position.set(0, .4, i / n * len); pk.castShadow = true; g.add(pk); }
   for (const h of [.25, .6]) { const r = new THREE.Mesh(GEO.box(.04, .06, len), m); r.position.set(0, h, len / 2); g.add(r); }
+  mergeStatic(g);
   FENCES.push({ g, m, base: new THREE.Color(col), lean: rnd(-.25, .25) });
 }
 const FENCES = [];
@@ -4388,9 +4421,11 @@ function buildStore(v, kind, dx, dz, rotY, w, d) {
   sign.position.set(0, rec.F + 2.75, d / 2 + .1); rec.g.add(sign); rec.sign = sign;
   // shelves of tins inside
   const W2 = w / 2 - .5, D2 = d / 2 - .6;
-  for (let r = 0; r < Math.floor(d / 1.6); r++) { const sh = new THREE.Mesh(GEO.box(w - 1.6, 1.5, .4), stdMat(0x8a8a86, .6)); sh.position.set(0, rec.F + .75, -D2 + .4 + r * 1.6); rec.inside.add(sh);
-    for (let k = 0; k < 10; k++) { const can = new THREE.Mesh(GEO.cyl(.06, .06, .14, 8), stdMat(pick([0xb5302a, 0x2e5a2e, 0xd8a64a, 0x2b4a7a, 0xe0d8c4]), .5)); can.position.set(-W2 + .5 + k * (w - 2) / 10, rec.F + 1.1, -D2 + .4 + r * 1.6); rec.inside.add(can); } }
-  if (kind === 'supermarket') { const lot = new THREE.Mesh(new THREE.PlaneGeometry(w + 6, 9), stdMat(0x4a4a4c, .95)); lot.rotation.x = -Math.PI / 2; rec.g.add(lot); lot.position.set(0, .04, d / 2 + 4.5); for (let k = -2; k <= 2; k++) { const ln = new THREE.Mesh(new THREE.PlaneGeometry(.08, 3), stdMat(0xe8e6dc)); ln.rotation.x = -Math.PI / 2; ln.position.set(k * 2.6, .05, d / 2 + 4.5); rec.g.add(ln); } }
+  const mats = {}, matOf = (c, r) => mats[c] || (mats[c] = stdMat(c, r));   // shared, so the shelves and tins merge into a few meshes
+  for (let r = 0; r < Math.floor(d / 1.6); r++) { const sh = new THREE.Mesh(GEO.box(w - 1.6, 1.5, .4), matOf(0x8a8a86, .6)); sh.position.set(0, rec.F + .75, -D2 + .4 + r * 1.6); rec.inside.add(sh);
+    for (let k = 0; k < 10; k++) { const can = new THREE.Mesh(GEO.cyl(.06, .06, .14, 8), matOf(pick([0xb5302a, 0x2e5a2e, 0xd8a64a, 0x2b4a7a, 0xe0d8c4]), .5)); can.position.set(-W2 + .5 + k * (w - 2) / 10, rec.F + 1.1, -D2 + .4 + r * 1.6); rec.inside.add(can); } }
+  if (kind === 'supermarket') { const lot = new THREE.Mesh(new THREE.PlaneGeometry(w + 6, 9), stdMat(0x4a4a4c, .95)); lot.rotation.x = -Math.PI / 2; rec.g.add(lot); lot.position.set(0, .04, d / 2 + 4.5); for (let k = -2; k <= 2; k++) { const ln = new THREE.Mesh(new THREE.PlaneGeometry(.08, 3), matOf(0xe8e6dc, .85)); ln.rotation.x = -Math.PI / 2; ln.position.set(k * 2.6, .05, d / 2 + 4.5); rec.g.add(ln); } }
+  mergeStatic(rec.inside); mergeStatic(rec.g);
   rec.g.updateMatrixWorld(true);
   const door = onGround(rec.g.localToWorld(new THREE.Vector3(0, 0, d / 2 + 1.2)));
   const st = { door, pos: P(v.x + dx, v.z + dz), v: v.i, stock: K.stock(), searched: false, store: kind, rec, label: K.label, trips: 0 };
